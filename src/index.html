@@ -1,0 +1,39 @@
+<!-- ====================================== -->
+<!-- FILE: index.html -->
+<!-- ====================================== -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JSON Schema Editor</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <button id="loadSchemaBtn">Load Schema</button>
+      <button id="loadChoicesBtn" style="display: none;">Load Choices</button>
+      <button id="loadDataBtn" style="display: none;">Load Data (Optional)</button>      
+      <button id="saveBtn" style="display: none;">Save to File</button>
+      <button id="exportBtn" style="display: none;">Copy to Clipboard</button>
+    </div>
+    
+    <div id="no-schema" class="no-schema">
+      <h2>No Schema Loaded</h2>
+      <p>Click "Load Schema" to begin</p>
+    </div>
+    
+    <!-- Tabs container -->
+    <div id="tabs-container" class="tabs-container" style="display: none;">
+      <div class="tabs" id="form-tabs"></div>
+    </div>
+    
+    <!-- Tab contents container -->
+    <div id="tab-contents"></div>
+  </div>
+
+  <!-- Link to external JavaScript file -->
+  <script src="data-builder.js"></script>
+</body>
+</html>
