@@ -1,0 +1,15 @@
+# .dockerignore
+.git/
+.gitignore
+.DS_Store
+node_modules/
+*.log
+*.tmp
+*.swp
+.env
+.env.local
+docker-compose.override.yml
+README.md
+
+# Exclude src from Docker context (we copy it explicitly)
+# !src/
