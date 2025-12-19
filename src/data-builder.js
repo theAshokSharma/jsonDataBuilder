@@ -110,9 +110,16 @@ function loadDataFromFile() {
       const text = await file.text();
       const data = JSON.parse(text);
       console.log('Loading data:', data);
-      populateFormWithData(data);
-      alert('Data loaded and form populated successfully!');
-      console.log('✓ Data loaded successfully');
+      
+      // CRITICAL FIX: Render all tabs before populating data
+      renderAllTabs();
+      
+      // Give DOM time to render
+      setTimeout(() => {
+        populateFormWithData(data);
+        alert('Data loaded and form populated successfully!');
+        console.log('✓ Data loaded successfully');
+      }, 100);
     } catch (error) {
       alert('Invalid JSON data file: ' + error.message);
       console.error('Data load error:', error);
@@ -344,6 +351,31 @@ function switchTab(tabKey) {
     
     currentTab = tabKey;
   }
+}
+
+function renderAllTabs() {
+  console.log('Rendering all tabs for data loading...');
+  
+  // Get all tab keys
+  const tabKeys = Object.keys(tabContents);
+  
+  // Render each tab's content if not already rendered
+  tabKeys.forEach(tabKey => {
+    const tabContent = document.getElementById(`content-${tabKey}`);
+    
+    if (tabContent && tabContent.children.length <= 1) {
+      // Tab content hasn't been rendered yet
+      const div = document.createElement('div');
+      div.innerHTML = tabContents[tabKey];
+      tabContent.appendChild(div.firstElementChild);
+      console.log(`✓ Rendered tab: ${tabKey}`);
+    }
+  });
+  
+  // Attach event listeners to all newly rendered elements
+  attachEventListeners();
+  
+  console.log('✓ All tabs rendered');
 }
 
 function createField(key, prop, isRequired, path) {
