@@ -181,6 +181,15 @@ function renderForm(schema) {
     const properties = schema.properties || {};
     const required = schema.required || [];
     
+    // Initialize formData with empty structure
+    if (!formData) {
+        formData = {};
+        const properties = schema.properties || {};
+        Object.keys(properties).forEach(key => {
+            formData[key] = {};
+        });
+    }
+    
     initializeDependencies();
     createTabs(properties);
     
@@ -350,6 +359,9 @@ function populateTabData(tabKey, tabData, parentPath = []) {
 /**
  * Create form field based on schema property
  */
+/**
+ * Create form field based on schema property
+ */
 function createField(key, prop, isRequired, path) {
     // Resolve $ref if present
     if (prop.$ref) {
@@ -375,24 +387,26 @@ function createField(key, prop, isRequired, path) {
     }
 
     // Get dynamic values for this field
-    let choiceConfig = customChoices[pathStr];
+    let dynamicConfig = getDynamicValues(pathStr);
     
-    // Get values from custom choices or schema
     let values = [];
     let responseType = null;
     let hasNAOption = false;
     let naValue = null;
     
-    if (choiceConfig && typeof choiceConfig === 'object' && !Array.isArray(choiceConfig)) {
-        // For data loading, use all possible values
-        values = getAllPossibleValues(choiceConfig);
-        responseType = choiceConfig.response_type || null;
-        naValue = choiceConfig.na || null;
+    if (dynamicConfig && typeof dynamicConfig === 'object' && !Array.isArray(dynamicConfig)) {
+        // Use dynamic values from config
+        values = dynamicConfig.values || [];
+        responseType = dynamicConfig.response_type || prop._responseType || null;
+        naValue = dynamicConfig.na || null;
         hasNAOption = naValue !== null;
     } else if (prop.enum) {
+        // Use schema enum
         values = prop.enum;
-        responseType = type === 'array' ? 'multi-select' : 'single-select';
+        responseType = prop._responseType || (type === 'array' ? 'multi-select' : 'single-select');
     }
+    
+    console.log(`Creating field ${pathStr} with values:`, values, 'responseType:', responseType);
     
     // Generate input HTML based on field type and values
     let inputHtml = generateInputHtml(pathStr, values, responseType, hasNAOption, naValue, type, prop, isRequired);
@@ -405,7 +419,6 @@ function createField(key, prop, isRequired, path) {
     </div>
     `;
 }
-
 /**
  * Get all possible values from a choice config including dependent values
  */
@@ -680,6 +693,9 @@ function updateDependentFields(changedFieldPath) {
 /**
  * Refresh a field considering its dependencies
  */
+/**
+ * Refresh a field considering its dependencies
+ */
 function refreshFieldWithDependencies(fieldKey) {
     console.log(`Refreshing field with dependencies: ${fieldKey}`);
     
@@ -692,6 +708,10 @@ function refreshFieldWithDependencies(fieldKey) {
     // Store current value
     const currentValue = getFieldValue(fieldKey);
     console.log(`Current value of ${fieldKey}:`, currentValue);
+    
+    // Get dynamic values based on current dependencies
+    const dynamicConfig = getDynamicValues(fieldKey);
+    console.log(`Dynamic config for ${fieldKey}:`, dynamicConfig);
     
     // Find the property in schema
     const keys = fieldKey.split('.');
@@ -722,39 +742,95 @@ function refreshFieldWithDependencies(fieldKey) {
     
     if (!prop) return;
     
+    // Create a modified property with dynamic values
+    const modifiedProp = { ...prop };
+    
+    // Update enum/values based on dynamic config
+    if (dynamicConfig?.values) {
+        modifiedProp.enum = dynamicConfig.values;
+        
+        // Set response type based on the field
+        const responseType = dynamicConfig.response_type || 
+                           (modifiedProp.type === 'array' ? 'multi-select' : 'single-select');
+        
+        // Store response type in a custom property
+        modifiedProp._responseType = responseType;
+    }
+    
     const required = getFieldRequirement(fieldKey);
-    const newFieldHtml = createField(keys[keys.length - 1], prop, required, keys);
+    const newFieldHtml = createField(keys[keys.length - 1], modifiedProp, required, keys);
     
     // Replace the field
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = newFieldHtml;
     const newFieldGroup = tempDiv.firstElementChild;
     
-    fieldGroup.parentNode.replaceChild(newFieldGroup, fieldGroup);
-    
-    // Restore value if it's still valid with the new options
-    if (currentValue !== null && currentValue !== undefined && currentValue !== '') {
+    if (fieldGroup.parentNode) {
+        fieldGroup.parentNode.replaceChild(newFieldGroup, fieldGroup);
+        
+        // Restore value if it's still valid with the new options
+        if (currentValue !== null && currentValue !== undefined && currentValue !== '') {
+            setTimeout(() => {
+                const validValue = getValidValueForField(fieldKey, currentValue, dynamicConfig);
+                if (validValue !== null) {
+                    console.log(`Restoring value for ${fieldKey}:`, validValue);
+                    
+                    if (Array.isArray(validValue)) {
+                        populateArrayField(fieldKey, validValue);
+                    } else {
+                        populateSingleField(fieldKey, validValue);
+                    }
+                } else {
+                    console.log(`Value ${currentValue} is no longer valid for ${fieldKey}`);
+                }
+            }, 100);
+        }
+        
+        // Re-attach event listeners
         setTimeout(() => {
-            const validValue = getValidValueForField(fieldKey, currentValue);
-            if (validValue !== null) {
-                console.log(`Restoring value for ${fieldKey}:`, validValue);
-                populateSingleField(fieldKey, validValue);
-            }
-        }, 100);
+            attachEventListeners();
+            applyConditionalRules();
+        }, 150);
     }
-    
-    // Re-attach event listeners
-    setTimeout(() => {
-        attachEventListeners();
-        applyConditionalRules();
-    }, 150);
 }
 
-function getValidValueForField(fieldKey, value) {
-    const choiceConfig = getDynamicValues(fieldKey);
-    if (!choiceConfig || !choiceConfig.values) return null;
+function getValidValueForField(fieldKey, value, dynamicConfig) {
+    if (!dynamicConfig || !dynamicConfig.values) {
+        // If no dynamic config, check schema enum
+        const keys = fieldKey.split('.');
+        let current = currentSchema.properties;
+        let prop = null;
+        
+        for (let i = 0; i < keys.length; i++) {
+            if (!current || !current[keys[i]]) return null;
+            
+            prop = current[keys[i]];
+            if (prop.$ref) {
+                const resolved = resolveRef(prop.$ref);
+                if (i === keys.length - 1) {
+                    prop = resolved;
+                } else {
+                    current = resolved.properties;
+                }
+            } else if (i === keys.length - 1) {
+                break;
+            } else {
+                current = prop.properties;
+            }
+        }
+        
+        if (!prop || !prop.enum) return null;
+        const validValues = prop.enum;
+        
+        if (Array.isArray(value)) {
+            const validSelections = value.filter(val => validValues.includes(val));
+            return validSelections.length > 0 ? validSelections : null;
+        } else {
+            return validValues.includes(value) ? value : null;
+        }
+    }
     
-    const validValues = choiceConfig.values;
+    const validValues = dynamicConfig.values;
     
     if (Array.isArray(value)) {
         const validSelections = value.filter(val => validValues.includes(val));
@@ -813,14 +889,19 @@ function getDynamicValues(fieldKey) {
             const valueMap = choiceConfig.dependent_values[dependencyField];
             if (valueMap && valueMap[depValue]) {
                 result.values = valueMap[depValue];
+                // Preserve other properties
+                if (choiceConfig.response_type) result.response_type = choiceConfig.response_type;
+                if (choiceConfig.na) result.na = choiceConfig.na;
                 break;
             }
         }
         
+        console.log(`Dynamic values for ${fieldKey}:`, result.values);
         return result;
     }
     
-    return choiceConfig;
+    // If dependencies not met, return base values or null
+    return choiceConfig.values ? choiceConfig : null;
 }
 
 /**
@@ -936,18 +1017,18 @@ function attachEventListeners() {
     // Apply conditional rules
     setTimeout(applyConditionalRules, 300);
 }
+
 /**
  * Handle field change events
  */
-// Also update the handleFieldChange function to be more selective:
 function handleFieldChange(e) {
     const input = e.target;
     const fieldPath = input.dataset.path || input.name;
     
     console.log(`Field changed: ${fieldPath}, Value:`, input.value || input.checked);
     
-    // Update form data
-    formData = collectFormData();
+    // Immediately update formData
+    updateFormDataForField(fieldPath);
     
     // Only update dependent fields if this field has dependents
     if (fieldDependencies[fieldPath] && fieldDependencies[fieldPath].length > 0) {
@@ -957,6 +1038,40 @@ function handleFieldChange(e) {
     
     // Apply conditional rules
     setTimeout(() => applyConditionalRules(), 100);
+}
+
+/**
+ * Update formData for a specific field
+ */
+function updateFormDataForField(fieldPath) {
+    const value = getFieldValue(fieldPath);
+    setNestedValue(formData, fieldPath, value);
+    console.log(`Updated formData for ${fieldPath}:`, value);
+}
+
+/**
+ * Set nested value in object using dot notation path
+ */
+function setNestedValue(obj, path, value) {
+    const keys = path.split('.');
+    let current = obj;
+    
+    for (let i = 0; i < keys.length - 1; i++) {
+        const key = keys[i];
+        const nextKey = keys[i + 1];
+        
+        if (!isNaN(nextKey)) {
+            if (!current[key]) current[key] = [];
+            if (!current[key][nextKey]) current[key][nextKey] = {};
+            current = current[key][nextKey];
+            i++;
+        } else {
+            if (!current[key]) current[key] = {};
+            current = current[key];
+        }
+    }
+    
+    current[keys[keys.length - 1]] = value;
 }
 // ============ WINDOW FUNCTIONS (Global scope) ============
 
@@ -1665,6 +1780,11 @@ function populateArrayOfObjects(pathStr, items) {
 
 // Update the switchTab function to handle data population better
 window.switchTab = function(tabKey, forceRender = false) {
+    // Save current tab data before switching
+    if (currentTab) {
+        saveCurrentTabData();
+    }
+    
     // Remove active class from current tab
     if (currentTab) {
         document.getElementById(`tab-${currentTab}`)?.classList.remove('active');
@@ -1704,13 +1824,123 @@ window.switchTab = function(tabKey, forceRender = false) {
                     console.log(`Populating ${tabKey} tab with loaded data`);
                     populateTabData(tabKey, loadedData[tabKey], [tabKey]);
                 }
+                // Also restore any values from current formData
+                restoreTabData(tabKey);
             }, 100);
         } else if (loadedData && loadedData[tabKey]) {
             // Tab already rendered, just ensure data is populated
             console.log(`Tab ${tabKey} already rendered, ensuring data is populated`);
             populateTabData(tabKey, loadedData[tabKey], [tabKey]);
+            restoreTabData(tabKey);
         }
         
         currentTab = tabKey;
     }
 };
+
+/**
+ * Save current tab's data to formData before switching
+ */
+function saveCurrentTabData() {
+    if (!currentTab) return;
+    
+    // Get all fields in current tab
+    const currentTabContent = document.getElementById(`content-${currentTab}`);
+    if (!currentTabContent) return;
+    
+    // Collect data from all inputs in current tab
+    const inputs = currentTabContent.querySelectorAll('[data-path]');
+    
+    inputs.forEach(input => {
+        const path = input.dataset.path;
+        if (!path) return;
+        
+        let value = null;
+        
+        // Handle multi-select fields
+        if (input.classList?.contains('multi-select-checkbox') || input.classList?.contains('na-checkbox')) {
+            // Skip individual checkboxes - they're handled as a group
+            return;
+        }
+        
+        // For multi-select, get the group value
+        const multiSelectCheckboxes = document.querySelectorAll(`[data-path="${path}"].multi-select-checkbox:checked`);
+        const naCheckbox = document.getElementById(`${path}_na`);
+        
+        if (multiSelectCheckboxes.length > 0 || (naCheckbox && naCheckbox.checked)) {
+            if (naCheckbox?.checked) {
+                value = naCheckbox.value;
+            } else {
+                value = Array.from(multiSelectCheckboxes).map(cb => cb.value);
+            }
+        } else if (input.type === 'checkbox') {
+            value = input.checked;
+        } else if (input.type === 'number') {
+            value = input.value ? Number(input.value) : null;
+        } else if (input.tagName === 'TEXTAREA' && input.placeholder?.includes('comma-separated')) {
+            value = input.value.trim() ? input.value.split(',').map(v => v.trim()).filter(v => v) : [];
+        } else {
+            value = input.value || null;
+        }
+        
+        if (value !== null) {
+            setNestedValue(formData, path, value);
+        }
+    });
+    
+    console.log(`Saved data for tab ${currentTab}:`, formData[currentTab]);
+}
+
+/**
+ * Restore saved data to a tab
+ */
+function restoreTabData(tabKey) {
+    if (!formData || !formData[tabKey]) return;
+    
+    // Populate fields in this tab with saved data
+    const tabContent = document.getElementById(`content-${tabKey}`);
+    if (!tabContent) return;
+    
+    // Get all paths in this tab
+    const inputs = tabContent.querySelectorAll('[data-path]');
+    const processedPaths = new Set();
+    
+    inputs.forEach(input => {
+        const path = input.dataset.path;
+        if (!path || processedPaths.has(path)) return;
+        processedPaths.add(path);
+        
+        // Get value from formData
+        const value = getNestedValue(formData, path);
+        if (value !== undefined && value !== null) {
+            setTimeout(() => {
+                // Check if it's a multi-select field
+                const multiSelectCheckboxes = document.querySelectorAll(`[data-path="${path}"].multi-select-checkbox`);
+                if (multiSelectCheckboxes.length > 0) {
+                    // It's a multi-select field
+                    populateArrayField(path, value);
+                } else {
+                    // Regular field
+                    populateSingleField(path, value);
+                }
+            }, 50);
+        }
+    });
+}
+
+/**
+ * Get nested value from object using dot notation
+ */
+function getNestedValue(obj, path) {
+    const keys = path.split('.');
+    let current = obj;
+    
+    for (const key of keys) {
+        if (current === null || current === undefined) {
+            return undefined;
+        }
+        current = current[key];
+    }
+    
+    return current;
+}
