@@ -18,6 +18,23 @@ document.getElementById('loadChoicesBtn').addEventListener('click', loadChoicesF
 document.getElementById('loadDataBtn').addEventListener('click', loadDataFromFile);
 document.getElementById('saveBtn').addEventListener('click', () => {
   try {
+    // Check for invalid fields before saving
+    const invalidFields = document.querySelectorAll('.invalid-data');
+    if (invalidFields.length > 0) {
+      const confirmSave = confirm(
+        `⚠️ Warning: ${invalidFields.length} field(s) contain invalid values.\n\n` +
+        `These fields are highlighted in red. Saving now will export the form with empty values for these fields.\n\n` +
+        `Do you want to save anyway?`
+      );
+      
+      if (!confirmSave) {
+        // Scroll to first invalid field
+        invalidFields[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        invalidFields[0].focus();
+        return;
+      }
+    }
+    
     const data = collectFormData();
     saveJsonToFile(data);
   } catch (error) {
@@ -27,6 +44,23 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 });
 document.getElementById('exportBtn').addEventListener('click', () => {
   try {
+    // Check for invalid fields before exporting
+    const invalidFields = document.querySelectorAll('.invalid-data');
+    if (invalidFields.length > 0) {
+      const confirmExport = confirm(
+        `⚠️ Warning: ${invalidFields.length} field(s) contain invalid values.\n\n` +
+        `These fields are highlighted in red. Exporting now will copy the form with empty values for these fields.\n\n` +
+        `Do you want to export anyway?`
+      );
+      
+      if (!confirmExport) {
+        // Scroll to first invalid field
+        invalidFields[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        invalidFields[0].focus();
+        return;
+      }
+    }
+    
     const data = collectFormData();
     exportJsonToClipboard(data);
   } catch (error) {
@@ -952,6 +986,7 @@ function populateFormWithData(data) {
   
   setTimeout(() => {
     applyConditionalRules();
+    showInvalidFieldsSummary();
     console.log('✓ Form populated and rules applied');
   }, 300);
 }
@@ -1002,11 +1037,23 @@ function populateSingleField(pathStr, value) {
     const optionExists = Array.from(input.options).some(option => option.value === stringValue);
     if (optionExists) {
       input.value = stringValue;
+      input.classList.remove('invalid-data');
       input.dispatchEvent(new Event('change', { bubbles: true }));
       console.log(`✓ Set select ${pathStr} = ${stringValue}`);
     } else {
-      console.warn(`Value "${stringValue}" not in dropdown for ${pathStr}`);
+      console.warn(`⚠ Value "${stringValue}" not in dropdown for ${pathStr}`);
       console.log('Available options:', Array.from(input.options).map(o => o.value));
+      
+      // Mark as invalid and store the original value
+      input.classList.add('invalid-data');
+      input.dataset.invalidValue = stringValue;
+      input.value = '';
+      
+      // Add warning message
+      addInvalidDataWarning(input, stringValue, pathStr);
+      
+      // Add event listener to enforce selection
+      enforceValidSelection(input, pathStr);
     }
     return;
   }
@@ -1015,6 +1062,7 @@ function populateSingleField(pathStr, value) {
   input = document.querySelector(`input[type="text"][data-path="${pathStr}"], input[type="email"][data-path="${pathStr}"]`);
   if (input) {
     input.value = String(value);
+    input.classList.remove('invalid-data');
     input.dispatchEvent(new Event('change', { bubbles: true }));
     console.log(`✓ Set text ${pathStr} = ${value}`);
     return;
@@ -1024,6 +1072,7 @@ function populateSingleField(pathStr, value) {
   input = document.querySelector(`input[type="number"][data-path="${pathStr}"]`);
   if (input) {
     input.value = value;
+    input.classList.remove('invalid-data');
     input.dispatchEvent(new Event('change', { bubbles: true }));
     console.log(`✓ Set number ${pathStr} = ${value}`);
     return;
@@ -1033,6 +1082,7 @@ function populateSingleField(pathStr, value) {
   input = document.querySelector(`input[type="date"][data-path="${pathStr}"]`);
   if (input) {
     input.value = value;
+    input.classList.remove('invalid-data');
     input.dispatchEvent(new Event('change', { bubbles: true }));
     console.log(`✓ Set date ${pathStr} = ${value}`);
     return;
@@ -1042,6 +1092,7 @@ function populateSingleField(pathStr, value) {
   input = document.querySelector(`input[type="checkbox"][data-path="${pathStr}"]:not(.multi-select-checkbox):not(.na-checkbox)`);
   if (input) {
     input.checked = value === true;
+    input.classList.remove('invalid-data');
     input.dispatchEvent(new Event('change', { bubbles: true }));
     console.log(`✓ Set checkbox ${pathStr} = ${value}`);
     return;
@@ -1055,6 +1106,7 @@ function populateSingleField(pathStr, value) {
     } else {
       input.value = String(value);
     }
+    input.classList.remove('invalid-data');
     input.dispatchEvent(new Event('change', { bubbles: true }));
     console.log(`✓ Set textarea ${pathStr} = ${value}`);
     return;
@@ -1100,6 +1152,9 @@ function populateArrayField(pathStr, values) {
     
     console.log(`Values to check for ${pathStr}:`, valuesToCheck);
     
+    let hasInvalidValues = false;
+    const invalidValues = [];
+    
     valuesToCheck.forEach(val => {
       const stringValue = String(val);
       
@@ -1116,10 +1171,23 @@ function populateArrayField(pathStr, values) {
         matchingCheckbox.checked = true;
         console.log(`✓ Checked ${stringValue} for ${pathStr}`);
       } else {
+        hasInvalidValues = true;
+        invalidValues.push(stringValue);
         console.warn(`⚠ Checkbox not found for value: "${stringValue}" in ${pathStr}`);
         console.log('Available checkbox values:', Array.from(allCheckboxes).map(cb => cb.value));
       }
     });
+    
+    // Mark as invalid if any values don't match
+    if (hasInvalidValues) {
+      container.classList.add('invalid-data');
+      container.dataset.invalidValues = JSON.stringify(invalidValues);
+      addInvalidMultiSelectWarning(container, invalidValues, pathStr);
+      enforceValidMultiSelection(container, pathStr);
+    } else {
+      container.classList.remove('invalid-data');
+      removeInvalidWarning(container);
+    }
     
     // Update display
     const dropdownId = container.id;
@@ -1187,4 +1255,165 @@ function populateArrayOfObjects(pathStr, items) {
   });
   
   console.log(`✓ Populated array ${pathStr} with ${items.length} items`);
+}
+
+// ==================== INVALID DATA HANDLING ====================
+
+function addInvalidDataWarning(input, invalidValue, fieldPath) {
+  // Remove existing warning if any
+  removeInvalidWarning(input);
+  
+  const formGroup = input.closest('.form-group');
+  if (!formGroup) return;
+  
+  const warning = document.createElement('div');
+  warning.className = 'invalid-data-warning';
+  warning.innerHTML = `
+    <span class="warning-icon">⚠️</span>
+    <span class="warning-text">
+      Invalid value from data file: <strong>"${invalidValue}"</strong>
+      <br>Please select a valid option from the dropdown.
+    </span>
+  `;
+  
+  // Insert after the input
+  input.parentNode.insertBefore(warning, input.nextSibling);
+}
+
+function addInvalidMultiSelectWarning(container, invalidValues, fieldPath) {
+  // Remove existing warning if any
+  removeInvalidWarning(container);
+  
+  const formGroup = container.closest('.form-group');
+  if (!formGroup) return;
+  
+  const warning = document.createElement('div');
+  warning.className = 'invalid-data-warning';
+  warning.innerHTML = `
+    <span class="warning-icon">⚠️</span>
+    <span class="warning-text">
+      Invalid value(s) from data file: <strong>${invalidValues.map(v => `"${v}"`).join(', ')}</strong>
+      <br>Please select valid options from the list.
+    </span>
+  `;
+  
+  // Insert after the container
+  container.parentNode.insertBefore(warning, container.nextSibling);
+}
+
+function removeInvalidWarning(element) {
+  const formGroup = element.closest('.form-group');
+  if (!formGroup) return;
+  
+  const existingWarning = formGroup.querySelector('.invalid-data-warning');
+  if (existingWarning) {
+    existingWarning.remove();
+  }
+}
+
+function enforceValidSelection(selectElement, fieldPath) {
+  // Remove any existing listener
+  const existingListener = selectElement.dataset.validationListener;
+  if (existingListener) return;
+  
+  const validator = (e) => {
+    if (selectElement.value === '') {
+      e.preventDefault();
+      selectElement.focus();
+      
+      // Show a more prominent warning
+      const formGroup = selectElement.closest('.form-group');
+      if (formGroup && !formGroup.querySelector('.selection-required-message')) {
+        const message = document.createElement('div');
+        message.className = 'selection-required-message';
+        message.textContent = '⚠️ Please select a valid value';
+        selectElement.parentNode.insertBefore(message, selectElement.nextSibling);
+        
+        setTimeout(() => message.remove(), 3000);
+      }
+    } else {
+      // Valid selection made, remove invalid state
+      selectElement.classList.remove('invalid-data');
+      delete selectElement.dataset.invalidValue;
+      removeInvalidWarning(selectElement);
+      
+      // Remove this validator
+      selectElement.removeEventListener('blur', validator);
+      delete selectElement.dataset.validationListener;
+    }
+  };
+  
+  selectElement.addEventListener('blur', validator);
+  selectElement.dataset.validationListener = 'true';
+  
+  // Also validate on change
+  selectElement.addEventListener('change', () => {
+    if (selectElement.value !== '') {
+      selectElement.classList.remove('invalid-data');
+      delete selectElement.dataset.invalidValue;
+      removeInvalidWarning(selectElement);
+      selectElement.removeEventListener('blur', validator);
+      delete selectElement.dataset.validationListener;
+    }
+  }, { once: true });
+}
+
+function enforceValidMultiSelection(container, fieldPath) {
+  // Remove any existing listener
+  const existingListener = container.dataset.validationListener;
+  if (existingListener) return;
+  
+  const trigger = container.querySelector('.multi-select-trigger');
+  if (!trigger) return;
+  
+  const validator = (e) => {
+    const allCheckboxes = container.querySelectorAll('.multi-select-checkbox');
+    const checkedCheckboxes = container.querySelectorAll('.multi-select-checkbox:checked');
+    const naCheckbox = container.querySelector('.na-checkbox');
+    
+    const hasValidSelection = checkedCheckboxes.length > 0 || (naCheckbox && naCheckbox.checked);
+    
+    if (!hasValidSelection) {
+      e.preventDefault();
+      trigger.focus();
+      
+      // Show a more prominent warning
+      const formGroup = container.closest('.form-group');
+      if (formGroup && !formGroup.querySelector('.selection-required-message')) {
+        const message = document.createElement('div');
+        message.className = 'selection-required-message';
+        message.textContent = '⚠️ Please select at least one valid option';
+        container.parentNode.insertBefore(message, container.nextSibling);
+        
+        setTimeout(() => message.remove(), 3000);
+      }
+    } else {
+      // Valid selection made, remove invalid state
+      container.classList.remove('invalid-data');
+      delete container.dataset.invalidValues;
+      removeInvalidWarning(container);
+      
+      // Remove this validator
+      trigger.removeEventListener('blur', validator);
+      delete container.dataset.validationListener;
+    }
+  };
+  
+  trigger.addEventListener('blur', validator);
+  container.dataset.validationListener = 'true';
+  
+  // Also validate on checkbox change
+  const checkboxes = container.querySelectorAll('.multi-select-checkbox, .na-checkbox');
+  checkboxes.forEach(cb => {
+    cb.addEventListener('change', () => {
+      const checkedBoxes = container.querySelectorAll('.multi-select-checkbox:checked, .na-checkbox:checked');
+      if (checkedBoxes.length > 0) {
+        container.classList.remove('invalid-data');
+        delete container.dataset.invalidValues;
+        removeInvalidWarning(container);
+        trigger.removeEventListener('blur', validator);
+        delete container.dataset.validationListener;
+      }
+    }, { once: true });
+  });
 }
