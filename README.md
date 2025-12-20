@@ -22,7 +22,7 @@ Introducing **JSON Data Builder** - a groundbreaking web application that bridge
   
 - **🔄 Complete Data Lifecycle**
     - Load Schema: Upload your JSON schema file
-    - Load Choices (Optional): Add dropdown options for better UX
+    - Load Options (Optional): Add dropdown options for better UX
     - Load Data (Optional): Pre-fill with existing JSON data
     - Fill Form: Users interact with the generated interface
     - Export: Save results as JSON or copy to clipboard
@@ -106,8 +106,8 @@ Transform your JSON schemas into beautiful, functional forms in minutes. Experie
 </details>
 
 <details>
-  <summary>Schema and choices</summary>
-    ### Example of Choices.json 
+  <summary>Schema and Options</summary>
+    ### Example of Options.json 
 
     ```
     {
