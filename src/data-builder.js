@@ -4,8 +4,9 @@
 let currentSchema = null;
 let formData = {};
 let definitions = {};
-let customChoices = {};
+let customOptions = {};
 let conditionalRules = {};
+let triggersToAffected = {}; // New: Map of trigger fields to affected dependent fields
 let currentTab = null;
 let tabContents = {};
 
@@ -14,7 +15,7 @@ console.log('JSON Data Builder Loaded - Version 2.0');
 
 // Button event listeners
 document.getElementById('loadSchemaBtn').addEventListener('click', loadSchemaFromFile);
-document.getElementById('loadChoicesBtn').addEventListener('click', loadChoicesFromFile);
+document.getElementById('loadOptionsBtn').addEventListener('click', loadOptionsFromFile);
 document.getElementById('loadDataBtn').addEventListener('click', loadDataFromFile);
 document.getElementById('saveBtn').addEventListener('click', () => {
   try {
@@ -87,6 +88,10 @@ function loadSchemaFromFile() {
       definitions = schema.definitions || schema.$defs || {};
       renderForm(schema);
       console.log('✓ Schema loaded successfully');
+
+      document.getElementById('loadSchemaBtn').style.color = '#000000ff';
+      document.getElementById('loadSchemaBtn').style.backgroundColor = '#99ff00ff';
+
     } catch (error) {
       alert('Invalid JSON schema file: ' + error.message);
       console.error('Schema load error:', error);
@@ -96,7 +101,7 @@ function loadSchemaFromFile() {
   input.click();
 }
 
-function loadChoicesFromFile() {
+function loadOptionsFromFile() {
   const input = document.createElement('input');
   input.type = 'file';
   input.accept = '.json';
@@ -107,19 +112,41 @@ function loadChoicesFromFile() {
     
     try {
       const text = await file.text();
-      const choices = JSON.parse(text);
-      customChoices = choices;
-      conditionalRules = choices.conditional_rules || {};
+      const options = JSON.parse(text);
+      customOptions = options;
+      conditionalRules = options.conditional_rules || {};
+      
+      // New: Build triggersToAffected map for dependencies
+      triggersToAffected = {};
+      Object.entries(customOptions).forEach(([field, config]) => {
+        if (config.dependent_values) {
+          const depField = Object.keys(config.dependent_values)[0];
+          if (depField) {
+            triggersToAffected[depField] = triggersToAffected[depField] || [];
+            triggersToAffected[depField].push({
+              affected: field,
+              optionsMap: config.dependent_values[depField],
+              defaultValues: config.values || [],
+              responseType: config.response_type,
+              na: config.na
+            });
+          }
+        }
+      });
       
       if (currentSchema) {
         renderForm(currentSchema);
       }
-      
-      alert('Choices file loaded successfully');
-      console.log('✓ Choices loaded with', Object.keys(customChoices).length, 'entries');
+
+      document.getElementById('loadOptionsBtn').style.color = '#000000ff';
+      document.getElementById('loadOptionsBtn').style.backgroundColor = '#99ff00ff';
+
+      alert('Options file loaded successfully');
+          
+      console.log('✓ Options loaded with', Object.keys(customOptions).length, 'entries');
     } catch (error) {
-      alert('Invalid JSON choices file: ' + error.message);
-      console.error('Choices load error:', error);
+      alert('Invalid JSON options file: ' + error.message);
+      console.error('Options load error:', error);
     }
   };
   
@@ -150,7 +177,28 @@ function loadDataFromFile() {
       
       // Give DOM time to render
       setTimeout(() => {
+        window.isPopulating = true;
         populateFormWithData(data);
+        window.isPopulating = false;
+        
+        // New: Recover any invalid dependent fields after population
+        document.querySelectorAll('[data-dependent="true"].invalid-data').forEach(el => {
+          const pathStr = el.dataset.path || el.querySelector('input[data-path]')?.dataset.path;
+          if (pathStr) {
+            const depField = el.dataset.depField;
+            const currentDepValue = getFieldValue(depField);
+            const triggerRules = triggersToAffected[depField] || [];
+            const rule = triggerRules.find(r => r.affected === pathStr);
+            if (rule) {
+              updateFieldOptions(pathStr, currentDepValue, el, rule);
+              revalidateAndSetInvalid(el, pathStr);
+            }
+          }
+        });
+
+        document.getElementById('loadSchemaBtn').style.color = '#000000ff';
+        document.getElementById('loadSchemaBtn').style.backgroundColor = '#99ff00ff';
+   
         alert('Data loaded and form populated successfully!');
         console.log('✓ Data loaded successfully');
       }, 100);
@@ -292,6 +340,126 @@ function setNestedValue(obj, path, value) {
   current[keys[keys.length - 1]] = value;
 }
 
+// New: Update options for a dependent field
+function updateFieldOptions(pathStr, depValue, element, rule) {
+  const rawValues = rule.optionsMap[depValue] || rule.defaultValues;
+  const enumValues = expandRangeValues(rawValues);
+  const naValue = rule.na || null;
+  const hasNAOption = naValue !== null;
+  const responseType = rule.responseType;
+
+  if (responseType === 'single-select') {
+    element.innerHTML = '<option value="">-- Select --</option>';
+    enumValues.forEach(val => {
+      const opt = document.createElement('option');
+      opt.value = val;
+      opt.textContent = val;
+      element.appendChild(opt);
+    });
+    if (hasNAOption) {
+      const opt = document.createElement('option');
+      opt.value = naValue;
+      opt.textContent = naValue;
+      element.appendChild(opt);
+    }
+  } else if (responseType === 'multi-select') {
+    const dropdown = element.querySelector('.multi-select-dropdown');
+    if (!dropdown) return;
+    dropdown.innerHTML = '';
+    enumValues.forEach((val, idx) => {
+      const optionDiv = document.createElement('div');
+      optionDiv.className = 'multi-select-option';
+      optionDiv.innerHTML = `
+        <input type="checkbox" 
+               id="${pathStr}_${idx}" 
+               value="${val}" 
+               data-path="${pathStr}"
+               data-dropdown="${element.id}"
+               class="multi-select-checkbox"
+               onchange="handleMultiSelectChange('${pathStr}', '${element.id}')">
+        <label for="${pathStr}_${idx}">${val}</label>
+      `;
+      dropdown.appendChild(optionDiv);
+    });
+    if (hasNAOption) {
+      const naDiv = document.createElement('div');
+      naDiv.className = 'multi-select-option na-option';
+      naDiv.innerHTML = `
+        <input type="checkbox" 
+               id="${pathStr}_na" 
+               value="${naValue}" 
+               data-path="${pathStr}"
+               data-dropdown="${element.id}"
+               class="na-checkbox"
+               onchange="handleNAChange('${pathStr}', '${element.id}')">
+        <label for="${pathStr}_na">${naValue} (exclusive)</label>
+      `;
+      dropdown.appendChild(naDiv);
+    }
+  }
+
+  if (responseType === 'multi-select') {
+    updateMultiSelectDisplay(element.id, pathStr);
+  }
+}
+
+// New: Reset a field's value to initial (empty)
+function resetFieldValue(pathStr) {
+  const el = document.querySelector(`select[data-path="${pathStr}"][data-dependent="true"]`) ||
+    document.querySelector(`.multi-select-container[data-dependent="true"][id^="multiselect_${pathStr.replace(/\./g, '_')}"]`);
+  if (!el) return;
+
+  if (el.tagName === 'SELECT') {
+    el.value = '';
+  } else {
+    const checkboxes = el.querySelectorAll('input[type="checkbox"]');
+    checkboxes.forEach(cb => cb.checked = false);
+    updateMultiSelectDisplay(el.id, pathStr);
+  }
+}
+
+// New: Revalidate and set previously invalid values now that options may be available
+function revalidateAndSetInvalid(el, pathStr) {
+  if (el.classList.contains('invalid-data')) {
+    if (el.tagName === 'SELECT') {
+      const invalidValue = el.dataset.invalidValue;
+      if (invalidValue) {
+        const optionExistsNow = Array.from(el.options).some(opt => opt.value === invalidValue);
+        if (optionExistsNow) {
+          el.value = invalidValue;
+          el.classList.remove('invalid-data');
+          delete el.dataset.invalidValue;
+          removeInvalidWarning(el);
+          console.log(`✓ Recovered invalid value for ${pathStr}: ${invalidValue}`);
+        }
+      }
+    } else { // multi-select
+      const invalidValues = JSON.parse(el.dataset.invalidValues || '[]');
+      if (invalidValues.length > 0) {
+        let stillInvalid = [];
+        invalidValues.forEach(val => {
+          const matchingCb = Array.from(el.querySelectorAll('.multi-select-checkbox')).find(cb => cb.value === val);
+          if (matchingCb) {
+            matchingCb.checked = true;
+          } else {
+            stillInvalid.push(val);
+          }
+        });
+        if (stillInvalid.length === 0) {
+          el.classList.remove('invalid-data');
+          delete el.dataset.invalidValues;
+          removeInvalidWarning(el);
+          updateMultiSelectDisplay(el.id, pathStr);
+          console.log(`✓ Recovered invalid values for ${pathStr}`);
+        } else {
+          el.dataset.invalidValues = JSON.stringify(stillInvalid);
+          addInvalidMultiSelectWarning(el, stillInvalid, pathStr);
+        }
+      }
+    }
+  }
+}
+
 // ==================== FORM RENDERING ====================
 
 function renderForm(schema) {
@@ -300,7 +468,7 @@ function renderForm(schema) {
   
   noSchema.style.display = 'none';
   document.getElementById('saveBtn').style.display = 'inline-block';
-  document.getElementById('loadChoicesBtn').style.display = 'inline-block';
+  document.getElementById('loadOptionsBtn').style.display = 'inline-block';
   document.getElementById('loadDataBtn').style.display = 'inline-block';    
   document.getElementById('exportBtn').style.display = 'inline-block';
   
@@ -438,15 +606,24 @@ function createField(key, prop, isRequired, path) {
   let responseType = null;
   let hasNAOption = false;
   let naValue = null;
+  let isDependent = false;
+  let depField = null;
   
-  const choiceConfig = customChoices[key] || customChoices[pathStr];
+  const choiceConfig = customOptions[key] || customOptions[pathStr];
   
   if (choiceConfig && typeof choiceConfig === 'object' && !Array.isArray(choiceConfig)) {
-    let rawValues = choiceConfig.values || [];
-    enumValues = expandRangeValues(rawValues);
-    responseType = choiceConfig.response_type || null;
+    responseType = choiceConfig.response_type || (type === 'array' ? 'multi-select' : 'single-select');
     naValue = choiceConfig.na || null;
     hasNAOption = naValue !== null;
+    isDependent = !!choiceConfig.dependent_values;
+    let rawValues;
+    if (isDependent) {
+      depField = Object.keys(choiceConfig.dependent_values)[0];
+      rawValues = []; // Empty initially for dependent fields
+    } else {
+      rawValues = choiceConfig.values || [];
+    }
+    enumValues = expandRangeValues(rawValues);
   } else if (Array.isArray(choiceConfig)) {
     enumValues = choiceConfig;
     responseType = type === 'array' ? 'multi-select' : 'single-select';
@@ -457,11 +634,11 @@ function createField(key, prop, isRequired, path) {
   
   let inputHtml = '';
 
-  if (enumValues.length > 0) {
+  if (enumValues.length > 0 || isDependent) {
     if (responseType === 'multi-select') {
       const dropdownId = 'multiselect_' + pathStr.replace(/\./g, '_');
       inputHtml = `
-        <div class="multi-select-container" id="${dropdownId}">
+        <div class="multi-select-container" id="${dropdownId}" ${isDependent ? `data-dependent="true" data-dep-field="${depField}"` : ''}>
           <div class="multi-select-trigger" onclick="toggleMultiSelectDropdown('${dropdownId}')" tabindex="0">
             <div class="multi-select-selected" id="${dropdownId}_selected">
               <span class="multi-select-placeholder">-- Select --</span>
@@ -470,34 +647,36 @@ function createField(key, prop, isRequired, path) {
           <div class="multi-select-dropdown" id="${dropdownId}_dropdown">
       `;
       
-      enumValues.forEach((val, idx) => {
-        inputHtml += `
-          <div class="multi-select-option">
-            <input type="checkbox" 
-                   id="${pathStr}_${idx}" 
-                   value="${val}" 
-                   data-path="${pathStr}"
-                   data-dropdown="${dropdownId}"
-                   class="multi-select-checkbox"
-                   onchange="handleMultiSelectChange('${pathStr}', '${dropdownId}')">
-            <label for="${pathStr}_${idx}">${val}</label>
-          </div>
-        `;
-      });
-      
-      if (hasNAOption) {
-        inputHtml += `
-          <div class="multi-select-option na-option">
-            <input type="checkbox" 
-                   id="${pathStr}_na" 
-                   value="${naValue}" 
-                   data-path="${pathStr}"
-                   data-dropdown="${dropdownId}"
-                   class="na-checkbox"
-                   onchange="handleNAChange('${pathStr}', '${dropdownId}')">
-            <label for="${pathStr}_na">${naValue} (exclusive)</label>
-          </div>
-        `;
+      if (!isDependent) {
+        enumValues.forEach((val, idx) => {
+          inputHtml += `
+            <div class="multi-select-option">
+              <input type="checkbox" 
+                     id="${pathStr}_${idx}" 
+                     value="${val}" 
+                     data-path="${pathStr}"
+                     data-dropdown="${dropdownId}"
+                     class="multi-select-checkbox"
+                     onchange="handleMultiSelectChange('${pathStr}', '${dropdownId}')">
+              <label for="${pathStr}_${idx}">${val}</label>
+            </div>
+          `;
+        });
+        
+        if (hasNAOption) {
+          inputHtml += `
+            <div class="multi-select-option na-option">
+              <input type="checkbox" 
+                     id="${pathStr}_na" 
+                     value="${naValue}" 
+                     data-path="${pathStr}"
+                     data-dropdown="${dropdownId}"
+                     class="na-checkbox"
+                     onchange="handleNAChange('${pathStr}', '${dropdownId}')">
+              <label for="${pathStr}_na">${naValue} (exclusive)</label>
+            </div>
+          `;
+        }
       }
       
       inputHtml += `
@@ -505,12 +684,15 @@ function createField(key, prop, isRequired, path) {
         </div>
       `;
     } else if (responseType === 'single-select') {
-      inputHtml = `<select name="${pathStr}" id="${pathStr}" data-path="${pathStr}">
+      inputHtml = `<select name="${pathStr}" id="${pathStr}" data-path="${pathStr}" ${isDependent ? `data-dependent="true" data-dep-field="${depField}"` : ''}>
         <option value="">-- Select --</option>
-        ${enumValues.map(val => `<option value="${val}">${val}</option>`).join('')}`;
+      `;
       
-      if (hasNAOption) {
-        inputHtml += `<option value="${naValue}">${naValue}</option>`;
+      if (!isDependent) {
+        inputHtml += `${enumValues.map(val => `<option value="${val}">${val}</option>`).join('')}`;
+        if (hasNAOption) {
+          inputHtml += `<option value="${naValue}">${naValue}</option>`;
+        }
       }
       
       inputHtml += `</select>`;
@@ -901,6 +1083,23 @@ function attachEventListeners() {
         console.log('Field changed:', input.dataset.path || input.name, 'Value:', input.value);
         formData = collectFormData();
         setTimeout(() => applyConditionalRules(), 100);
+        
+        // New: Handle dependency updates on change
+        const changedPath = e.target.dataset.path;
+        if (changedPath && triggersToAffected[changedPath]) {
+          const newValue = getFieldValue(changedPath);
+          triggersToAffected[changedPath].forEach(rule => {
+            const affected = rule.affected;
+            const affectedEl = document.querySelector(`select[data-path="${affected}"][data-dependent="true"]`) ||
+              document.querySelector(`.multi-select-container[data-dependent="true"][id^="multiselect_${affected.replace(/\./g, '_')}"]`);
+            if (affectedEl) {
+              if (!window.isPopulating) {
+                resetFieldValue(affected);
+              }
+              updateFieldOptions(affected, newValue, affectedEl, rule);
+            }
+          });
+        }
       });
       input.dataset.listenerAttached = 'true';
     }
