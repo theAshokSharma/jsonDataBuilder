@@ -12,7 +12,7 @@ COPY nginx-dev.conf /etc/nginx/nginx.conf
 COPY src/index.html /usr/share/nginx/html/
 COPY src/styles.css /usr/share/nginx/html/
 COPY src/data-builder.js /usr/share/nginx/html/
-COPY schema.json /usr/share/nginx/html/
+COPY data/schema.json /usr/share/nginx/html/
 
 # Expose port 8080 for development
 EXPOSE 8080

@@ -10,7 +10,7 @@ services:
       - ./src/index.html:/usr/share/nginx/html/index.html
       - ./src/styles.css:/usr/share/nginx/html/styles.css
       - ./src/data-builder.js:/usr/share/nginx/html/data-builder.js
-      - ./schema.json:/usr/share/nginx/html/schema.json
+      - ./data/schema.json:/usr/share/nginx/html/schema.json
     environment:
       - NGINX_ENV=development
     restart: unless-stopped
