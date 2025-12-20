@@ -1,4 +1,4 @@
-/* styles.css */
+/* styles.css - Optimized */
 * {
   box-sizing: border-box;
   margin: 0;
@@ -23,15 +23,15 @@ body {
 }
 
 .header {
-  margin-bottom: 20px;
   display: flex;
-  gap: 10px;
   flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
 }
 
 .tabs-container {
-  margin-bottom: 20px;
   border-bottom: 1px solid #ddd;
+  margin-bottom: 20px;
 }
 
 .tabs {
@@ -45,12 +45,12 @@ body {
   background-color: #f5f5f5;
   border: 1px solid #ddd;
   border-bottom: none;
+  border-radius: 4px 4px 0 0;
   padding: 10px 20px;
   cursor: pointer;
-  border-radius: 4px 4px 0 0;
   font-size: 14px;
-  transition: all 0.2s;
   color: #666;
+  transition: all 0.2s;
 }
 
 .tab:hover {
@@ -60,7 +60,6 @@ body {
 
 .tab.active {
   background-color: white;
-  border-color: #ddd;
   border-bottom: 1px solid white;
   color: #0066cc;
   font-weight: 600;
@@ -87,14 +86,24 @@ button {
   color: white;
   border: none;
   padding: 10px 20px;
-  cursor: pointer;
   border-radius: 4px;
   font-size: 14px;
+  cursor: pointer;
   transition: background-color 0.2s;
 }
 
 button:hover {
   background-color: #0052a3;
+}
+
+.remove-item-btn {
+  background-color: #d32f2f;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+.remove-item-btn:hover {
+  background-color: #b71c1c;
 }
 
 .form-group {
@@ -119,12 +128,19 @@ button:hover {
   margin-bottom: 8px;
 }
 
+.required::after {
+  content: " *";
+  color: #d32f2f;
+}
+
+/* Unified form controls */
 input[type="text"],
 input[type="number"],
 input[type="email"],
 input[type="date"],
 textarea,
-select {
+select,
+.multi-select-trigger {
   width: 100%;
   padding: 8px 12px;
   background-color: white;
@@ -133,14 +149,6 @@ select {
   border-radius: 4px;
   font-family: inherit;
   font-size: 14px;
-}
-
-input:focus,
-textarea:focus,
-select:focus {
-  outline: none;
-  border-color: #0066cc;
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
 }
 
 textarea {
@@ -152,10 +160,17 @@ input[type="date"] {
   cursor: pointer;
 }
 
-input[type="date"]::-webkit-calendar-picker-indicator {
-  cursor: pointer;
+/* Focus states */
+input:focus,
+textarea:focus,
+select:focus,
+.multi-select-trigger:focus {
+  outline: none;
+  border-color: #0066cc;
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
 }
 
+/* Checkbox & radio */
 .checkbox-group {
   display: flex;
   flex-direction: column;
@@ -174,6 +189,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
+/* N/A option styling */
 .na-option {
   margin-top: 10px;
   padding-top: 10px;
@@ -185,23 +201,18 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: #666;
 }
 
+/* Custom Multi-Select */
 .multi-select-container {
   position: relative;
   width: 100%;
 }
 
 .multi-select-trigger {
-  width: 100%;
-  padding: 8px 12px;
-  background-color: white;
-  color: #333;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
   min-height: 38px;
+  cursor: pointer;
 }
 
 .multi-select-trigger:hover {
@@ -217,17 +228,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .multi-select-dropdown {
   position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background-color: white;
+  inset: 100% 0 auto 0;
+  background: white;
   border: 1px solid #ccc;
   border-top: none;
   max-height: 300px;
   overflow-y: auto;
   z-index: 1000;
   display: none;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 
 .multi-select-dropdown.open {
@@ -244,18 +253,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .multi-select-option:hover {
   background-color: #f0f0f0;
-}
-
-.multi-select-option input[type="checkbox"] {
-  width: auto;
-  margin: 0;
-  cursor: pointer;
-}
-
-.multi-select-option.na-option {
-  border-top: 1px solid #ddd;
-  font-style: italic;
-  color: #666;
 }
 
 .multi-select-selected {
@@ -280,6 +277,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: #999;
 }
 
+/* Disabled states */
 .form-group.disabled {
   opacity: 0.5;
   pointer-events: none;
@@ -288,7 +286,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .form-group.disabled input,
 .form-group.disabled select,
 .form-group.disabled textarea,
-.form-group.disabled .multi-select-container {
+.form-group.disabled .multi-select-trigger {
   background-color: #f5f5f5;
   cursor: not-allowed;
 }
@@ -300,36 +298,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   margin-top: 4px;
 }
 
-.required::after {
-  content: " *";
-  color: #d32f2f;
-}
-
-.no-schema {
-  text-align: center;
-  padding: 60px 20px;
-  color: #999;
-}
-
-.no-schema h2 {
-  margin-bottom: 10px;
-  color: #d60b00;
-}
-
-#editor-form {
-  display: none;
-}
-
-#editor-form.active {
-  display: block;
-}
-
+/* Nested & Array Structures */
 .nested-object {
-  margin-left: 0;
+  margin-top: 10px;
   padding: 15px;
   border-left: 3px solid #0066cc;
   background-color: #f9f9f9;
-  margin-top: 10px;
 }
 
 .nested-object-header {
@@ -354,10 +328,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transform: rotate(-90deg);
 }
 
-.nested-object-content {
-  display: block;
-}
-
 .nested-object-content.collapsed {
   display: none;
 }
@@ -376,7 +346,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background-color: white;
   border: 1px solid #ddd;
   border-radius: 4px;
-  position: relative;
 }
 
 .array-item-header {
@@ -404,31 +373,57 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   font-size: 12px;
 }
 
-.remove-item-btn {
-  background-color: #d32f2f;
-  padding: 4px 8px;
-  font-size: 11px;
+/* No schema state */
+.no-schema {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
 }
 
-.remove-item-btn:hover {
-  background-color: #b71c1c;
+.no-schema h2 {
+  margin-bottom: 10px;
+  color: #d60b00;
 }
-/* Invalid Data Styling */
-select.invalid-data,
-input.invalid-data,
-textarea.invalid-data,
-.multi-select-container.invalid-data {
-  border: 2px solid #dc3545 !important;
+
+#editor-form {
+  display: none;
+}
+
+#editor-form.active {
+  display: block;
+}
+
+/* === Validation & Error Styles === */
+.invalid-data,
+.multi-select-container.invalid-data .multi-select-trigger {
+  border-color: #dc3545 !important;
   background-color: #fff5f5 !important;
   box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.15) !important;
 }
 
-.multi-select-container.invalid-data .multi-select-trigger {
+.invalid-data:focus,
+.multi-select-trigger:focus {
   border-color: #dc3545 !important;
-  background-color: #fff5f5 !important;
+  box-shadow: 0 0 0 0.3rem rgba(220, 53, 69, 0.25) !important;
+  animation: none !important;
 }
 
-/* Invalid Data Warning Message */
+/* Subtle pulse only when not focused */
+.invalid-data:not(:focus),
+.multi-select-container.invalid-data .multi-select-trigger:not(:focus) {
+  animation: pulse-border 2s ease-in-out infinite;
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: #dc3545; }
+  50% { border-color: #ff6b7a; }
+}
+
+.form-group:has(.invalid-data) {
+  background-color: #fffbfb;
+  margin-bottom: 20px;
+}
+
 .invalid-data-warning {
   display: flex;
   align-items: flex-start;
@@ -450,131 +445,11 @@ textarea.invalid-data,
   margin-top: 2px;
 }
 
-.invalid-data-warning .warning-text {
-  flex: 1;
-  line-height: 1.5;
-}
-
 .invalid-data-warning strong {
   color: #dc3545;
   font-weight: 600;
 }
 
-/* Selection Required Message (temporary popup) */
-.selection-required-message {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  padding: 12px 20px;
-  background-color: #dc3545;
-  color: white;
-  border-radius: 4px;
-  font-weight: 500;
-  font-size: 14px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  z-index: 10000;
-  animation: slideInRight 0.3s ease-out, fadeOut 0.3s ease-out 2.7s;
-}
-
-/* Animations */
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(100%);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-@keyframes fadeOut {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-/* Focus state for invalid fields */
-select.invalid-data:focus,
-input.invalid-data:focus,
-textarea.invalid-data:focus {
-  border-color: #dc3545 !important;
-  box-shadow: 0 0 0 0.3rem rgba(220, 53, 69, 0.25) !important;
-  outline: none;
-}
-
-.multi-select-container.invalid-data .multi-select-trigger:focus {
-  border-color: #dc3545 !important;
-  box-shadow: 0 0 0 0.3rem rgba(220, 53, 69, 0.25) !important;
-  outline: none;
-}
-
-/* Pulsing effect for invalid fields (subtle) */
-@keyframes pulse-border {
-  0%, 100% {
-    border-color: #dc3545;
-  }
-  50% {
-    border-color: #ff6b7a;
-  }
-}
-
-select.invalid-data,
-input.invalid-data,
-textarea.invalid-data,
-.multi-select-container.invalid-data .multi-select-trigger {
-  animation: pulse-border 2s ease-in-out infinite;
-}
-
-/* When user starts interacting with invalid field */
-select.invalid-data:focus,
-input.invalid-data:focus,
-textarea.invalid-data:focus,
-.multi-select-container.invalid-data .multi-select-trigger:focus {
-  animation: none;
-}
-
-/* Tooltip on hover for invalid fields */
-select.invalid-data:hover::after,
-input.invalid-data:hover::after,
-textarea.invalid-data:hover::after {
-  content: "Invalid value - please select from list";
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  background-color: #dc3545;
-  color: white;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  white-space: nowrap;
-  z-index: 1000;
-  margin-bottom: 4px;
-}
-
-/* Make form groups with invalid data stand out slightly */
-.form-group:has(.invalid-data) {
-  background-color: #fffbfb;
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 20px;
-}
-
-/* Summary of invalid fields */
 .invalid-fields-summary {
   position: sticky;
   top: 0;
@@ -614,7 +489,6 @@ textarea.invalid-data:hover::after {
   font-size: 20px;
   cursor: pointer;
   color: #721c24;
-  padding: 0;
   width: 24px;
   height: 24px;
   line-height: 1;
@@ -622,4 +496,33 @@ textarea.invalid-data:hover::after {
 
 .invalid-fields-summary .close-summary:hover {
   color: #dc3545;
+}
+
+.selection-required-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 12px 20px;
+  background-color: #dc3545;
+  color: white;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 10000;
+  animation: slideInRight 0.3s ease-out, fadeOut 0.3s ease-out 2.7s forwards;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeOut {
+  to { opacity: 0; }
 }
