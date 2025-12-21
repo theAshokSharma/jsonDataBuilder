@@ -62,4 +62,118 @@ async function saveJsonWithDialog(data, dataFilename, dataFilePath) {
   }
 }
 
-export { saveJsonWithDialog };
+// Function to show a custom confirm dialog
+function ashConfirm(message) {
+  return new Promise((resolve) => {
+    // Create modal elements
+    const modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.background = 'rgba(0,0,0,0.5)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '1000';
+
+    const dialog = document.createElement('div');
+    dialog.style.background = 'white';
+    dialog.style.padding = '20px';
+    dialog.style.borderRadius = '8px';
+    dialog.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+    dialog.style.maxWidth = '300px';
+    dialog.style.textAlign = 'center';
+
+    const text = document.createElement('p');
+    text.textContent = message;
+    dialog.appendChild(text);
+
+    const yesBtn = document.createElement('button');
+    yesBtn.textContent = 'Yes';
+    yesBtn.style.marginRight = '10px';
+    yesBtn.onclick = () => {
+      resolve(true);
+      document.body.removeChild(modal);
+    };
+
+    const noBtn = document.createElement('button');
+    noBtn.textContent = 'No';
+    noBtn.onclick = () => {
+      resolve(false);
+      document.body.removeChild(modal);
+    };
+
+    dialog.appendChild(yesBtn);
+    dialog.appendChild(noBtn);
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+  });
+}
+
+
+// Function to show a custom alert dialog
+function ashAlert(message) {
+  return new Promise((resolve) => {
+    // Create modal elements
+    const modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.background = 'rgba(0,0,0,0.5)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '1000';
+
+    const dialog = document.createElement('div');
+    dialog.style.background = 'white';
+    dialog.style.padding = '20px';
+    dialog.style.borderRadius = '8px';
+    dialog.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+    dialog.style.maxWidth = '300px';
+    dialog.style.textAlign = 'center';
+
+    const text = document.createElement('p');
+    text.textContent = message;
+    dialog.appendChild(text);
+
+    const okBtn = document.createElement('button');
+    okBtn.textContent = 'OK';
+    okBtn.onclick = () => {
+      resolve(true); // Resolve on OK (or use void if no need for result)
+      document.body.removeChild(modal);
+    };
+
+    dialog.appendChild(okBtn);
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+
+    // Focus the button for accessibility
+    okBtn.focus();
+  });
+}
+
+// // Usage example with async/await
+// async function showMessage() {
+//   await ashAlert('This is a custom alert message!');
+//   console.log('Alert dismissed');
+// }
+
+// // Or synchronous usage
+// customAlert('Hello, world!').then(() => {
+//   console.log('Alert closed');
+// });
+
+// // Usage with async/await
+// async function handleSave() {
+//   const confirmed = await ashConfirm('Do you want to save anyway?');
+//   if (confirmed) {
+//     // Proceed with save
+//   }
+// }
+
+export { saveJsonWithDialog, ashAlert, ashConfirm };

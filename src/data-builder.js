@@ -1,7 +1,7 @@
 // data-builder.js - JSON data builder
 // import 
 // import { saveFile } from './utils.js'; 
-import {saveJsonWithDialog} from './utils.js'
+import {saveJsonWithDialog, ashAlert, ashConfirm} from './utils.js'
 
 // Global variables
 let currentSchema = null;
@@ -28,7 +28,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     // Check for invalid fields before saving
     const invalidFields = document.querySelectorAll('.invalid-data');
     if (invalidFields.length > 0) {
-      const confirmSave = confirm(
+      const confirmSave = ashConfirm(
         `⚠️ Warning: ${invalidFields.length} field(s) contain invalid values.\n\n` +
         `These fields are highlighted in red. Saving now will export the form with empty values for these fields.\n\n` +
         `Do you want to save anyway?`
@@ -47,7 +47,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     await saveJsonWithDialog(data, dataFilename, dataFilePath);    
   } catch (error) {
     console.error('Error saving data:', error);
-    alert('Error saving data: ' + error.message);
+    await ashAlert('Error saving data: ' + error.message);
   }
 });
 
@@ -56,7 +56,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     // Check for invalid fields before exporting
     const invalidFields = document.querySelectorAll('.invalid-data');
     if (invalidFields.length > 0) {
-      const confirmExport = confirm(
+      const confirmExport = ashConfirm(
         `⚠️ Warning: ${invalidFields.length} field(s) contain invalid values.\n\n` +
         `These fields are highlighted in red. Exporting now will copy the form with empty values for these fields.\n\n` +
         `Do you want to export anyway?`
@@ -149,7 +149,7 @@ function loadOptionsFromFile() {
       document.getElementById('loadOptionsBtn').style.color = '#000000ff';
       document.getElementById('loadOptionsBtn').style.backgroundColor = '#99ff00ff';
 
-      alert('Options file loaded successfully');
+      ashAlert('Options file loaded successfully');
           
       console.log('✓ Options loaded with', Object.keys(customOptions).length, 'entries');
     } catch (error) {
