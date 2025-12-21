@@ -414,6 +414,15 @@ select:focus,
   animation: pulse-border 2s ease-in-out infinite;
 }
 
+.invalid-select {
+  border: 2px solid red;
+}
+.select-warning {
+  color: red;
+  font-size: 0.875em;
+  margin-top: 4px;
+}
+
 @keyframes pulse-border {
   0%, 100% { border-color: #dc3545; }
   50% { border-color: #ff6b7a; }

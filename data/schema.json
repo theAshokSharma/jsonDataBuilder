@@ -489,24 +489,25 @@
     },
     "MemberAddress": {
       "properties": {
+        "mbr_country": {
+          "title": "Country",
+          "type": "string",
+          "default": "US"
+        },        
         "mbr_street": {
-          "title": "Member Street",
+          "title": "Street",
           "type": "string"
         },
         "mbr_city": {
-          "title": "Member City",
+          "title": "City",
           "type": "string"
         },
         "mbr_state": {
-          "title": "Member State",
+          "title": "State",
           "type": "string"
         },
         "mbr_postal_code": {
-          "title": "Member Postal Code",
-          "type": "string"
-        },
-        "mbr_country": {
-          "title": "Member Country",
+          "title": "Postal Code",
           "type": "string"
         }
       },

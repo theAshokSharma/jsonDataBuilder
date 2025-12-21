@@ -105,7 +105,7 @@
             "South Korea", 
             "None of the listed options"
         ],
-        "response_type": "single-select"
+        "response_type": "multi-select"
     },
     "demographic.mbr_address.mbr_country": {
         "values": [

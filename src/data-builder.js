@@ -1,4 +1,4 @@
-// data-builder.js - JSON data builder Web Version - Complete Rewrite
+// data-builder.js - JSON data builder
 
 // Global variables
 let currentSchema = null;
@@ -1394,17 +1394,52 @@ function populateArrayField(pathStr, values) {
     console.log(`✓ Updated display for ${pathStr}`);
     
   } else {
+    // console.warn(`⚠ No multi-select container found for ${pathStr}`);
+    
+    // // Fallback to regular select
+    // const selectInput = document.querySelector(`select[data-path="${pathStr}"]`);
+    // if (selectInput) {
+    //   const valueToSet = Array.isArray(values) ? values[0] : values;
+    //   selectInput.value = String(valueToSet);
+    //   selectInput.dispatchEvent(new Event('change', { bubbles: true }));
+    //   console.log(`✓ Set select (fallback) ${pathStr} = ${valueToSet}`);
+    // }
     console.warn(`⚠ No multi-select container found for ${pathStr}`);
     
-    // Fallback to regular select
+    // Fallback to regular select, with added validity check
     const selectInput = document.querySelector(`select[data-path="${pathStr}"]`);
     if (selectInput) {
-      const valueToSet = Array.isArray(values) ? values[0] : values;
-      selectInput.value = String(valueToSet);
-      selectInput.dispatchEvent(new Event('change', { bubbles: true }));
-      console.log(`✓ Set select (fallback) ${pathStr} = ${valueToSet}`);
+        // For single-select, take the first value if array; warn if multiple values
+        let valueToSet = Array.isArray(values) ? values[0] : values;
+        if (Array.isArray(values) && values.length > 1) {
+          console.warn(`⚠ Multiple values provided for single-select field ${pathStr}; using first value only`);
+        }
+        
+        const stringValue = String(valueToSet);
+        const optionExists = Array.from(selectInput.options).some(option => option.value === stringValue);
+      
+        if (optionExists) {
+          selectInput.value = stringValue;
+          selectInput.classList.remove('invalid-data');
+          selectInput.dispatchEvent(new Event('change', { bubbles: true }));
+          console.log(`✓ Set select (fallback) ${pathStr} = ${stringValue}`);
+        } else {
+          console.warn(`⚠ Value "${stringValue}" not in dropdown for ${pathStr}`);
+          console.log('Available options:', Array.from(selectInput.options).map(o => o.value));
+        
+          // Mark as invalid and store the original value
+          selectInput.classList.add('invalid-data');
+          selectInput.dataset.invalidValue = stringValue;
+          selectInput.value = '';
+          
+          // Add warning message
+          addInvalidDataWarning(selectInput, stringValue, pathStr);
+          
+          // Enforce valid selection
+          enforceValidSelection(selectInput, pathStr);
+        }
+      }
     }
-  }
 }
 
 function populateArrayOfObjects(pathStr, items) {
