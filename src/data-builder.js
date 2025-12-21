@@ -1,4 +1,7 @@
 // data-builder.js - JSON data builder
+// import 
+// import { saveFile } from './utils.js'; 
+import {saveJsonWithDialog} from './utils.js'
 
 // Global variables
 let currentSchema = null;
@@ -9,6 +12,8 @@ let conditionalRules = {};
 let triggersToAffected = {}; // New: Map of trigger fields to affected dependent fields
 let currentTab = null;
 let tabContents = {};
+let dataFilename = null;  // stores data file and name and path
+let dataFilePath = '';
 
 // Initialize on page load
 console.log('JSON Data Builder Loaded - Version 2.0');
@@ -17,7 +22,8 @@ console.log('JSON Data Builder Loaded - Version 2.0');
 document.getElementById('loadSchemaBtn').addEventListener('click', loadSchemaFromFile);
 document.getElementById('loadOptionsBtn').addEventListener('click', loadOptionsFromFile);
 document.getElementById('loadDataBtn').addEventListener('click', loadDataFromFile);
-document.getElementById('saveBtn').addEventListener('click', () => {
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
   try {
     // Check for invalid fields before saving
     const invalidFields = document.querySelectorAll('.invalid-data');
@@ -37,12 +43,14 @@ document.getElementById('saveBtn').addEventListener('click', () => {
     }
     
     const data = collectFormData();
-    saveJsonToFile(data);
+    // saveJsonToFile(data);
+    await saveJsonWithDialog(data, dataFilename, dataFilePath);    
   } catch (error) {
     console.error('Error saving data:', error);
     alert('Error saving data: ' + error.message);
   }
 });
+
 document.getElementById('exportBtn').addEventListener('click', () => {
   try {
     // Check for invalid fields before exporting
@@ -167,6 +175,10 @@ function loadDataFromFile() {
     const file = e.target.files[0];
     if (!file) return;
     
+// New: Store filename and path (path is limited in browsers)
+    dataFilename = file.name.endsWith('.json') ? file.name : `${file.name}.json`;
+    dataFilePath = file.webkitRelativePath || '';  // Usually empty; for future directory support if needed
+
     try {
       const text = await file.text();
       const data = JSON.parse(text);
@@ -211,21 +223,21 @@ function loadDataFromFile() {
   input.click();
 }
 
-function saveJsonToFile(data) {
-  const jsonString = JSON.stringify(data, null, 2);
-  const blob = new Blob([jsonString], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
+// function saveJsonToFile(data) {
+//   const jsonString = JSON.stringify(data, null, 2);
+//   const blob = new Blob([jsonString], { type: 'application/json' });
+//   const url = URL.createObjectURL(blob);
+//   const a = document.createElement('a');
+
+//   a.href = url;
+//   a.download = 'form-data-' + new Date().toISOString().split('T')[0] + '.json';
+//   document.body.appendChild(a);
+//   a.click();
+//   document.body.removeChild(a);
+//   URL.revokeObjectURL(url);
   
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'form-data-' + new Date().toISOString().split('T')[0] + '.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-  
-  console.log('✓ JSON saved to file');
-}
+//   console.log('✓ JSON saved to file');
+// }
 
 async function exportJsonToClipboard(data) {
   const jsonString = JSON.stringify(data, null, 2);
