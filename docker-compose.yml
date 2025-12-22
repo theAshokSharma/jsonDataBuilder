@@ -10,12 +10,13 @@ services:
       - ./src/index.html:/usr/share/nginx/html/index.html
       - ./src/styles.css:/usr/share/nginx/html/styles.css
       - ./src/data-builder.js:/usr/share/nginx/html/data-builder.js
-      - ./data/schema.json:/usr/share/nginx/html/schema.json
+      - ./src/utils.js:/usr/share/nginx/html/utils.js      
+   
     environment:
       - NGINX_ENV=development
     restart: unless-stopped
     networks:
-      - schema-network
+      - blueaura-network
 
   # Production environment
   prod:
@@ -28,7 +29,7 @@ services:
       - NGINX_ENV=production
     restart: always
     networks:
-      - schema-network
+      - blueaura-network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/"]
       interval: 30s
@@ -37,5 +38,5 @@ services:
       start_period: 40s
 
 networks:
-  schema-network:
+  blueaura-network:
     driver: bridge

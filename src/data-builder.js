@@ -74,7 +74,7 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     exportJsonToClipboard(data);
   } catch (error) {
     console.error('Error exporting data:', error);
-    alert('Error exporting data: ' + error.message);
+    ashAlert('Error exporting data: ' + error.message);
   }
 });
 
@@ -101,7 +101,7 @@ function loadSchemaFromFile() {
       document.getElementById('loadSchemaBtn').style.backgroundColor = '#99ff00ff';
 
     } catch (error) {
-      alert('Invalid JSON schema file: ' + error.message);
+      ashAlert('Invalid JSON schema file: ' + error.message);
       console.error('Schema load error:', error);
     }
   };
@@ -153,8 +153,8 @@ function loadOptionsFromFile() {
           
       console.log('✓ Options loaded with', Object.keys(customOptions).length, 'entries');
     } catch (error) {
-      alert('Invalid JSON options file: ' + error.message);
-      console.error('Options load error:', error);
+        ashAlert('Invalid JSON options file: ' + error.message);
+        console.error('Options load error:', error);
     }
   };
   
@@ -163,7 +163,7 @@ function loadOptionsFromFile() {
 
 function loadDataFromFile() {
   if (!currentSchema) {
-    alert('Please load a schema first');
+    ashAlert('Please load a schema first');
     return;
   }
 
@@ -211,11 +211,11 @@ function loadDataFromFile() {
         document.getElementById('loadSchemaBtn').style.color = '#000000ff';
         document.getElementById('loadSchemaBtn').style.backgroundColor = '#99ff00ff';
    
-        alert('Data loaded and form populated successfully!');
+        ashAlert('Data loaded and form populated successfully!');
         console.log('✓ Data loaded successfully');
       }, 100);
     } catch (error) {
-      alert('Invalid JSON data file: ' + error.message);
+      ashAlert('Invalid JSON data file: ' + error.message);
       console.error('Data load error:', error);
     }
   };
@@ -244,7 +244,7 @@ async function exportJsonToClipboard(data) {
   
   try {
     await navigator.clipboard.writeText(jsonString);
-    alert('JSON copied to clipboard!');
+    ashAlert('JSON copied to clipboard!');
     console.log('✓ JSON copied to clipboard');
   } catch (error) {
     const textarea = document.createElement('textarea');
@@ -255,7 +255,7 @@ async function exportJsonToClipboard(data) {
     textarea.select();
     document.execCommand('copy');
     document.body.removeChild(textarea);
-    alert('JSON copied to clipboard!');
+    ashAlert('JSON copied to clipboard!');
     console.log('✓ JSON copied to clipboard (fallback)');
   }
 }
