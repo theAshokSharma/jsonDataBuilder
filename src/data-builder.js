@@ -1,7 +1,7 @@
 // data-builder.js - JSON data builder
 // import 
 // import { saveFile } from './utils.js'; 
-import {saveJsonWithDialog, ashAlert, ashConfirm} from './utils.js'
+import {saveJsonWithDialog, exportJsonToClipboard, ashAlert, ashConfirm} from './utils.js'
 
 // Global variables
 let currentSchema = null;
@@ -221,8 +221,8 @@ function loadDataFromFile() {
           }
         });
 
-        document.getElementById('loadSchemaBtn').style.color = '#000000ff';
-        document.getElementById('loadSchemaBtn').style.backgroundColor = '#99ff00ff';
+        document.getElementById('loadDataBtn').style.color = '#000000ff';
+        document.getElementById('loadDataBtn').style.backgroundColor = '#99ff00ff';
    
         ashAlert('Data loaded and form populated successfully!');
         console.log('✓ Data loaded successfully');
@@ -236,42 +236,27 @@ function loadDataFromFile() {
   input.click();
 }
 
-// function saveJsonToFile(data) {
+// async function exportJsonToClipboard(data) {
 //   const jsonString = JSON.stringify(data, null, 2);
-//   const blob = new Blob([jsonString], { type: 'application/json' });
-//   const url = URL.createObjectURL(blob);
-//   const a = document.createElement('a');
-
-//   a.href = url;
-//   a.download = 'form-data-' + new Date().toISOString().split('T')[0] + '.json';
-//   document.body.appendChild(a);
-//   a.click();
-//   document.body.removeChild(a);
-//   URL.revokeObjectURL(url);
   
-//   console.log('✓ JSON saved to file');
+//   try {
+//     await navigator.clipboard.writeText(jsonString);
+//     console.log('✓ JSON copied to clipboard');
+//     ashAlert('JSON copied to clipboard!');    
+//   } catch (error) {
+//     const textarea = document.createElement('textarea');
+//     textarea.value = jsonString;
+//     textarea.style.position = 'fixed';
+//     textarea.style.opacity = '0';
+//     document.body.appendChild(textarea);
+//     textarea.select();
+//     document.execCommand('copy');
+//     document.body.removeChild(textarea);
+//     console.log('✓ JSON copied to clipboard (fallback)');    
+//     ashAlert('JSON copied to clipboard!');
+
+//   }
 // }
-
-async function exportJsonToClipboard(data) {
-  const jsonString = JSON.stringify(data, null, 2);
-  
-  try {
-    await navigator.clipboard.writeText(jsonString);
-    ashAlert('JSON copied to clipboard!');
-    console.log('✓ JSON copied to clipboard');
-  } catch (error) {
-    const textarea = document.createElement('textarea');
-    textarea.value = jsonString;
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand('copy');
-    document.body.removeChild(textarea);
-    ashAlert('JSON copied to clipboard!');
-    console.log('✓ JSON copied to clipboard (fallback)');
-  }
-}
 
 // ==================== UTILITY FUNCTIONS ====================
 
