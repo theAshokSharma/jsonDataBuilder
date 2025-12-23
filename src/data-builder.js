@@ -27,6 +27,7 @@ document.getElementById('loadDataBtn').addEventListener('click', loadDataFromFil
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
   try {
+    renderAllTabs();    // ensure all tabs are rendered before collecting data
     // Check for invalid fields before saving
     const invalidFields = document.querySelectorAll('.invalid-data');
     if (invalidFields.length > 0) {
@@ -55,6 +56,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
 
 document.getElementById('exportBtn').addEventListener('click', () => {
   try {
+    renderAllTabs();  // ensure all tabs are rendered before collecting data
     // Check for invalid fields before exporting
     const invalidFields = document.querySelectorAll('.invalid-data');
     if (invalidFields.length > 0) {
