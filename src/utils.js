@@ -62,6 +62,30 @@ async function saveJsonWithDialog(data, dataFilename, dataFilePath) {
   }
 }
 
+
+// function to copy Json data to Clipboard
+async function exportJsonToClipboard(data) {
+  const jsonString = JSON.stringify(data, null, 2);
+  
+  try {
+    await navigator.clipboard.writeText(jsonString);
+    console.log('✓ JSON copied to clipboard');
+    ashAlert('JSON copied to clipboard!');    
+  } catch (error) {
+    const textarea = document.createElement('textarea');
+    textarea.value = jsonString;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    console.log('✓ JSON copied to clipboard (fallback)');    
+    ashAlert('JSON copied to clipboard!');
+
+  }
+}
+
 // Function to show a custom confirm dialog
 function ashConfirm(message) {
   return new Promise((resolve) => {
@@ -111,7 +135,6 @@ function ashConfirm(message) {
     document.body.appendChild(modal);
   });
 }
-
 
 // Function to show a custom alert dialog
 function ashAlert(message) {
@@ -176,4 +199,4 @@ function ashAlert(message) {
 //   }
 // }
 
-export { saveJsonWithDialog, ashAlert, ashConfirm };
+export { saveJsonWithDialog, exportJsonToClipboard, ashAlert, ashConfirm };
