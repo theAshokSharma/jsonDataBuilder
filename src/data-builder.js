@@ -10,10 +10,12 @@ let definitions = {};
 let customOptions = {};
 let conditionalRules = {};
 let triggersToAffected = {}; // New: Map of trigger fields to affected dependent fields
+let exclusiveOptionsMap = {};   // list all exclusive values for multi-select options
 let currentTab = null;
 let tabContents = {};
 let dataFilename = null;  // stores data file and name and path
 let dataFilePath = '';
+
 
 // Initialize on page load
 console.log('JSON Data Builder Loaded - Version 2.0');
@@ -92,6 +94,15 @@ function loadSchemaFromFile() {
     try {
       const text = await file.text();
       const schema = JSON.parse(text);
+
+      // const ajv = new Ajv({ allErrors: true });  // Initialize AJV with allErrors for detailed messages
+      // if (!ajv.validateSchema(schema)) {
+      //   const errorMessage = 'Invalid JSON Schema structure:\n' + 
+      //     ajv.errors.map(err => `- ${err.instancePath} ${err.message}`).join('\n');
+      //   ashAlert(errorMessage);
+      //   console.error('Schema validation errors:', ajv.errors);
+      //   return;  // Return to the same page without loading
+      // }      
       currentSchema = schema;
       definitions = schema.definitions || schema.$defs || {};
       renderForm(schema);
@@ -388,7 +399,7 @@ function updateFieldOptions(pathStr, depValue, element, rule) {
                data-path="${pathStr}"
                data-dropdown="${element.id}"
                class="multi-select-checkbox"
-               onchange="handleMultiSelectChange('${pathStr}', '${element.id}')">
+               onchange="handleMultiSelectChange(event, '${pathStr}', '${element.id}')">
         <label for="${pathStr}_${idx}">${val}</label>
       `;
       dropdown.appendChild(optionDiv);
@@ -636,6 +647,10 @@ function createField(key, prop, isRequired, path) {
       rawValues = choiceConfig.values || [];
     }
     enumValues = expandRangeValues(rawValues);
+
+    // New: Add dynamic exclusive values
+    const exclusiveValues = choiceConfig.exclusive_values || [];
+    exclusiveOptionsMap[pathStr] = exclusiveValues;
   } else if (Array.isArray(choiceConfig)) {
     enumValues = choiceConfig;
     responseType = type === 'array' ? 'multi-select' : 'single-select';
@@ -669,7 +684,7 @@ function createField(key, prop, isRequired, path) {
                      data-path="${pathStr}"
                      data-dropdown="${dropdownId}"
                      class="multi-select-checkbox"
-                     onchange="handleMultiSelectChange('${pathStr}', '${dropdownId}')">
+                     onchange="handleMultiSelectChange(event, '${pathStr}', '${dropdownId}')">
               <label for="${pathStr}_${idx}">${val}</label>
             </div>
           `;
@@ -847,13 +862,15 @@ window.removeArrayItem = function(btn) {
   });
 };
 
-window.handleMultiSelectChange = function(path, dropdownId) {
+window.handleMultiSelectChange = function(event, path, dropdownId) {
   const changedCheckbox = event.target;
+  const isChecked = changedCheckbox.checked;
   const changedValue = changedCheckbox.value;
   
-  const exclusiveOptions = ['Unknown/Unsure', 'None of the listed options', 'N/A'];
+  // Updated: Use dynamic exclusive options from map
+  const exclusiveOptions = exclusiveOptionsMap[path] || [];
   
-  if (exclusiveOptions.includes(changedValue) && changedCheckbox.checked) {
+  if (exclusiveOptions.includes(changedValue) && isChecked) {
     const allCheckboxes = document.querySelectorAll(`[data-path="${path}"].multi-select-checkbox, #${path}_na`);
     allCheckboxes.forEach(cb => {
       if (cb !== changedCheckbox) {
@@ -862,6 +879,7 @@ window.handleMultiSelectChange = function(path, dropdownId) {
     });
   } else if (changedCheckbox.checked) {
     const allCheckboxes = document.querySelectorAll(`[data-path="${path}"].multi-select-checkbox, #${path}_na`);
+
     allCheckboxes.forEach(cb => {
       if (exclusiveOptions.includes(cb.value)) {
         cb.checked = false;
