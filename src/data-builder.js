@@ -1,7 +1,7 @@
 // data-builder.js - JSON data builder
 // import 
 // import { saveFile } from './utils.js'; 
-import {saveJsonWithDialog, exportJsonToClipboard, ashAlert, ashConfirm} from './utils.js'
+import {saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm} from './utils.js'
 
 // Global variables
 let currentSchema = null;
@@ -21,9 +21,17 @@ let dataFilePath = '';
 console.log('JSON Data Builder Loaded - Version 2.0');
 
 // Button event listeners
-document.getElementById('loadSchemaBtn').addEventListener('click', loadSchemaFromFile);
-document.getElementById('loadOptionsBtn').addEventListener('click', loadOptionsFromFile);
-document.getElementById('loadDataBtn').addEventListener('click', loadDataFromFile);
+const loadSchemaBtn = document.getElementById('loadSchemaBtn');
+loadSchemaBtn.addEventListener('click', loadSchemaFromFile);
+const schemaTooltip = addTooltip(loadSchemaBtn, 'Load schema JSON file.')
+
+const loadOptionsBtn = document.getElementById('loadOptionsBtn');
+loadOptionsBtn.addEventListener('click', loadOptionsFromFile);
+const optionsTooltip = addTooltip(loadOptionsBtn, 'Load options JSON file.')
+
+const loadDataBtn = document.getElementById('loadDataBtn');
+loadDataBtn.addEventListener('click', loadDataFromFile);
+const dataTooltip = addTooltip(loadDataBtn, 'Load options JSON file.')
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
   try {
@@ -92,7 +100,9 @@ function loadSchemaFromFile() {
   input.onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    
+
+    const schemaFilename = file.name.endsWith('.json') ? file.name : `${file.name}.json`;
+
     try {
       const text = await file.text();
       const schema = JSON.parse(text);
@@ -113,6 +123,8 @@ function loadSchemaFromFile() {
       document.getElementById('loadSchemaBtn').style.color = '#000000ff';
       document.getElementById('loadSchemaBtn').style.backgroundColor = '#99ff00ff';
 
+      schemaTooltip.innerText = schemaFilename + ' loaded.'
+
     } catch (error) {
       ashAlert('Invalid JSON schema file: ' + error.message);
       console.error('Schema load error:', error);
@@ -131,6 +143,8 @@ function loadOptionsFromFile() {
     const file = e.target.files[0];
     if (!file) return;
     
+    const optionsFilename = file.name.endsWith('.json') ? file.name : `${file.name}.json`;
+
     try {
       const text = await file.text();
       const options = JSON.parse(text);
@@ -162,7 +176,7 @@ function loadOptionsFromFile() {
       document.getElementById('loadOptionsBtn').style.color = '#000000ff';
       document.getElementById('loadOptionsBtn').style.backgroundColor = '#99ff00ff';
 
-      ashAlert('Options file loaded successfully');
+      optionsTooltip.innerText = optionsFilename + ' loaded.'
           
       console.log('✓ Options loaded with', Object.keys(customOptions).length, 'entries');
     } catch (error) {
@@ -188,9 +202,8 @@ function loadDataFromFile() {
     const file = e.target.files[0];
     if (!file) return;
     
-// New: Store filename and path (path is limited in browsers)
-    dataFilename = file.name.endsWith('.json') ? file.name : `${file.name}.json`;
-    dataFilePath = file.webkitRelativePath || '';  // Usually empty; for future directory support if needed
+    // New: Store filename and path (path is limited in browsers)
+    const dataFilename = file.name.endsWith('.json') ? file.name : `${file.name}.json`;
 
     try {
       const text = await file.text();
@@ -223,8 +236,8 @@ function loadDataFromFile() {
 
         document.getElementById('loadDataBtn').style.color = '#000000ff';
         document.getElementById('loadDataBtn').style.backgroundColor = '#99ff00ff';
-   
-        ashAlert('Data loaded and form populated successfully!');
+        dataTooltip.innerText = dataFilename + ' loaded.'
+
         console.log('✓ Data loaded successfully');
       }, 100);
     } catch (error) {
@@ -235,28 +248,6 @@ function loadDataFromFile() {
 
   input.click();
 }
-
-// async function exportJsonToClipboard(data) {
-//   const jsonString = JSON.stringify(data, null, 2);
-  
-//   try {
-//     await navigator.clipboard.writeText(jsonString);
-//     console.log('✓ JSON copied to clipboard');
-//     ashAlert('JSON copied to clipboard!');    
-//   } catch (error) {
-//     const textarea = document.createElement('textarea');
-//     textarea.value = jsonString;
-//     textarea.style.position = 'fixed';
-//     textarea.style.opacity = '0';
-//     document.body.appendChild(textarea);
-//     textarea.select();
-//     document.execCommand('copy');
-//     document.body.removeChild(textarea);
-//     console.log('✓ JSON copied to clipboard (fallback)');    
-//     ashAlert('JSON copied to clipboard!');
-
-//   }
-// }
 
 // ==================== UTILITY FUNCTIONS ====================
 
@@ -1195,7 +1186,6 @@ function collectFormData() {
 }
 
 // ==================== DATA POPULATION ====================
-
 function populateFormWithData(data) {
   console.log('=== Starting data population ===');
   populateFields(data, []);
@@ -1206,6 +1196,26 @@ function populateFormWithData(data) {
     console.log('✓ Form populated and rules applied');
   }, 300);
 }
+
+function showInvalidFieldsSummary() {
+  const invalidFields = document.querySelectorAll('.invalid-data');
+  if (invalidFields.length === 0) {
+    console.log('No invalid fields found');
+    return;
+  }
+  
+  let summary = `Found ${invalidFields.length} invalid field(s):\n\n`;
+  
+  invalidFields.forEach(field => {
+    const path = field.dataset.path || 'Unknown path';
+    const invalidValue = field.dataset.invalidValue || field.dataset.invalidValues || 'Unknown value';
+    summary += `- Field: ${path}\n  Invalid: ${invalidValue}\n\n`;
+  });
+  
+  alert(summary);
+  console.log(summary);
+}
+
 
 function populateFields(data, parentPath) {
   for (const [key, value] of Object.entries(data)) {

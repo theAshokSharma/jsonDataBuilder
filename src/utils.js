@@ -199,4 +199,55 @@ function ashAlert(message) {
 //   }
 // }
 
-export { saveJsonWithDialog, exportJsonToClipboard, ashAlert, ashConfirm };
+/*
+ * AddToolTip
+ * Usage example for the buttons (add this after the buttons are defined or in DOMContentLoaded)
+ * const loadSchemaBtn = document.getElementById('loadSchemaBtn');
+ * addTooltip(loadSchemaBtn, 'Load the JSON schema file');
+ * const loadOptionsBtn = document.getElementById('loadOptionsBtn');
+ * addTooltip(loadOptionsBtn, 'Load the custom options JSON file');
+*/
+function addTooltip(element, initialMessage) {
+  // Create tooltip element
+  const tooltip = document.createElement('div');
+  tooltip.className = 'tooltip';
+  tooltip.innerText = initialMessage;
+  tooltip.style.display = 'none';
+  tooltip.style.position = 'absolute';
+  tooltip.style.backgroundColor = '#333';
+  tooltip.style.color = '#fff';
+  tooltip.style.padding = '5px 10px';
+  tooltip.style.borderRadius = '4px';
+  tooltip.style.zIndex = '1000';
+  tooltip.style.pointerEvents = 'none';
+
+  // Append to body for positioning freedom
+  document.body.appendChild(tooltip);
+
+  // Show on mouseover
+  element.addEventListener('mouseover', (e) => {
+    tooltip.style.display = 'block';
+    const rect = element.getBoundingClientRect();
+    tooltip.style.left = `${rect.left + window.scrollX}px`;
+    tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`; // Position below the element
+  });
+
+  // Hide on mouseout
+  element.addEventListener('mouseout', () => {
+    tooltip.style.display = 'none';
+  });
+
+  // Cleanup on element removal (optional)
+  element.addEventListener('DOMNodeRemoved', () => {
+    tooltip.remove();
+  });
+
+  // Return the tooltip element for later updates
+  return tooltip;
+}
+
+export { saveJsonWithDialog, 
+         exportJsonToClipboard,
+         addTooltip,
+         ashAlert, 
+         ashConfirm };
