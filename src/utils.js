@@ -86,10 +86,15 @@ async function exportJsonToClipboard(data) {
   }
 }
 
-// Function to show a custom confirm dialog
+/**
+ * Shows a custom confirm dialog with scrollable message if content is long.
+ * Dialog size is capped at 600px width and 400px height.
+ * @param {string} message - The message to display
+ * @returns {Promise<boolean>} Resolves to true (Yes) or false (No)
+ */
 function ashConfirm(message) {
   return new Promise((resolve) => {
-    // Create modal elements
+    // Create modal overlay
     const modal = document.createElement('div');
     modal.style.position = 'fixed';
     modal.style.top = '0';
@@ -102,37 +107,85 @@ function ashConfirm(message) {
     modal.style.justifyContent = 'center';
     modal.style.zIndex = '1000';
 
+    // Create dialog box
     const dialog = document.createElement('div');
     dialog.style.background = 'white';
-    dialog.style.padding = '20px';
-    dialog.style.borderRadius = '8px';
-    dialog.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-    dialog.style.maxWidth = '300px';
-    dialog.style.textAlign = 'center';
+    dialog.style.padding = '24px';
+    dialog.style.borderRadius = '12px';
+    dialog.style.boxShadow = '0 8px 32px rgba(0,0,0,0.3)';
+    dialog.style.maxWidth = '600px';
+    dialog.style.width = '90%';           // Responsive on small screens
+    dialog.style.maxHeight = '400px';
+    dialog.style.display = 'flex';
+    dialog.style.flexDirection = 'column';
+    dialog.style.gap = '20px';
+    dialog.style.overflow = 'hidden';     // Prevent dialog itself from scrolling
+
+    // Message area (scrollable)
+    const messageContainer = document.createElement('div');
+    messageContainer.style.flex = '1';    // Take available space
+    messageContainer.style.overflowY = 'auto';
+    messageContainer.style.maxHeight = 'calc(400px - 120px)'; // Leave room for buttons + padding
+    messageContainer.style.paddingRight = '8px'; // Space for scrollbar
+    messageContainer.style.textAlign = 'left';
 
     const text = document.createElement('p');
     text.textContent = message;
-    dialog.appendChild(text);
+    text.style.margin = '0';
+    text.style.whiteSpace = 'pre-wrap';   // Respect newlines
+    text.style.wordWrap = 'break-word';
+    messageContainer.appendChild(text);
 
+    // Button container
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'flex-end';
+    buttonContainer.style.gap = '12px';
+
+    // Yes button
     const yesBtn = document.createElement('button');
     yesBtn.textContent = 'Yes';
-    yesBtn.style.marginRight = '10px';
+    yesBtn.style.padding = '10px 24px';
+    yesBtn.style.backgroundColor = '#007bff';
+    yesBtn.style.color = 'white';
+    yesBtn.style.border = 'none';
+    yesBtn.style.borderRadius = '6px';
+    yesBtn.style.cursor = 'pointer';
+    yesBtn.style.fontWeight = '500';
+    yesBtn.onmouseover = () => { yesBtn.style.backgroundColor = '#0056b3'; };
+    yesBtn.onmouseout = () => { yesBtn.style.backgroundColor = '#007bff'; };
     yesBtn.onclick = () => {
       resolve(true);
       document.body.removeChild(modal);
     };
 
+    // No button
     const noBtn = document.createElement('button');
     noBtn.textContent = 'No';
+    noBtn.style.padding = '10px 24px';
+    noBtn.style.backgroundColor = '#6c757d';
+    noBtn.style.color = 'white';
+    noBtn.style.border = 'none';
+    noBtn.style.borderRadius = '6px';
+    noBtn.style.cursor = 'pointer';
+    noBtn.style.fontWeight = '500';
+    noBtn.onmouseover = () => { noBtn.style.backgroundColor = '#5a6268'; };
+    noBtn.onmouseout = () => { noBtn.style.backgroundColor = '#6c757d'; };
     noBtn.onclick = () => {
       resolve(false);
       document.body.removeChild(modal);
     };
 
-    dialog.appendChild(yesBtn);
-    dialog.appendChild(noBtn);
+    // Assemble dialog
+    buttonContainer.appendChild(noBtn);
+    buttonContainer.appendChild(yesBtn);
+    dialog.appendChild(messageContainer);
+    dialog.appendChild(buttonContainer);
     modal.appendChild(dialog);
     document.body.appendChild(modal);
+
+    // Focus "No" button by default (safer UX)
+    noBtn.focus();
   });
 }
 

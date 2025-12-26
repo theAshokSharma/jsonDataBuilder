@@ -2,6 +2,7 @@
 // import 
 // import { saveFile } from './utils.js'; 
 import {saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm} from './utils.js'
+import {validateOptionsAgainstSchema, displayValidationResults, resolveRef} from './file-validation.js'
 
 // Global variables
 let currentSchema = null;
@@ -148,6 +149,23 @@ function loadOptionsFromFile() {
     try {
       const text = await file.text();
       const options = JSON.parse(text);
+
+      // Validate options file ie the corect file for the loaded schema
+      if (currentSchema) {
+        const validationResults = validateOptionsAgainstSchema(options, currentSchema);
+        
+        if (!displayValidationResults(validationResults)) {
+          // Validation failed - ask user if they want to proceed anyway
+          const proceed = ashConfirm('Validation errors found. Load options anyway?');
+          if (!proceed) {
+            console.log('User cancelled options loading due to validation errors');
+            return;
+          }
+        }
+      } else {
+        console.warn('No schema loaded - skipping validation');
+      }        
+
       customOptions = options;
       conditionalRules = options.conditional_rules || {};
       
@@ -251,21 +269,21 @@ function loadDataFromFile() {
 
 // ==================== UTILITY FUNCTIONS ====================
 
-function resolveRef(ref) {
-  if (!ref || !ref.startsWith('#/')) return null;
-  const path = ref.substring(2).split('/');
-  let result = currentSchema;
+// function resolveRef(ref) {
+//   if (!ref || !ref.startsWith('#/')) return null;
+//   const path = ref.substring(2).split('/');
+//   let result = currentSchema;
   
-  for (const key of path) {
-    if (key === 'definitions' && !result[key] && result.$defs) {
-      result = result.$defs;
-    } else {
-      result = result[key];
-    }
-    if (!result) return null;
-  }
-  return result;
-}
+//   for (const key of path) {
+//     if (key === 'definitions' && !result[key] && result.$defs) {
+//       result = result.$defs;
+//     } else {
+//       result = result[key];
+//     }
+//     if (!result) return null;
+//   }
+//   return result;
+// }
 
 function expandRangeValues(rawValues) {
   const expanded = [];
@@ -304,7 +322,7 @@ function getFieldTypeFromSchema(fieldPath) {
     const prop = current[keys[i]];
     
     if (prop.$ref) {
-      const resolved = resolveRef(prop.$ref);
+      const resolved = resolveRef(prop.$ref, currentSchema);
       if (i === keys.length - 1) {
         return resolved.type || 'string';
       }
@@ -583,7 +601,7 @@ function renderAllTabs() {
 
 function createField(key, prop, isRequired, path) {
   if (prop.$ref) {
-    prop = resolveRef(prop.$ref);
+    prop = resolveRef(prop.$ref, currentSchema);
     if (!prop) return '';
   }
 
@@ -800,7 +818,7 @@ window.addArrayItem = function(arrayPath, itemSchema) {
   itemSchema = typeof itemSchema === 'string' ? JSON.parse(itemSchema.replace(/&quot;/g, '"')) : itemSchema;
   
   if (itemSchema.$ref) {
-    itemSchema = resolveRef(itemSchema.$ref);
+    itemSchema = resolveRef(itemSchema.$ref, currentSchema);
   }
   
   const container = document.getElementById('array_' + arrayPath);
@@ -1489,7 +1507,7 @@ function populateArrayOfObjects(pathStr, items) {
   for (let i = 0; i < keys.length; i++) {
     if (currentProp[keys[i]]) {
       if (currentProp[keys[i]].$ref) {
-        currentProp = resolveRef(currentProp[keys[i]].$ref);
+        currentProp = resolveRef(currentProp[keys[i]].$ref, currentSchema);
         if (i < keys.length - 1) {
           currentProp = currentProp.properties;
         }
