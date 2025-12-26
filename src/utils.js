@@ -94,7 +94,6 @@ async function exportJsonToClipboard(data) {
  */
 function ashConfirm(message) {
   return new Promise((resolve) => {
-    // Create modal overlay
     const modal = document.createElement('div');
     modal.style.position = 'fixed';
     modal.style.top = '0';
@@ -107,42 +106,38 @@ function ashConfirm(message) {
     modal.style.justifyContent = 'center';
     modal.style.zIndex = '1000';
 
-    // Create dialog box
     const dialog = document.createElement('div');
     dialog.style.background = 'white';
     dialog.style.padding = '24px';
     dialog.style.borderRadius = '12px';
     dialog.style.boxShadow = '0 8px 32px rgba(0,0,0,0.3)';
     dialog.style.maxWidth = '600px';
-    dialog.style.width = '90%';           // Responsive on small screens
+    dialog.style.width = '90%';
     dialog.style.maxHeight = '400px';
     dialog.style.display = 'flex';
     dialog.style.flexDirection = 'column';
     dialog.style.gap = '20px';
-    dialog.style.overflow = 'hidden';     // Prevent dialog itself from scrolling
+    dialog.style.overflow = 'hidden';
 
-    // Message area (scrollable)
     const messageContainer = document.createElement('div');
-    messageContainer.style.flex = '1';    // Take available space
+    messageContainer.style.flex = '1';
     messageContainer.style.overflowY = 'auto';
-    messageContainer.style.maxHeight = 'calc(400px - 120px)'; // Leave room for buttons + padding
-    messageContainer.style.paddingRight = '8px'; // Space for scrollbar
+    messageContainer.style.maxHeight = 'calc(400px - 120px)';
+    messageContainer.style.paddingRight = '8px';
     messageContainer.style.textAlign = 'left';
 
     const text = document.createElement('p');
     text.textContent = message;
     text.style.margin = '0';
-    text.style.whiteSpace = 'pre-wrap';   // Respect newlines
+    text.style.whiteSpace = 'pre-wrap';
     text.style.wordWrap = 'break-word';
     messageContainer.appendChild(text);
 
-    // Button container
     const buttonContainer = document.createElement('div');
     buttonContainer.style.display = 'flex';
     buttonContainer.style.justifyContent = 'flex-end';
     buttonContainer.style.gap = '12px';
 
-    // Yes button
     const yesBtn = document.createElement('button');
     yesBtn.textContent = 'Yes';
     yesBtn.style.padding = '10px 24px';
@@ -151,15 +146,11 @@ function ashConfirm(message) {
     yesBtn.style.border = 'none';
     yesBtn.style.borderRadius = '6px';
     yesBtn.style.cursor = 'pointer';
-    yesBtn.style.fontWeight = '500';
-    yesBtn.onmouseover = () => { yesBtn.style.backgroundColor = '#0056b3'; };
-    yesBtn.onmouseout = () => { yesBtn.style.backgroundColor = '#007bff'; };
     yesBtn.onclick = () => {
       resolve(true);
       document.body.removeChild(modal);
     };
 
-    // No button
     const noBtn = document.createElement('button');
     noBtn.textContent = 'No';
     noBtn.style.padding = '10px 24px';
@@ -168,15 +159,11 @@ function ashConfirm(message) {
     noBtn.style.border = 'none';
     noBtn.style.borderRadius = '6px';
     noBtn.style.cursor = 'pointer';
-    noBtn.style.fontWeight = '500';
-    noBtn.onmouseover = () => { noBtn.style.backgroundColor = '#5a6268'; };
-    noBtn.onmouseout = () => { noBtn.style.backgroundColor = '#6c757d'; };
     noBtn.onclick = () => {
       resolve(false);
       document.body.removeChild(modal);
     };
 
-    // Assemble dialog
     buttonContainer.appendChild(noBtn);
     buttonContainer.appendChild(yesBtn);
     dialog.appendChild(messageContainer);
@@ -184,7 +171,6 @@ function ashConfirm(message) {
     modal.appendChild(dialog);
     document.body.appendChild(modal);
 
-    // Focus "No" button by default (safer UX)
     noBtn.focus();
   });
 }
@@ -299,8 +285,113 @@ function addTooltip(element, initialMessage) {
   return tooltip;
 }
 
+
+/**
+ * Shows config modal for selecting schema and options files.
+ * @param {boolean} isFirst - If true, close tab on cancel
+ * @returns {Promise<{schemaFile: File, optionsFile: File} | null>}
+ */
+function showConfigModal(isFirst = false) {
+  return new Promise((resolve) => {
+    const modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.background = 'rgba(0,0,0,0.5)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '3000';
+
+    const dialog = document.createElement('div');
+    dialog.style.background = 'white';
+    dialog.style.padding = '24px';
+    dialog.style.borderRadius = '12px';
+    dialog.style.boxShadow = '0 8px 32px rgba(0,0,0,0.3)';
+    dialog.style.maxWidth = '600px';
+    dialog.style.width = '90%';
+    dialog.style.maxHeight = '400px';
+    dialog.style.display = 'flex';
+    dialog.style.flexDirection = 'column';
+    dialog.style.gap = '20px';
+    dialog.style.overflow = 'hidden';
+
+    const content = document.createElement('div');
+    content.style.flex = '1';
+    content.style.overflowY = 'auto';
+    content.style.paddingRight = '8px';
+
+    const schemaLabel = document.createElement('label');
+    schemaLabel.textContent = 'Select Schema File:';
+    const schemaInput = document.createElement('input');
+    schemaInput.type = 'file';
+    schemaInput.accept = '.json';
+    content.appendChild(schemaLabel);
+    content.appendChild(schemaInput);
+
+    const optionsLabel = document.createElement('label');
+    optionsLabel.textContent = 'Select Options File:';
+    const optionsInput = document.createElement('input');
+    optionsInput.type = 'file';
+    optionsInput.accept = '.json';
+    content.appendChild(optionsLabel);
+    content.appendChild(optionsInput);
+
+    const buttonContainer = document.createElement('div');
+    buttonContainer.style.display = 'flex';
+    buttonContainer.style.justifyContent = 'flex-end';
+    buttonContainer.style.gap = '12px';
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = 'Confirm';
+    confirmBtn.style.padding = '10px 24px';
+    confirmBtn.style.backgroundColor = '#007bff';
+    confirmBtn.style.color = 'white';
+    confirmBtn.style.border = 'none';
+    confirmBtn.style.borderRadius = '6px';
+    confirmBtn.style.cursor = 'pointer';
+    confirmBtn.onclick = async () => {
+      if (!schemaInput.files[0] || !optionsInput.files[0]) {
+        await ashAlert('Please select both files.');
+        return;
+      }
+      resolve({ schemaFile: schemaInput.files[0], optionsFile: optionsInput.files[0] });
+      document.body.removeChild(modal);
+    };
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = 'Cancel';
+    cancelBtn.style.padding = '10px 24px';
+    cancelBtn.style.backgroundColor = '#6c757d';
+    cancelBtn.style.color = 'white';
+    cancelBtn.style.border = 'none';
+    cancelBtn.style.borderRadius = '6px';
+    cancelBtn.style.cursor = 'pointer';
+    cancelBtn.onclick = () => {
+      resolve(null);
+      document.body.removeChild(modal);
+      if (isFirst) {
+        window.close();
+      }
+    };
+
+    buttonContainer.appendChild(cancelBtn);
+    buttonContainer.appendChild(confirmBtn);
+    dialog.appendChild(content);
+    dialog.appendChild(buttonContainer);
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+
+    cancelBtn.focus();
+  });
+}
+
 export { saveJsonWithDialog, 
          exportJsonToClipboard,
          addTooltip,
          ashAlert, 
-         ashConfirm };
+         ashConfirm,
+         showConfigModal // New export
+};

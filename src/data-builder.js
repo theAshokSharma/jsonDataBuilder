@@ -19,20 +19,20 @@ let dataFilePath = '';
 
 
 // Initialize on page load
-console.log('JSON Data Builder Loaded - Version 2.0');
+console.log('JSON Data Builder Loaded - Version 2.1');
+
+// Configuration state
+let selectedSchemaFile = null;
+let selectedOptionsFile = null;
 
 // Button event listeners
-const loadSchemaBtn = document.getElementById('loadSchemaBtn');
-loadSchemaBtn.addEventListener('click', loadSchemaFromFile);
-const schemaTooltip = addTooltip(loadSchemaBtn, 'Load schema JSON file.')
-
-const loadOptionsBtn = document.getElementById('loadOptionsBtn');
-loadOptionsBtn.addEventListener('click', loadOptionsFromFile);
-const optionsTooltip = addTooltip(loadOptionsBtn, 'Load options JSON file.')
+const configBtn = document.getElementById('configBtn');
+configBtn.addEventListener('click', showConfigModal);
+const configTooltip = addTooltip(configBtn, 'Configure the data builder.');
 
 const loadDataBtn = document.getElementById('loadDataBtn');
 loadDataBtn.addEventListener('click', loadDataFromFile);
-const dataTooltip = addTooltip(loadDataBtn, 'Load options JSON file.')
+const dataTooltip = addTooltip(loadDataBtn, 'Load data JSON file to populate the form.')
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
   try {
@@ -91,6 +91,179 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   }
 });
 
+// ==================== CONFIGURATION MODAL =======================
+function showConfigModal() {
+  const configModal = document.getElementById('config-modal');
+  configModal.style.display = 'flex';
+  
+  // Reset state
+  selectedSchemaFile = null;
+  selectedOptionsFile = null;
+  
+  const schemaFileInput = document.getElementById('schemaFileInput');
+  const optionsFileInput = document.getElementById('optionsFileInput');
+  const schemaFileName = document.getElementById('schemaFileName');
+  const optionsFileName = document.getElementById('optionsFileName');
+  const validationStatus = document.getElementById('validationStatus');
+  const confirmBtn = document.getElementById('confirmConfigBtn');
+  
+  // Reset UI
+  schemaFileName.textContent = '';
+  optionsFileName.textContent = '';
+  validationStatus.className = 'validation-status';
+  validationStatus.innerHTML = `
+    <div class="status-icon">⏳</div>
+    <div class="status-text">Awaiting files...</div>
+  `;
+  confirmBtn.disabled = true;
+  
+  // File input change handlers
+  schemaFileInput.onchange = (e) => {
+    if (e.target.files[0]) {
+      selectedSchemaFile = e.target.files[0];
+      schemaFileName.textContent = `📋 ${selectedSchemaFile.name}`;
+      updateValidationStatus();
+    }
+  };
+  
+  optionsFileInput.onchange = (e) => {
+    if (e.target.files[0]) {
+      selectedOptionsFile = e.target.files[0];
+      optionsFileName.textContent = `⚙️ ${selectedOptionsFile.name}`;
+      updateValidationStatus();
+    }
+  };
+  
+  // Confirm button handler
+  confirmBtn.onclick = async () => {
+    if (!selectedSchemaFile) {
+      await ashAlert('Please select a schema file.');
+      return;
+    }
+    
+    // Show loading state
+    validationStatus.className = 'validation-status';
+    validationStatus.innerHTML = `
+      <div class="status-icon">⏳</div>
+      <div class="status-text">Loading and validating files...</div>
+    `;
+    
+    try {
+      // Load schema
+      const schemaText = await selectedSchemaFile.text();
+      const schema = JSON.parse(schemaText);
+      currentSchema = schema;
+      definitions = schema.definitions || schema.$defs || {};
+      
+      // Load options if provided
+      if (selectedOptionsFile) {
+        const optionsText = await selectedOptionsFile.text();
+        const options = JSON.parse(optionsText);
+        
+        // Validate options against schema
+        const validationResults = validateOptionsAgainstSchema(options, currentSchema);
+        
+        if (!displayValidationResults(validationResults)) {
+          // Validation failed
+          validationStatus.className = 'validation-status validation-error';
+          validationStatus.innerHTML = `
+            <div class="status-icon">❌</div>
+            <div class="status-text">Validation failed. See console for details.</div>
+          `;
+          await ashAlert('Options validation failed. Please check the console for details.');
+          return;
+        }
+        
+        customOptions = options;
+        conditionalRules = options.conditional_rules || {};
+        
+        // Build triggersToAffected map for dependencies
+        triggersToAffected = {};
+        Object.entries(customOptions).forEach(([field, config]) => {
+          if (config.dependent_values) {
+            const depField = Object.keys(config.dependent_values)[0];
+            if (depField) {
+              triggersToAffected[depField] = triggersToAffected[depField] || [];
+              triggersToAffected[depField].push({
+                affected: field,
+                optionsMap: config.dependent_values[depField],
+                defaultValues: config.values || [],
+                responseType: config.response_type,
+                na: config.na
+              });
+            }
+          }
+        });
+        
+        validationStatus.className = 'validation-status validation-success';
+        validationStatus.innerHTML = `
+          <div class="status-icon">✅</div>
+          <div class="status-text">Validation successful!</div>
+        `;
+      } else {
+        customOptions = {};
+        conditionalRules = {};
+        triggersToAffected = {};
+        
+        validationStatus.className = 'validation-status validation-success';
+        validationStatus.innerHTML = `
+          <div class="status-icon">✅</div>
+          <div class="status-text">Schema loaded successfully (no options file)</div>
+        `;
+      }
+      
+      // Hide modal and render form
+      setTimeout(() => {
+        configModal.style.display = 'none';
+        renderForm(schema);
+        console.log('✓ Configuration loaded successfully');
+      }, 500);
+      
+    } catch (error) {
+      validationStatus.className = 'validation-status validation-error';
+      validationStatus.innerHTML = `
+        <div class="status-icon">❌</div>
+        <div class="status-text">Error: ${error.message}</div>
+      `;
+      await ashAlert('Error loading files: ' + error.message);
+      console.error('Config load error:', error);
+    }
+  };
+  
+  // Cancel button handler
+  document.getElementById('cancelConfigBtn').onclick = () => {
+    configModal.style.display = 'none';
+  };
+  
+  // Close modal when clicking outside
+  configModal.onclick = (e) => {
+    if (e.target === configModal) {
+      configModal.style.display = 'none';
+    }
+  };
+}
+
+function updateValidationStatus() {
+  const confirmBtn = document.getElementById('confirmConfigBtn');
+  const validationStatus = document.getElementById('validationStatus');
+  
+  if (selectedSchemaFile) {
+    confirmBtn.disabled = false;
+    validationStatus.className = 'validation-status validation-success';
+    validationStatus.innerHTML = `
+      <div class="status-icon">✅</div>
+      <div class="status-text">Ready to load ${selectedOptionsFile ? 'both files' : 'schema file'}</div>
+    `;
+  } else {
+    confirmBtn.disabled = true;
+    validationStatus.className = 'validation-status';
+    validationStatus.innerHTML = `
+      <div class="status-icon">⏳</div>
+      <div class="status-text">Awaiting files...</div>
+    `;
+  }
+}
+
 // ==================== FILE LOADING FUNCTIONS ====================
 
 function loadSchemaFromFile() {
@@ -108,14 +281,6 @@ function loadSchemaFromFile() {
       const text = await file.text();
       const schema = JSON.parse(text);
 
-      // const ajv = new Ajv({ allErrors: true });  // Initialize AJV with allErrors for detailed messages
-      // if (!ajv.validateSchema(schema)) {
-      //   const errorMessage = 'Invalid JSON Schema structure:\n' + 
-      //     ajv.errors.map(err => `- ${err.instancePath} ${err.message}`).join('\n');
-      //   ashAlert(errorMessage);
-      //   console.error('Schema validation errors:', ajv.errors);
-      //   return;  // Return to the same page without loading
-      // }      
       currentSchema = schema;
       definitions = schema.definitions || schema.$defs || {};
       renderForm(schema);
@@ -135,80 +300,9 @@ function loadSchemaFromFile() {
   input.click();
 }
 
-function loadOptionsFromFile() {
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = '.json';
-  
-  input.onchange = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    
-    const optionsFilename = file.name.endsWith('.json') ? file.name : `${file.name}.json`;
-
-    try {
-      const text = await file.text();
-      const options = JSON.parse(text);
-
-      // Validate options file ie the corect file for the loaded schema
-      if (currentSchema) {
-        const validationResults = validateOptionsAgainstSchema(options, currentSchema);
-        
-        if (!displayValidationResults(validationResults)) {
-          // Validation failed - ask user if they want to proceed anyway
-          const proceed = ashConfirm('Validation errors found. Load options anyway?');
-          if (!proceed) {
-            console.log('User cancelled options loading due to validation errors');
-            return;
-          }
-        }
-      } else {
-        console.warn('No schema loaded - skipping validation');
-      }        
-
-      customOptions = options;
-      conditionalRules = options.conditional_rules || {};
-      
-      // New: Build triggersToAffected map for dependencies
-      triggersToAffected = {};
-      Object.entries(customOptions).forEach(([field, config]) => {
-        if (config.dependent_values) {
-          const depField = Object.keys(config.dependent_values)[0];
-          if (depField) {
-            triggersToAffected[depField] = triggersToAffected[depField] || [];
-            triggersToAffected[depField].push({
-              affected: field,
-              optionsMap: config.dependent_values[depField],
-              defaultValues: config.values || [],
-              responseType: config.response_type,
-              na: config.na
-            });
-          }
-        }
-      });
-      
-      if (currentSchema) {
-        renderForm(currentSchema);
-      }
-
-      document.getElementById('loadOptionsBtn').style.color = '#000000ff';
-      document.getElementById('loadOptionsBtn').style.backgroundColor = '#99ff00ff';
-
-      optionsTooltip.innerText = optionsFilename + ' loaded.'
-          
-      console.log('✓ Options loaded with', Object.keys(customOptions).length, 'entries');
-    } catch (error) {
-        ashAlert('Invalid JSON options file: ' + error.message);
-        console.error('Options load error:', error);
-    }
-  };
-  
-  input.click();
-}
-
 function loadDataFromFile() {
   if (!currentSchema) {
-    ashAlert('Please load a schema first');
+    ashAlert('Please configure schema first using the Configuration button');
     return;
   }
 
@@ -268,22 +362,6 @@ function loadDataFromFile() {
 }
 
 // ==================== UTILITY FUNCTIONS ====================
-
-// function resolveRef(ref) {
-//   if (!ref || !ref.startsWith('#/')) return null;
-//   const path = ref.substring(2).split('/');
-//   let result = currentSchema;
-  
-//   for (const key of path) {
-//     if (key === 'definitions' && !result[key] && result.$defs) {
-//       result = result.$defs;
-//     } else {
-//       result = result[key];
-//     }
-//     if (!result) return null;
-//   }
-//   return result;
-// }
 
 function expandRangeValues(rawValues) {
   const expanded = [];
@@ -390,12 +468,11 @@ function updateFieldOptions(pathStr, depValue, element, rule) {
       optionDiv.className = 'multi-select-option';
       optionDiv.innerHTML = `
         <input type="checkbox" 
-               id="${pathStr}_${idx}" 
-               value="${val}" 
-               data-path="${pathStr}"
-               data-dropdown="${element.id}"
-               class="multi-select-checkbox"
-               onchange="handleMultiSelectChange(event, '${pathStr}', '${element.id}')">
+              id="${pathStr}_${idx}" 
+              value="${val}" 
+              data-path="${pathStr}"
+              data-dropdown="${element.id}"
+              class="multi-select-checkbox">
         <label for="${pathStr}_${idx}">${val}</label>
       `;
       dropdown.appendChild(optionDiv);
@@ -405,12 +482,11 @@ function updateFieldOptions(pathStr, depValue, element, rule) {
       naDiv.className = 'multi-select-option na-option';
       naDiv.innerHTML = `
         <input type="checkbox" 
-               id="${pathStr}_na" 
-               value="${naValue}" 
-               data-path="${pathStr}"
-               data-dropdown="${element.id}"
-               class="na-checkbox"
-               onchange="handleNAChange('${pathStr}', '${element.id}')">
+              id="${pathStr}_na" 
+              value="${naValue}" 
+              data-path="${pathStr}"
+              data-dropdown="${element.id}"
+              class="na-checkbox">
         <label for="${pathStr}_na">${naValue} (exclusive)</label>
       `;
       dropdown.appendChild(naDiv);
@@ -482,12 +558,17 @@ function revalidateAndSetInvalid(el, pathStr) {
 // ==================== FORM RENDERING ====================
 
 function renderForm(schema) {
-  const noSchema = document.getElementById('no-schema');
+  const configBtn = document.getElementById('configBtn');
   const tabsContainer = document.getElementById('tabs-container');
   
-  noSchema.style.display = 'none';
+  // Hide config modal if visible
+  document.getElementById('config-modal').style.display = 'none';
+  
+  // Show form and action buttons
+  configBtn.textContent = '⚙️ Reconfigure';
+  configBtn.style.background = 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)';
+  
   document.getElementById('saveBtn').style.display = 'inline-block';
-  document.getElementById('loadOptionsBtn').style.display = 'inline-block';
   document.getElementById('loadDataBtn').style.display = 'inline-block';    
   document.getElementById('exportBtn').style.display = 'inline-block';
   
@@ -510,6 +591,9 @@ function renderForm(schema) {
   }
   
   attachEventListeners();
+
+   // Add tooltip for reconfigure button
+  const configTooltip = addTooltip(configBtn, 'Change schema or options configuration');
 }
 
 function createTabs(properties) {
@@ -662,7 +746,7 @@ function createField(key, prop, isRequired, path) {
       const dropdownId = 'multiselect_' + pathStr.replace(/\./g, '_');
       inputHtml = `
         <div class="multi-select-container" id="${dropdownId}" ${isDependent ? `data-dependent="true" data-dep-field="${depField}"` : ''}>
-          <div class="multi-select-trigger" onclick="toggleMultiSelectDropdown('${dropdownId}')" tabindex="0">
+          <div class="multi-select-trigger" tabindex="0">
             <div class="multi-select-selected" id="${dropdownId}_selected">
               <span class="multi-select-placeholder">-- Select --</span>
             </div>
@@ -675,12 +759,11 @@ function createField(key, prop, isRequired, path) {
           inputHtml += `
             <div class="multi-select-option">
               <input type="checkbox" 
-                     id="${pathStr}_${idx}" 
-                     value="${val}" 
-                     data-path="${pathStr}"
-                     data-dropdown="${dropdownId}"
-                     class="multi-select-checkbox"
-                     onchange="handleMultiSelectChange(event, '${pathStr}', '${dropdownId}')">
+                    id="${pathStr}_${idx}" 
+                    value="${val}" 
+                    data-path="${pathStr}"
+                    data-dropdown="${dropdownId}"
+                    class="multi-select-checkbox">
               <label for="${pathStr}_${idx}">${val}</label>
             </div>
           `;
@@ -690,12 +773,11 @@ function createField(key, prop, isRequired, path) {
           inputHtml += `
             <div class="multi-select-option na-option">
               <input type="checkbox" 
-                     id="${pathStr}_na" 
-                     value="${naValue}" 
-                     data-path="${pathStr}"
-                     data-dropdown="${dropdownId}"
-                     class="na-checkbox"
-                     onchange="handleNAChange('${pathStr}', '${dropdownId}')">
+                    id="${pathStr}_na" 
+                    value="${naValue}" 
+                    data-path="${pathStr}"
+                    data-dropdown="${dropdownId}"
+                    class="na-checkbox">
               <label for="${pathStr}_na">${naValue} (exclusive)</label>
             </div>
           `;
@@ -776,7 +858,7 @@ function createNestedObject(key, prop, isRequired, path) {
   return `
     <div class="form-group" data-field-path="${pathStr}">
       <div class="nested-object">
-        <div class="nested-object-header" onclick="toggleNested(this)">
+        <div class="nested-object-header"">
           <span>${title}</span>
           ${isRequired ? '<span style="color: var(--vscode-errorForeground)">*</span>' : ''}
         </div>
@@ -800,12 +882,13 @@ function createArrayOfObjects(key, prop, isRequired, path) {
       ${description ? `<div class="description">${description}</div>` : ''}
       <div class="array-container" id="array_${pathStr}" data-path="${pathStr}">
         <div class="array-controls">
-          <button onclick="addArrayItem('${pathStr}', ${JSON.stringify(prop.items).replace(/"/g, '&quot;')})">Add Item</button>
+          <button class="add-array-item-btn">Add Item</button>
         </div>
       </div>
     </div>
   `;
 }
+
 
 // ==================== GLOBAL WINDOW FUNCTIONS ====================
 
@@ -845,6 +928,11 @@ window.addArrayItem = function(arrayPath, itemSchema) {
   `;
   
   container.insertBefore(itemDiv, container.querySelector('.array-controls'));
+
+  // Attach remove button event
+  const removeBtn = itemDiv.querySelector('.remove-item-btn');
+  removeBtn.addEventListener('click', () => removeArrayItem(removeBtn));
+
   attachEventListeners();
 };
 
@@ -858,7 +946,7 @@ window.removeArrayItem = function(btn) {
   });
 };
 
-window.handleMultiSelectChange = function(event, path, dropdownId) {
+function handleMultiSelectChange(event, path, dropdownId) {
   const changedCheckbox = event.target;
   const isChecked = changedCheckbox.checked;
   const changedValue = changedCheckbox.value;
@@ -884,18 +972,18 @@ window.handleMultiSelectChange = function(event, path, dropdownId) {
   }
   
   updateMultiSelectDisplay(dropdownId, path);
-};
+}
 
-window.handleNAChange = function(path, dropdownId) {
+function handleNAChange(path, dropdownId) {
   const naCheckbox = document.getElementById(path + '_na');
   if (naCheckbox && naCheckbox.checked) {
     const multiSelectCheckboxes = document.querySelectorAll(`[data-path="${path}"].multi-select-checkbox`);
     multiSelectCheckboxes.forEach(cb => cb.checked = false);
   }
   updateMultiSelectDisplay(dropdownId, path);
-};
+}
 
-window.toggleMultiSelectDropdown = function(dropdownId) {
+function toggleMultiSelectDropdown(dropdownId) {
   const dropdown = document.getElementById(dropdownId + '_dropdown');
   if (dropdown) {
     const isOpen = dropdown.classList.contains('open');
@@ -908,7 +996,8 @@ window.toggleMultiSelectDropdown = function(dropdownId) {
       dropdown.classList.add('open');
     }
   }
-};
+}
+
 
 function updateMultiSelectDisplay(dropdownId, path) {
   const selectedContainer = document.getElementById(dropdownId + '_selected');
@@ -1131,6 +1220,49 @@ function attachEventListeners() {
     }
   });
   
+  // Attach multi-select trigger click events
+  document.querySelectorAll('.multi-select-trigger').forEach(trigger => {
+    if (!trigger.dataset.listenerAttached) {
+      trigger.addEventListener('click', (e) => {
+        const container = trigger.closest('.multi-select-container');
+        if (container) {
+          const dropdownId = container.id;
+          toggleMultiSelectDropdown(dropdownId);
+        }
+      });
+      trigger.dataset.listenerAttached = 'true';
+    }
+  });
+  
+  // Attach multi-select checkbox change events
+  document.querySelectorAll('.multi-select-checkbox').forEach(checkbox => {
+    if (!checkbox.dataset.listenerAttached) {
+      checkbox.addEventListener('change', (e) => {
+        const path = e.target.dataset.path;
+        const dropdownId = e.target.dataset.dropdown;
+        if (path && dropdownId) {
+          handleMultiSelectChange(e, path, dropdownId);
+        }
+      });
+      checkbox.dataset.listenerAttached = 'true';
+    }
+  });
+  
+  // Attach NA checkbox change events
+  document.querySelectorAll('.na-checkbox').forEach(checkbox => {
+    if (!checkbox.dataset.listenerAttached) {
+      checkbox.addEventListener('change', (e) => {
+        const path = e.target.dataset.path;
+        const dropdownId = e.target.dataset.dropdown;
+        if (path && dropdownId) {
+          handleNAChange(path, dropdownId);
+        }
+      });
+      checkbox.dataset.listenerAttached = 'true';
+    }
+  });
+  
+  // Update displays
   document.querySelectorAll('.multi-select-container').forEach(container => {
     const dropdownId = container.id;
     const firstCheckbox = container.querySelector('[data-path]');
@@ -1140,6 +1272,47 @@ function attachEventListeners() {
     }
   });
   
+  document.querySelectorAll('.add-array-item-btn').forEach(btn => {
+    if (!btn.dataset.listenerAttached) {
+      btn.addEventListener('click', () => {
+        const container = btn.closest('.array-container');
+        const path = container.dataset.path;
+        // Find the item schema from currentSchema
+        const keys = path.split('.');
+        let currentProp = currentSchema.properties;
+        
+        for (let i = 0; i < keys.length; i++) {
+          if (currentProp[keys[i]]) {
+            if (currentProp[keys[i]].$ref) {
+              currentProp = resolveRef(currentProp[keys[i]].$ref, currentSchema);
+              if (i < keys.length - 1) {
+                currentProp = currentProp.properties;
+              }
+            } else if (i === keys.length - 1) {
+              currentProp = currentProp[keys[i]];
+            } else {
+              currentProp = currentProp[keys[i]].properties;
+            }
+          }
+        }
+        
+        const itemSchema = currentProp.items;
+        window.addArrayItem(path, itemSchema);
+      });
+      btn.dataset.listenerAttached = 'true';
+    }
+  });
+
+  document.querySelectorAll('.nested-object-header').forEach(header => {
+    if (!header.dataset.listenerAttached) {
+      header.addEventListener('click', () => {
+        header.classList.toggle('collapsed');
+        header.nextElementSibling.nextElementSibling.classList.toggle('collapsed');
+      });
+      header.dataset.listenerAttached = 'true';
+    }
+  });
+
   setTimeout(() => applyConditionalRules(), 200);
 }
 
