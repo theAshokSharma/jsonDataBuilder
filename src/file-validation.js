@@ -132,22 +132,25 @@ function extractAllSchemaPaths(schema) {
   return validPaths;
 }
 
-// NEW: Display validation results
-function displayValidationResults(results) {
-  if (results.isValid) {
-    console.log('✓ options validation passed');
-    return true;
-  } else {
-    console.error('✗ options validation failed');
-    console.error('Errors:', results.errors);
+// // NEW: Display validation results
+// function displayValidationResults(results) {
+//   if (results.isValid) {
+//     console.log('✓ options validation passed');
+//     return true;
+//   } else {
+//     console.error('✗ options validation failed');
+//     console.error('Errors:', results.errors);
     
-    // Show errors to user
-    const errorMsg = 'options file missing keys in schema:\n\n' + 
-                     results.missingKeys.join('\n');
-    if (ashConfirm(errorMsg)) return true;
-    return false;
-  }
-}
+//     // Show errors to user
+//     const errorMsg = 'options file missing keys in schema:\n\n' + 
+//                      results.missingKeys.join('\n');
+
+//     const proceed = ashConfirm('Validation errors found. Load options anyway?');
+//     if (proceed) return true;
+
+//     return false;
+//   }
+// }
 
 function resolveRef(ref, schema) {
   if (!ref || !ref.startsWith('#/')) return null;
@@ -165,7 +168,6 @@ function resolveRef(ref, schema) {
   return result;
 }
 
-export { validateOptionsAgainstSchema, 
-         displayValidationResults,
+export { validateOptionsAgainstSchema,
          resolveRef
 };
