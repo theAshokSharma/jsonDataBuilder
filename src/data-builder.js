@@ -93,6 +93,44 @@ document.getElementById('exportBtn').addEventListener('click', () => {
   }
 });
 
+const aboutBtn = document.getElementById('aboutBtn');
+aboutBtn.addEventListener('click', showAboutModal);
+addTooltip(aboutBtn, 'Learn more about this application.');
+
+const hamburgerBtn = document.getElementById('hamburgerBtn');
+const headerNav = document.querySelector('.header-nav');
+
+hamburgerBtn.addEventListener('click', () => {
+  headerNav.classList.toggle('active');
+  hamburgerBtn.classList.toggle('active');
+  hamburgerBtn.setAttribute('aria-expanded', headerNav.classList.contains('active'));
+});
+
+// Close menu when clicking outside
+document.addEventListener('click', (e) => {
+  if (!headerNav.contains(e.target) && !hamburgerBtn.contains(e.target) && headerNav.classList.contains('active')) {
+    headerNav.classList.remove('active');
+    hamburgerBtn.classList.remove('active');
+    hamburgerBtn.setAttribute('aria-expanded', 'false');
+  }
+});
+
+// Add sticky header scroll behavior
+window.addEventListener('scroll', () => {
+  const header = document.querySelector('.header');
+  try {
+    if (window.scrollY > 0) {
+      header.classList.add('scrolled');
+    } else {
+      header.classList.remove('scrolled');
+    }
+  } catch (error) {
+    console.error('Scroll event error:', error);
+    // Optional: Show user-friendly message if needed
+    // ashAlert('An error occurred while handling scroll. Please refresh the page.');
+  }
+});
+
 // ==================== CONFIGURATION MODAL =======================
 function showConfigModal() {
   const configModal = document.getElementById('config-modal');
@@ -1920,4 +1958,22 @@ function enforceValidMultiSelection(container, fieldPath) {
       }
     }, { once: true });
   });
+}
+
+// ==================== ABOUT MODAL =======================
+function showAboutModal() {
+  const aboutModal = document.getElementById('about-modal');
+  aboutModal.style.display = 'flex';
+
+  // Close button handler
+  document.getElementById('closeAboutBtn').onclick = () => {
+    aboutModal.style.display = 'none';
+  };
+
+  // Optional: Close on outside click
+  aboutModal.onclick = (e) => {
+    if (e.target === aboutModal) {
+      aboutModal.style.display = 'none';
+    }
+  };
 }

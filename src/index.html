@@ -11,12 +11,20 @@
 </head>
 <body>
   <div class="container">
-    <div class="header">
-      <button id="configBtn" class="config-btn">⚙️ Config</button>      
-      <button id="loadDataBtn" style="display: none;">Load Data (Optional)</button>      
-      <button id="saveBtn" style="display: none;">Save to File</button>
-      <button id="exportBtn" style="display: none;">Copy to Clipboard</button>
-    </div>
+    <header class="header">
+      <div class="header-brand">
+        <span class="app-icon">📝</span>
+        <h1 class="app-title">JSON Data Builder</h1>
+      </div>
+      <nav class="header-nav">
+        <button id="configBtn" class="config-btn">⚙️ Config</button>      
+        <button id="loadDataBtn" style="display: none;">Load Data (Optional)</button>      
+        <button id="saveBtn" style="display: none;">Save to File</button>
+        <button id="exportBtn" style="display: none;">Copy to Clipboard</button>
+        <button id="aboutBtn" class="about-btn">About</button>
+      </nav>
+      <button id="hamburgerBtn" class="hamburger" aria-label="Toggle menu">☰</button>
+    </header>
     
    <!-- Config Modal (hidden by default) -->
     <div id="config-modal" class="config-modal" style="display: none;">
@@ -78,6 +86,52 @@
           <button id="confirmConfigBtn" class="btn-primary" disabled>
             <span class="btn-icon">✅</span>
             Confirm & Load
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- About Modal (hidden by default) -->
+    <div id="about-modal" class="config-modal" style="display: none;">
+      <div class="config-modal-content">
+        <div class="config-modal-header">
+          <h2>ℹ️ About JSON Data Builder</h2>
+          <p class="config-subtitle">A professional tool for building and editing JSON data based on schemas.</p>
+        </div>
+        
+        <div class="config-section">
+          <div class="config-step">
+            <div class="step-content">
+              <h3>Overview</h3>
+              <p class="step-description">This application allows you to load JSON schemas and options, generate dynamic forms, validate inputs, and export structured data. It's designed for production use with robust error handling and user-friendly interfaces.</p>
+            </div>
+          </div>
+          
+          <div class="config-step">
+            <div class="step-content">
+              <h3>Features</h3>
+              <ul style="padding-left: 20px; margin: 10px 0;">
+                <li>Dynamic form generation from JSON schemas</li>
+                <li>Custom options with conditional logic</li>
+                <li>Data validation and error highlighting</li>
+                <li>Save to file and copy to clipboard</li>
+                <li>Tab-based navigation for complex structures</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="config-step">
+            <div class="step-content">
+              <h3>Version & Tech Stack</h3>
+              <p class="step-description">Version: 2.0<br>Built with: HTML5, CSS3, Vanilla JavaScript (ES Modules)<br>Optimized for modern browsers and production deployment.</p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="config-modal-footer">
+          <button id="closeAboutBtn" class="btn-primary">
+            <span class="btn-icon">✅</span>
+            Close
           </button>
         </div>
       </div>
