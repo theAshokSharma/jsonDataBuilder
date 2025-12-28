@@ -8,12 +8,18 @@ RUN apk add --no-cache curl
 # Copy configuration files
 COPY nginx-dev.conf /etc/nginx/nginx.conf
 
+RUN mkdir -p /usr/share/nginx/html/media
+
 # Copy application files
 COPY src/index.html /usr/share/nginx/html/
 COPY src/styles.css /usr/share/nginx/html/
 COPY src/data-builder.js /usr/share/nginx/html/
 COPY src/file-validation.js /usr/share/nginx/html/
 COPY src/utils.js /usr/share/nginx/html/
+COPY src/media/jsondatabuilder.svg /usr/share/nginx/html/media
+COPY src/media/jsondatabuilder-w.svg /usr/share/nginx/html/media
+
+WORKDIR /usr/share/nginx/html
 
 # Expose port 8080 for development
 EXPOSE 8080
