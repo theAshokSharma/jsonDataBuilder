@@ -34,7 +34,7 @@ const configTooltip = addTooltip(configBtn, 'Configure the data builder.');
 
 const loadDataBtn = document.getElementById('loadDataBtn');
 loadDataBtn.addEventListener('click', loadDataFromFile);
-const dataTooltip = addTooltip(loadDataBtn, 'Load options JSON file.')
+const dataTooltip = addTooltip(loadDataBtn, 'Load data file in JSON format.');
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
   try {
@@ -91,6 +91,10 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     console.error('Error exporting data:', error);
     ashAlert('Error exporting data: ' + error.message);
   }
+});
+
+document.getElementById('appIcon').addEventListener('click', () => {
+  showAboutModal();
 });
 
 const aboutBtn = document.getElementById('aboutBtn');
@@ -181,6 +185,15 @@ function showConfigModal() {
       return;
     }
     
+  // Reset Load Data button to original state when confirming new configuration
+  const loadDataBtn = document.getElementById('loadDataBtn');
+  if (loadDataBtn) {
+    loadDataBtn.textContent = 'Load Data';
+    loadDataBtn.style.color = '';
+    loadDataBtn.style.backgroundColor = '';
+    dataTooltip.innerText = 'Load data file in JSON format.';
+  }
+      
     // Show loading state
     validationStatus.className = 'validation-status';
     validationStatus.innerHTML = `
@@ -289,7 +302,7 @@ function showConfigModal() {
         customOptions = {};
         conditionalRules = {};
         triggersToAffected = {};
-        
+
         validationStatus.className = 'validation-status validation-success';
         validationStatus.innerHTML = `
           <div class="status-icon">✅</div>
@@ -513,6 +526,7 @@ function loadDataFromFile() {
 
         document.getElementById('loadDataBtn').style.color = '#000000ff';
         document.getElementById('loadDataBtn').style.backgroundColor = '#99ff00ff';
+        loadDataBtn.textContent = 'File loaded';           
         dataTooltip.innerText = dataFilename + ' loaded.'
 
         console.log('✓ Data loaded successfully');
@@ -748,7 +762,7 @@ function renderForm(schema) {
   document.getElementById('config-modal').style.display = 'none';
 
     // Show form and action buttons
-  configBtn.textContent = '⚙️ Config';
+  configBtn.textContent = '⚙️ Configure';
 
   document.getElementById('saveBtn').style.display = 'inline-block';
   document.getElementById('loadDataBtn').style.display = 'inline-block';    

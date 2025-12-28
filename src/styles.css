@@ -66,7 +66,8 @@ body {
 }
 
 .app-icon {
-  font-size: 24px;
+  width: 48px;
+  height: 48px;
 }
 
 .app-title {
@@ -529,24 +530,26 @@ select:focus,
 
 /** Config Modal */
 .config-btn {
-  background: linear-gradient(135deg, #0466c8 0%, #023e7d 100%);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 16px;
+  background: transparent;
+  color: var(--secondary-color);
+  border: 1px solid var(--secondary-color);
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  box-shadow: 0 4px 12px rgba(106, 17, 203, 0.3);
+  /* box-shadow: 0 4px 12px rgba(251, 197, 1, 0.985); */
   transition: all 0.3s ease;
 }
 
 .config-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(106, 17, 203, 0.4);
+  background: var(--secondary-color);
+  color: white;
+  /* transform: translateY(-2px); */
+  /* box-shadow: 0 6px 16px rgba(106, 17, 203, 0.4); */
 }
 
 /* Config Modal */
@@ -579,7 +582,7 @@ select:focus,
 .config-modal-header {
   padding: 16px 16px 8px;
   border-bottom: 1px solid #eaeaea;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--secondary-color);
   border-radius: 8px 8px 0 0;
   color: white;
 }
@@ -619,12 +622,13 @@ select:focus,
 .step-number {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: transparent;
+  border: 2px solid var(--secondary-color);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: white;
+  color: var(--secondary-color);
   font-weight: 700;
   font-size: 18px;
   flex-shrink: 0;
@@ -669,16 +673,17 @@ select:focus,
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: linear-gradient(135deg, #f5f7fa 0%, #8daddf 100%);
-  border: 2px dashed #c3cfe2;
+  background: transparent;
+  border: 2px solid #0033ff;
+  color: var(--secondary-color);
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .file-input-label:hover {
-  background: linear-gradient(135deg, #e6e9f0 0%, #eef1f5 100%);
-  border-color: #667eea;
+  background: var(--secondary-color);
+  border-color: var(--secondary-color);
   transform: translateY(-2px);
 }
 
@@ -688,17 +693,21 @@ select:focus,
 
 .file-text {
   font-weight: 600;
-  color: #333;
+  color: #0b0b0b;
+}
+
+.file-input-label:hover .file-text {
+  color: white;
 }
 
 .file-name {
   margin-top: 8px;
-  padding: 8px 12px;
+  padding: 12px 12px;
   background: #f8f9fa;
   border-radius: 6px;
   font-size: 14px;
   color: #495057;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid var(--secondary-color);
 }
 
 .optional-tag {
@@ -767,14 +776,14 @@ select:focus,
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  background: var(--secondary-color);
   color: white;
-  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+  /* box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3); */
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4);
+  /* box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4); */
 }
 
 .btn-primary:disabled {
@@ -812,5 +821,61 @@ select:focus,
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* Header Button Standardization */
+.header-button {
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--secondary-color);
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+  text-align: center;
+}
+
+.about-btn {
+  background: transparent;
+  color: var(--secondary-color);
+  border: 1px solid var(--secondary-color);
+}
+
+.about-btn:hover {
+  background: var(--secondary-color);
+  color: white;
+}
+
+.loaddata-btn {
+  background: transparent;
+  color: var(--secondary-color);
+  border: 1px solid var(--secondary-color);
+}
+
+.loaddata-btn:hover {
+  background: var(--secondary-color);
+  color: white;
+}
+
+.savefile-btn {
+  background: transparent;
+  color: var(--secondary-color);
+  border: 1px solid var(--secondary-color);
+}
+
+.savefile-btn:hover {
+  background: var(--secondary-color);
+  color: white;
+}
+.savetoclip-btn {
+  background: transparent;
+  color: var(--secondary-color);
+  border: 1px solid var(--secondary-color);
+}
+
+.savetoclip-btn:hover {
+  background: var(--secondary-color);
+  color: white;
 }
 /** Config - Modal End/
