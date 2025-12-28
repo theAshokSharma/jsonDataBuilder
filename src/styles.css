@@ -65,10 +65,23 @@ body {
   gap: 10px;
 }
 
-.app-icon {
-  width: 48px;
-  height: 48px;
+
+.icon-container {
+    position: relative;
+    display: inline-block;
 }
+
+/* Original icon */
+.app-icon{
+    width: 48px;
+    height: 48px;
+    cursor: pointer;
+}
+
+.app-icon:hover {
+    content: url("media/jsondatabuilder-w.svg");
+}
+
 
 .app-title {
   margin: 0;
