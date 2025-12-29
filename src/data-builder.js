@@ -761,19 +761,20 @@ function renderForm(schema) {
   // Hide config modal if visible
   document.getElementById('config-modal').style.display = 'none';
 
-    // Show form and action buttons
+  // Show form and action buttons
   configBtn.textContent = '⚙️ Configure';
 
   document.getElementById('saveBtn').style.display = 'inline-block';
   document.getElementById('loadDataBtn').style.display = 'inline-block';    
   document.getElementById('exportBtn').style.display = 'inline-block';
   
-  const properties = schema.properties || {};
+  // Get tab properties using the new helper function
+  const tabProperties = getTabProperties();
   const required = schema.required || [];
   
-  createTabs(properties);
+  createTabs(tabProperties);
   
-  for (const [key, prop] of Object.entries(properties)) {
+  for (const [key, prop] of Object.entries(tabProperties)) {
     const isRequired = required.includes(key);
     const tabContent = createTabContent(key, prop, isRequired, [key]);
     tabContents[key] = tabContent;
@@ -781,8 +782,8 @@ function renderForm(schema) {
   
   tabsContainer.style.display = 'block';
   
-  if (Object.keys(properties).length > 0) {
-    const firstTab = Object.keys(properties)[0];
+  if (Object.keys(tabProperties).length > 0) {
+    const firstTab = Object.keys(tabProperties)[0];
     switchTab(firstTab);
   }
   
@@ -797,8 +798,11 @@ function createTabs(properties) {
   tabContentsContainer.innerHTML = '';
   tabContents = {};
   
-  Object.keys(properties).forEach((key) => {
-    const prop = properties[key];
+  // Determine what to use for tabs
+  const tabProperties = getTabProperties();
+  
+  Object.keys(tabProperties).forEach((key) => {
+    const prop = tabProperties[key];
     const title = prop.title || key;
     
     const tabButton = document.createElement('button');
@@ -820,8 +824,122 @@ function createTabs(properties) {
   });
 }
 
+// Helper function to determine where tab properties are located
+function getTabProperties() {
+  // Check if schema has top-level properties
+  if (currentSchema && currentSchema.properties) {
+    return currentSchema.properties;
+  }
+  
+  // Check if schema has definitions/defs that should be used as tabs
+  if (currentSchema && (currentSchema.$defs || currentSchema.definitions)) {
+    return currentSchema.$defs || currentSchema.definitions;
+  }
+  
+  // If schema has oneOf/anyOf/allOf at top level, use $defs as tabs
+  if (currentSchema && (currentSchema.oneOf || currentSchema.anyOf || currentSchema.allOf)) {
+    if (currentSchema.$defs) {
+      return currentSchema.$defs;
+    } else if (currentSchema.definitions) {
+      return currentSchema.definitions;
+    }
+  }
+  
+  return {};
+}
+
 function createTabContent(key, prop, isRequired, path) {
+  // For definitions that are objects, create their fields
+  if (prop.type === 'object' && prop.properties) {
+    return createNestedObject(key, prop, isRequired, path);
+  }
+  
+  // For definitions with oneOf/anyOf/allOf, handle them appropriately
+  if (prop.oneOf || prop.anyOf || prop.allOf) {
+    return createChoiceField(key, prop, isRequired, path);
+  }
+
   return createField(key, prop, isRequired, path);
+}
+
+/*** new function createChoiceField */
+function createChoiceField(key, prop, isRequired, path) {
+  const title = prop.title || key;
+  const description = prop.description || '';
+  const pathStr = path.join('.');
+  
+  let content = '';
+  
+  // Handle oneOf/anyOf/allOf by creating a selection mechanism
+  if (prop.oneOf) {
+    content = `<div class="choice-field">
+      <select class="choice-selector" data-path="${pathStr}" onchange="handleChoiceChange(this, '${pathStr}')">
+        <option value="">-- Select Option --</option>
+        ${prop.oneOf.map((item, index) => 
+          `<option value="${index}">${item.title || `Option ${index + 1}`}</option>`
+        ).join('')}
+      </select>
+      <div class="choice-content" id="choice-content-${pathStr.replace(/\./g, '_')}"></div>
+    </div>`;
+  }
+  
+  return `
+    <div class="form-group" data-field-path="${pathStr}">
+      <label class="${isRequired ? 'required' : ''}">${title}</label>
+      ${description ? `<div class="description">${description}</div>` : ''}
+      ${content}
+    </div>
+  `;
+}
+
+window.handleChoiceChange = function(select, pathStr) {
+  const choiceIndex = select.value;
+  const choiceContent = document.getElementById(`choice-content-${pathStr.replace(/\./g, '_')}`);
+  
+  if (choiceIndex === '') {
+    choiceContent.innerHTML = '';
+    return;
+  }
+  
+  const prop = getPropByPath(pathStr);
+  if (!prop || !prop.oneOf) return;
+  
+  const selectedSchema = prop.oneOf[choiceIndex];
+  choiceContent.innerHTML = '';
+  
+  // Render the selected schema
+  if (selectedSchema.type === 'object' && selectedSchema.properties) {
+    const fieldsHtml = Object.entries(selectedSchema.properties).map(([key, subProp]) => {
+      const isSubRequired = (selectedSchema.required || []).includes(key);
+      return createField(key, subProp, isSubRequired, [...pathStr.split('.'), key]);
+    }).join('');
+    
+    const div = document.createElement('div');
+    div.className = 'choice-selected-content';
+    div.innerHTML = fieldsHtml;
+    choiceContent.appendChild(div);
+    
+    // Attach event listeners to the new content
+    setTimeout(() => attachEventListeners(), 100);
+  }
+};
+
+// Helper function to get property by path
+function getPropByPath(pathStr) {
+  const keys = pathStr.split('.');
+  let current = currentSchema;
+  
+  for (const key of keys) {
+    if (current && current[key]) {
+      current = current[key];
+    } else if (current && (current.properties || current.$defs || current.definitions)) {
+      current = (current.properties || current.$defs || current.definitions)[key];
+    } else {
+      return null;
+    }
+  }
+  
+  return current;
 }
 
 function switchTab(tabKey) {
