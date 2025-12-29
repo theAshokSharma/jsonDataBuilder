@@ -2,7 +2,7 @@
 // import 
 // import { saveFile } from './utils.js'; 
 import {saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm} from './utils.js'
-import {validateOptionsAgainstSchema, displayValidationResults, resolveRef} from './file-validation.js'
+import {validateOptionsAgainstSchema, showValidationErrorsDialog, resolveRef} from './file-validation.js'
 
 // Global variables
 let currentSchema = null;
@@ -21,18 +21,20 @@ let dataFilePath = '';
 // Initialize on page load
 console.log('JSON Data Builder Loaded - Version 2.0');
 
-// Button event listeners
-const loadSchemaBtn = document.getElementById('loadSchemaBtn');
-loadSchemaBtn.addEventListener('click', loadSchemaFromFile);
-const schemaTooltip = addTooltip(loadSchemaBtn, 'Load schema JSON file.')
 
-const loadOptionsBtn = document.getElementById('loadOptionsBtn');
-loadOptionsBtn.addEventListener('click', loadOptionsFromFile);
-const optionsTooltip = addTooltip(loadOptionsBtn, 'Load options JSON file.')
+// Configuration state
+let selectedSchemaFile = null;
+let selectedOptionsFile = null;
+
+
+// Button event listeners
+const configBtn = document.getElementById('configBtn');
+configBtn.addEventListener('click', showConfigModal);
+const configTooltip = addTooltip(configBtn, 'Configure the data builder.');
 
 const loadDataBtn = document.getElementById('loadDataBtn');
 loadDataBtn.addEventListener('click', loadDataFromFile);
-const dataTooltip = addTooltip(loadDataBtn, 'Load options JSON file.')
+const dataTooltip = addTooltip(loadDataBtn, 'Load data file in JSON format.');
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
   try {
@@ -90,6 +92,276 @@ document.getElementById('exportBtn').addEventListener('click', () => {
     ashAlert('Error exporting data: ' + error.message);
   }
 });
+
+document.getElementById('appIcon').addEventListener('click', () => {
+  showAboutModal();
+});
+
+const aboutBtn = document.getElementById('aboutBtn');
+aboutBtn.addEventListener('click', showAboutModal);
+addTooltip(aboutBtn, 'Learn more about this application.');
+
+const hamburgerBtn = document.getElementById('hamburgerBtn');
+const headerNav = document.querySelector('.header-nav');
+
+hamburgerBtn.addEventListener('click', () => {
+  headerNav.classList.toggle('active');
+  hamburgerBtn.classList.toggle('active');
+  hamburgerBtn.setAttribute('aria-expanded', headerNav.classList.contains('active'));
+});
+
+// Close menu when clicking outside
+document.addEventListener('click', (e) => {
+  if (!headerNav.contains(e.target) && !hamburgerBtn.contains(e.target) && headerNav.classList.contains('active')) {
+    headerNav.classList.remove('active');
+    hamburgerBtn.classList.remove('active');
+    hamburgerBtn.setAttribute('aria-expanded', 'false');
+  }
+});
+
+// Add sticky header scroll behavior
+window.addEventListener('scroll', () => {
+  const header = document.querySelector('.header');
+  try {
+    if (window.scrollY > 0) {
+      header.classList.add('scrolled');
+    } else {
+      header.classList.remove('scrolled');
+    }
+  } catch (error) {
+    console.error('Scroll event error:', error);
+    // Optional: Show user-friendly message if needed
+    // ashAlert('An error occurred while handling scroll. Please refresh the page.');
+  }
+});
+
+// ==================== CONFIGURATION MODAL =======================
+function showConfigModal() {
+  const configModal = document.getElementById('config-modal');
+  configModal.style.display = 'flex';
+  
+  // Reset state
+  selectedSchemaFile = null;
+  selectedOptionsFile = null;
+  
+  const schemaFileInput = document.getElementById('schemaFileInput');
+  const optionsFileInput = document.getElementById('optionsFileInput');
+  const schemaFileName = document.getElementById('schemaFileName');
+  const optionsFileName = document.getElementById('optionsFileName');
+  const validationStatus = document.getElementById('validationStatus');
+  const confirmBtn = document.getElementById('confirmConfigBtn');
+  
+  // Reset UI
+  schemaFileName.textContent = '';
+  optionsFileName.textContent = '';
+  validationStatus.className = 'validation-status';
+  validationStatus.innerHTML = `
+    <div class="status-icon">⏳</div>
+    <div class="status-text">Awaiting files...</div>
+  `;
+  confirmBtn.disabled = true;
+  
+  // File input change handlers
+  schemaFileInput.onchange = (e) => {
+    if (e.target.files[0]) {
+      selectedSchemaFile = e.target.files[0];
+      schemaFileName.textContent = `📋 ${selectedSchemaFile.name}`;
+      updateValidationStatus();
+    }
+  };
+  
+  optionsFileInput.onchange = (e) => {
+    if (e.target.files[0]) {
+      selectedOptionsFile = e.target.files[0];
+      optionsFileName.textContent = `⚙️ ${selectedOptionsFile.name}`;
+      updateValidationStatus();
+    }
+  };
+  
+  // Confirm button handler
+  confirmBtn.onclick = async () => {
+    if (!selectedSchemaFile) {
+      await ashAlert('Please select a schema file.');
+      return;
+    }
+    
+  // Reset Load Data button to original state when confirming new configuration
+  const loadDataBtn = document.getElementById('loadDataBtn');
+  if (loadDataBtn) {
+    loadDataBtn.textContent = 'Load Data';
+    loadDataBtn.style.color = '';
+    loadDataBtn.style.backgroundColor = '';
+    dataTooltip.innerText = 'Load data file in JSON format.';
+  }
+      
+    // Show loading state
+    validationStatus.className = 'validation-status';
+    validationStatus.innerHTML = `
+      <div class="status-icon">⏳</div>
+      <div class="status-text">Loading and validating files...</div>
+    `;
+    
+    try {
+      // Load schema
+      const schemaText = await selectedSchemaFile.text();
+      const schema = JSON.parse(schemaText);
+      currentSchema = schema;
+      definitions = schema.definitions || schema.$defs || {};
+      
+      // Load options if provided
+      if (selectedOptionsFile) {
+        const optionsText = await selectedOptionsFile.text();
+        const options = JSON.parse(optionsText);
+        
+        // Validate options against schema
+        const validationResults = validateOptionsAgainstSchema(options, currentSchema);
+        
+        if (!validationResults.isValid) {
+          // Show validation errors in a custom dialog with scrollable list
+          const shouldProceed = await showValidationErrorsDialog(validationResults.missingKeys);
+          
+          if (!shouldProceed) {
+            // User chose to cancel - clear options selection
+            selectedOptionsFile = null;
+            document.getElementById('optionsFileName').textContent = '';
+            document.getElementById('optionsFileInput').value = '';
+            
+            // Reset validation status
+            validationStatus.className = 'validation-status validation-warning';
+            validationStatus.innerHTML = `
+              <div class="status-icon">⚠️</div>
+              <div class="status-text">Options file rejected. Select a new file or continue without options.</div>
+            `;
+            
+            // Clear options data
+            customOptions = {};
+            conditionalRules = {};
+            triggersToAffected = {};
+            
+            return; // Stay on config page
+          }
+          
+          // User chose to proceed despite validation errors
+          customOptions = options;
+          conditionalRules = options.conditional_rules || {};
+          
+          // Build triggersToAffected map for dependencies
+          triggersToAffected = {};
+          Object.entries(customOptions).forEach(([field, config]) => {
+            if (config.dependent_values) {
+              const depField = Object.keys(config.dependent_values)[0];
+              if (depField) {
+                triggersToAffected[depField] = triggersToAffected[depField] || [];
+                triggersToAffected[depField].push({
+                  affected: field,
+                  optionsMap: config.dependent_values[depField],
+                  defaultValues: config.values || [],
+                  responseType: config.response_type,
+                  na: config.na
+                });
+              }
+            }
+          });
+          
+          validationStatus.className = 'validation-status validation-warning';
+          validationStatus.innerHTML = `
+            <div class="status-icon">⚠️</div>
+            <div class="status-text">Loaded with ${validationResults.missingKeys.length} validation warning(s)</div>
+          `;
+        } else {
+          // Validation successful
+          customOptions = options;
+          conditionalRules = options.conditional_rules || {};
+          
+          // Build triggersToAffected map for dependencies
+          triggersToAffected = {};
+          Object.entries(customOptions).forEach(([field, config]) => {
+            if (config.dependent_values) {
+              const depField = Object.keys(config.dependent_values)[0];
+              if (depField) {
+                triggersToAffected[depField] = triggersToAffected[depField] || [];
+                triggersToAffected[depField].push({
+                  affected: field,
+                  optionsMap: config.dependent_values[depField],
+                  defaultValues: config.values || [],
+                  responseType: config.response_type,
+                  na: config.na
+                });
+              }
+            }
+          });
+          
+          validationStatus.className = 'validation-status validation-success';
+          validationStatus.innerHTML = `
+            <div class="status-icon">✅</div>
+            <div class="status-text">Validation successful!</div>
+          `;
+        }
+      } else {
+        // No options file selected
+        customOptions = {};
+        conditionalRules = {};
+        triggersToAffected = {};
+
+        validationStatus.className = 'validation-status validation-success';
+        validationStatus.innerHTML = `
+          <div class="status-icon">✅</div>
+          <div class="status-text">Schema loaded successfully (no options file)</div>
+        `;
+      }
+      
+      // Hide modal and render form
+      setTimeout(() => {
+        configModal.style.display = 'none';
+        renderForm(schema);
+        console.log('✓ Configuration loaded successfully');
+      }, 500);
+      
+    } catch (error) {
+      validationStatus.className = 'validation-status validation-error';
+      validationStatus.innerHTML = `
+        <div class="status-icon">❌</div>
+        <div class="status-text">Error: ${error.message}</div>
+      `;
+      await ashAlert('Error loading files: ' + error.message);
+      console.error('Config load error:', error);
+    }
+  };  
+  
+  // Cancel button handler
+  document.getElementById('cancelConfigBtn').onclick = () => {
+    configModal.style.display = 'none';
+  };
+  
+  // Close modal when clicking outside
+  configModal.onclick = (e) => {
+    if (e.target === configModal) {
+      configModal.style.display = 'none';
+    }
+  };
+}
+
+
+function updateValidationStatus() {
+  const confirmBtn = document.getElementById('confirmConfigBtn');
+  const validationStatus = document.getElementById('validationStatus');
+  
+  if (selectedSchemaFile) {
+    confirmBtn.disabled = false;
+    validationStatus.className = 'validation-status validation-success';
+    validationStatus.innerHTML = `
+      <div class="status-icon">✅</div>
+      <div class="status-text">Ready to load ${selectedOptionsFile ? 'both files' : 'schema file'}</div>
+    `;
+  } else {
+    confirmBtn.disabled = true;
+    validationStatus.className = 'validation-status';
+    validationStatus.innerHTML = `
+      <div class="status-icon">⏳</div>
+      <div class="status-text">Awaiting files...</div>
+    `;
+  }
+}
 
 // ==================== FILE LOADING FUNCTIONS ====================
 
@@ -254,6 +526,7 @@ function loadDataFromFile() {
 
         document.getElementById('loadDataBtn').style.color = '#000000ff';
         document.getElementById('loadDataBtn').style.backgroundColor = '#99ff00ff';
+        loadDataBtn.textContent = 'File loaded';           
         dataTooltip.innerText = dataFilename + ' loaded.'
 
         console.log('✓ Data loaded successfully');
@@ -482,12 +755,16 @@ function revalidateAndSetInvalid(el, pathStr) {
 // ==================== FORM RENDERING ====================
 
 function renderForm(schema) {
-  const noSchema = document.getElementById('no-schema');
+  const configBtn = document.getElementById('configBtn');
   const tabsContainer = document.getElementById('tabs-container');
   
-  noSchema.style.display = 'none';
+  // Hide config modal if visible
+  document.getElementById('config-modal').style.display = 'none';
+
+    // Show form and action buttons
+  configBtn.textContent = '⚙️ Configure';
+
   document.getElementById('saveBtn').style.display = 'inline-block';
-  document.getElementById('loadOptionsBtn').style.display = 'inline-block';
   document.getElementById('loadDataBtn').style.display = 'inline-block';    
   document.getElementById('exportBtn').style.display = 'inline-block';
   
@@ -1695,4 +1972,22 @@ function enforceValidMultiSelection(container, fieldPath) {
       }
     }, { once: true });
   });
+}
+
+// ==================== ABOUT MODAL =======================
+function showAboutModal() {
+  const aboutModal = document.getElementById('about-modal');
+  aboutModal.style.display = 'flex';
+
+  // Close button handler
+  document.getElementById('closeAboutBtn').onclick = () => {
+    aboutModal.style.display = 'none';
+  };
+
+  // Optional: Close on outside click
+  aboutModal.onclick = (e) => {
+    if (e.target === aboutModal) {
+      aboutModal.style.display = 'none';
+    }
+  };
 }
