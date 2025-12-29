@@ -13,6 +13,12 @@
   --text-color: #333;
   --background-color: #f5f5f5;
   --header-height: 60px;
+  --input-border: #3c3c3c;
+  --dropdown-background: #f5f5f5;
+  --dropdown-foreground: #333;
+  --editor-background: #f5f5f5;
+  --editor-inactiveSelectionBackground: #2d2d2d;
+
 }
 
 body {
@@ -891,4 +897,40 @@ select:focus,
   background: var(--secondary-color);
   color: white;
 }
-/** Config - Modal End/
+/** Config - Modal End/ */
+
+/**** Choice schema styles */
+.choice-schema-group {
+  border: 2px solid var(--input-border);
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 20px;
+  background-color: var(--editor-background);
+}
+
+.choice-schema-selection {
+  margin-bottom: 15px;
+}
+
+.choice-schema-selection select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--input-border);
+  border-radius: 4px;
+  background-color: var(--dropdown-background);
+  color: var(--dropdown-foreground);
+  font-size: 14px;
+}
+
+.choice-schema-content {
+  margin-top: 15px;
+  padding: 15px;
+  border: 1px dashed var(--input-border);
+  border-radius: 4px;
+  background-color: var(--editor-inactiveSelectionBackground);
+}
+
+.choice-schema-object-content .form-group {
+  margin-bottom: 12px;
+}
+/**** Choice schema styles  - end*/

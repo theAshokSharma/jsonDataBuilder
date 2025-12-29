@@ -825,44 +825,170 @@ function createTabs(properties) {
 }
 
 // Helper function to determine where tab properties are located
+// Helper function to determine where tab properties are located
 function getTabProperties() {
-  // Check if schema has top-level properties
-  if (currentSchema && currentSchema.properties) {
+  if (!currentSchema) return {};
+  
+  // Check if schema has top-level properties (standard schema)
+  if (currentSchema.properties) {
     return currentSchema.properties;
   }
   
   // Check if schema has definitions/defs that should be used as tabs
-  if (currentSchema && (currentSchema.$defs || currentSchema.definitions)) {
-    return currentSchema.$defs || currentSchema.definitions;
+  const definitions = currentSchema.$defs || currentSchema.definitions;
+  if (definitions) {
+    return definitions;
   }
   
-  // If schema has oneOf/anyOf/allOf at top level, use $defs as tabs
-  if (currentSchema && (currentSchema.oneOf || currentSchema.anyOf || currentSchema.allOf)) {
-    if (currentSchema.$defs) {
-      return currentSchema.$defs;
-    } else if (currentSchema.definitions) {
-      return currentSchema.definitions;
-    }
+  // If schema is a choice schema at top level, create a single tab for it
+  if (currentSchema.oneOf || currentSchema.anyOf || currentSchema.allOf) {
+    return { 
+      'root': { 
+        ...currentSchema,
+        title: currentSchema.title || 'Schema',
+        description: currentSchema.description || ''
+      } 
+    };
   }
   
   return {};
 }
-
 function createTabContent(key, prop, isRequired, path) {
+  // Check if this property is a choice schema (oneOf/anyOf/allOf)
+  if (prop.oneOf || prop.anyOf || prop.allOf) {
+    return createChoiceSchemaTab(key, prop, isRequired, path);
+  }
+  
   // For definitions that are objects, create their fields
   if (prop.type === 'object' && prop.properties) {
     return createNestedObject(key, prop, isRequired, path);
   }
   
-  // For definitions with oneOf/anyOf/allOf, handle them appropriately
-  if (prop.oneOf || prop.anyOf || prop.allOf) {
-    return createChoiceField(key, prop, isRequired, path);
+  // For arrays of objects
+  if (prop.type === 'array' && prop.items && (prop.items.type === 'object' || prop.items.$ref)) {
+    return createArrayOfObjects(key, prop, isRequired, path);
   }
-
+  
+  // Default to creating a field
   return createField(key, prop, isRequired, path);
 }
 
-/*** new function createChoiceField */
+function createChoiceSchemaTab(key, prop, isRequired, path) {
+  const title = prop.title || key;
+  const description = prop.description || '';
+  const pathStr = path.join('.');
+  
+  // Determine the type of choice schema
+  const choiceType = prop.oneOf ? 'oneOf' : prop.anyOf ? 'anyOf' : 'allOf';
+  const choices = prop.oneOf || prop.anyOf || prop.allOf;
+  
+  let html = `
+    <div class="form-group choice-schema-group" data-field-path="${pathStr}" data-choice-type="${choiceType}">
+      <label class="${isRequired ? 'required' : ''}">${title}</label>
+      ${description ? `<div class="description">${description}</div>` : ''}
+      
+      <div class="choice-schema-selection">
+        <select class="choice-schema-selector" data-path="${pathStr}" 
+                onchange="handleChoiceSchemaSelection(this, '${pathStr}', '${choiceType}')">
+          <option value="">-- Select ${choiceType.replace('Of', ' Of')} --</option>
+  `;
+  
+  // Add options for each choice
+  choices.forEach((choice, index) => {
+    const choiceTitle = choice.title || `Option ${index + 1}`;
+    html += `<option value="${index}">${choiceTitle}</option>`;
+  });
+  
+  html += `
+        </select>
+      </div>
+      
+      <div class="choice-schema-content" id="choice-content-${pathStr.replace(/\./g, '_')}"></div>
+    </div>
+  `;
+  
+  return html;
+}
+
+window.handleChoiceSchemaSelection = function(select, pathStr, choiceType) {
+  const choiceIndex = parseInt(select.value);
+  const choiceContent = document.getElementById(`choice-content-${pathStr.replace(/\./g, '_')}`);
+  
+  // Clear previous content
+  choiceContent.innerHTML = '';
+  
+  if (isNaN(choiceIndex)) {
+    // Remove any stored selection
+    delete window.choiceSelections;
+    return;
+  }
+  
+  // Get the property at this path
+  const prop = getPropByPath(pathStr);
+  if (!prop) return;
+  
+  const choices = prop.oneOf || prop.anyOf || prop.allOf;
+  const selectedSchema = choices[choiceIndex];
+  
+  // Store the selection for data collection
+  if (!window.choiceSelections) window.choiceSelections = {};
+  window.choiceSelections[pathStr] = { index: choiceIndex, schema: selectedSchema };
+  
+  // Render the selected schema
+  renderSelectedChoiceSchema(selectedSchema, pathStr, choiceContent);
+};
+
+function renderSelectedChoiceSchema(schema, basePath, container) {
+  container.innerHTML = '';
+  
+  if (!schema) return;
+  
+  // Handle different schema types
+  if (schema.type === 'object' && schema.properties) {
+    // Render object properties
+    const properties = schema.properties || {};
+    const required = schema.required || [];
+    
+    let fieldsHtml = '';
+    for (const [key, prop] of Object.entries(properties)) {
+      const isSubRequired = required.includes(key);
+      fieldsHtml += createField(key, prop, isSubRequired, [...basePath.split('.'), key]);
+    }
+    
+    const div = document.createElement('div');
+    div.className = 'choice-schema-object-content';
+    div.innerHTML = fieldsHtml;
+    container.appendChild(div);
+    
+  } else if (schema.type === 'array' && schema.items) {
+    // Render array field
+    const pathParts = basePath.split('.');
+    const lastKey = pathParts.pop() || '';
+    fieldsHtml = createArrayOfObjects(lastKey, schema, false, pathParts);
+    
+    const div = document.createElement('div');
+    div.innerHTML = fieldsHtml;
+    container.appendChild(div.firstElementChild);
+    
+  } else if (schema.$ref) {
+    // Handle references
+    const resolved = resolveRef(schema.$ref, currentSchema);
+    if (resolved) {
+      renderSelectedChoiceSchema(resolved, basePath, container);
+    }
+  } else {
+    // Handle simple types
+    const fieldHtml = createField('value', schema, false, [...basePath.split('.')]);
+    const div = document.createElement('div');
+    div.innerHTML = fieldHtml;
+    container.appendChild(div.firstElementChild);
+  }
+  
+  // Attach event listeners to the new content
+  setTimeout(() => attachEventListeners(), 100);
+}
+
+
 function createChoiceField(key, prop, isRequired, path) {
   const title = prop.title || key;
   const description = prop.description || '';
@@ -926,16 +1052,27 @@ window.handleChoiceChange = function(select, pathStr) {
 
 // Helper function to get property by path
 function getPropByPath(pathStr) {
+  if (!currentSchema) return null;
+  
   const keys = pathStr.split('.');
   let current = currentSchema;
   
   for (const key of keys) {
-    if (current && current[key]) {
+    if (!current) return null;
+    
+    if (current[key]) {
       current = current[key];
-    } else if (current && (current.properties || current.$defs || current.definitions)) {
-      current = (current.properties || current.$defs || current.definitions)[key];
+    } else if (current.properties && current.properties[key]) {
+      current = current.properties[key];
+    } else if ((current.$defs || current.definitions) && (current.$defs || current.definitions)[key]) {
+      current = (current.$defs || current.definitions)[key];
     } else {
-      return null;
+      // Try to navigate through object properties
+      if (current.type === 'object' && current.properties && current.properties[key]) {
+        current = current.properties[key];
+      } else {
+        return null;
+      }
     }
   }
   
@@ -1173,7 +1310,7 @@ function createNestedObject(key, prop, isRequired, path) {
       <div class="nested-object">
         <div class="nested-object-header" onclick="toggleNested(this)">
           <span>${title}</span>
-          ${isRequired ? '<span style="color: var(--vscode-errorForeground)">*</span>' : ''}
+          ${isRequired ? '<span style="color: var(--errorForeground)">*</span>' : ''}
         </div>
         ${description ? `<div class="description">${description}</div>` : ''}
         <div class="nested-object-content">
@@ -1549,6 +1686,17 @@ function collectFormData() {
     const path = input.dataset.path;
     if (!path || processedPaths.has(path)) return;
     
+    // Handle choice schema selections
+    if (window.choiceSelections && window.choiceSelections[path]) {
+      const selection = window.choiceSelections[path];
+      const choiceData = collectChoiceSchemaData(path, selection);
+      if (choiceData !== undefined) {
+        setNestedValue(data, path, choiceData);
+      }
+      processedPaths.add(path);
+      return;
+    }
+    
     if (input.classList && input.classList.contains('na-checkbox')) {
       const naCheckbox = document.getElementById(path + '_na');
       if (naCheckbox && naCheckbox.checked) {
@@ -1598,9 +1746,70 @@ function collectFormData() {
   return data;
 }
 
+function collectChoiceSchemaData(basePath, selection) {
+  const { index, schema } = selection;
+  
+  if (schema.type === 'object' && schema.properties) {
+    // Collect data from object properties
+    const objData = {};
+    const properties = schema.properties || {};
+    
+    Object.keys(properties).forEach(key => {
+      const fullPath = `${basePath}.${key}`;
+      const fieldData = getFieldValueByPath(fullPath);
+      if (fieldData !== null && fieldData !== undefined) {
+        objData[key] = fieldData;
+      }
+    });
+    
+    return Object.keys(objData).length > 0 ? objData : undefined;
+    
+  } else if (schema.type === 'array' && schema.items) {
+    // Collect array data
+    return getFieldValueByPath(basePath);
+    
+  } else {
+    // Collect simple value
+    return getFieldValueByPath(`${basePath}.value`);
+  }
+}
+
+// Helper to get field value by path
+function getFieldValueByPath(pathStr) {
+  // Try to find the field element
+  let input = document.querySelector(`[data-path="${pathStr}"]`);
+  
+  if (!input) {
+    // Check if it's inside a choice schema
+    const pathParts = pathStr.split('.');
+    const choicePath = pathParts.slice(0, -1).join('.');
+    
+    if (window.choiceSelections && window.choiceSelections[choicePath]) {
+      // The field is inside a choice schema
+      const lastKey = pathParts[pathParts.length - 1];
+      
+      // Look for the field within the choice content
+      const choiceContent = document.getElementById(`choice-content-${choicePath.replace(/\./g, '_')}`);
+      if (choiceContent) {
+        input = choiceContent.querySelector(`[data-path="${pathStr}"]`);
+      }
+    }
+  }
+  
+  if (!input) return null;
+  
+  // Use existing getFieldValue logic
+  return getFieldValue(pathStr);
+}
+
 // ==================== DATA POPULATION ====================
 function populateFormWithData(data) {
   console.log('=== Starting data population ===');
+  
+  // First, identify and set choice schema selections
+  identifyChoiceSelections(data, []);
+  
+  // Then populate all fields (including those in choice schemas)
   populateFields(data, []);
   
   setTimeout(() => {
@@ -1608,6 +1817,79 @@ function populateFormWithData(data) {
     showInvalidFieldsSummary();
     console.log('✓ Form populated and rules applied');
   }, 300);
+}
+
+function identifyChoiceSelections(data, parentPath) {
+  for (const [key, value] of Object.entries(data)) {
+    const currentPath = [...parentPath, key];
+    const pathStr = currentPath.join('.');
+    
+    // Check if this path corresponds to a choice schema
+    const prop = getPropByPath(pathStr);
+    if (prop && (prop.oneOf || prop.anyOf || prop.allOf)) {
+      // This is a choice schema, need to determine which option was selected
+      const choices = prop.oneOf || prop.anyOf || prop.allOf;
+      const choiceIndex = determineChoiceIndex(value, choices);
+      
+      if (choiceIndex >= 0) {
+        // Store the selection
+        if (!window.choiceSelections) window.choiceSelections = {};
+        window.choiceSelections[pathStr] = {
+          index: choiceIndex,
+          schema: choices[choiceIndex]
+        };
+        
+        // Set the dropdown selection
+        const select = document.querySelector(`select.choice-schema-selector[data-path="${pathStr}"]`);
+        if (select) {
+          select.value = choiceIndex;
+          // Trigger the change to render the appropriate form
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      }
+    }
+    
+    // Recursively check nested objects
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      identifyChoiceSelections(value, currentPath);
+    }
+  }
+}
+
+function determineChoiceIndex(data, choices) {
+  for (let i = 0; i < choices.length; i++) {
+    const choice = choices[i];
+    
+    if (choice.type === 'object' && choice.properties) {
+      // Check if data matches this object schema
+      const dataKeys = Object.keys(data || {});
+      const schemaKeys = Object.keys(choice.properties || {});
+      
+      // Simple heuristic: if data has keys that match this schema
+      const matchingKeys = dataKeys.filter(key => schemaKeys.includes(key));
+      if (matchingKeys.length > 0) {
+        return i;
+      }
+    } else if (choice.type === 'array' && Array.isArray(data)) {
+      // Check if data is an array and schema expects array
+      return i;
+    } else if (choice.type && typeof data === getPrimitiveType(choice.type)) {
+      // Check primitive type match
+      return i;
+    }
+  }
+  
+  return -1;
+}
+
+function getPrimitiveType(schemaType) {
+  switch(schemaType) {
+    case 'string': return 'string';
+    case 'number': return 'number';
+    case 'integer': return 'number';
+    case 'boolean': return 'boolean';
+    default: return 'object';
+  }
 }
 
 function showInvalidFieldsSummary() {
