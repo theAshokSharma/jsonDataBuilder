@@ -1,8 +1,7 @@
 // data-builder.js - JSON data builder
-// import 
-// import { saveFile } from './utils.js'; 
 import {saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm} from './utils.js'
 import {validateOptionsAgainstSchema, showValidationErrorsDialog, resolveRef} from './file-validation.js'
+import {analyzeSchemaStructure, detectSchemaPattern} from './schema-manager.js'
 
 // Global variables
 let currentSchema = null;
@@ -35,6 +34,14 @@ const configTooltip = addTooltip(configBtn, 'Configure the data builder.');
 const loadDataBtn = document.getElementById('loadDataBtn');
 loadDataBtn.addEventListener('click', loadDataFromFile);
 const dataTooltip = addTooltip(loadDataBtn, 'Load data file in JSON format.');
+
+const aboutBtn = document.getElementById('aboutBtn');
+aboutBtn.addEventListener('click', showAboutModal);
+addTooltip(aboutBtn, 'Learn more about this application.');
+
+const hamburgerBtn = document.getElementById('hamburgerBtn');
+const headerNav = document.querySelector('.header-nav');
+
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
   try {
@@ -97,12 +104,6 @@ document.getElementById('appIcon').addEventListener('click', () => {
   showAboutModal();
 });
 
-const aboutBtn = document.getElementById('aboutBtn');
-aboutBtn.addEventListener('click', showAboutModal);
-addTooltip(aboutBtn, 'Learn more about this application.');
-
-const hamburgerBtn = document.getElementById('hamburgerBtn');
-const headerNav = document.querySelector('.header-nav');
 
 hamburgerBtn.addEventListener('click', () => {
   headerNav.classList.toggle('active');
@@ -313,7 +314,7 @@ function showConfigModal() {
       // Hide modal and render form
       setTimeout(() => {
         configModal.style.display = 'none';
-        renderForm(schema);
+        renderForm(currentSchema);
         console.log('✓ Configuration loaded successfully');
       }, 500);
       
@@ -380,14 +381,6 @@ function loadSchemaFromFile() {
       const text = await file.text();
       const schema = JSON.parse(text);
 
-      // const ajv = new Ajv({ allErrors: true });  // Initialize AJV with allErrors for detailed messages
-      // if (!ajv.validateSchema(schema)) {
-      //   const errorMessage = 'Invalid JSON Schema structure:\n' + 
-      //     ajv.errors.map(err => `- ${err.instancePath} ${err.message}`).join('\n');
-      //   ashAlert(errorMessage);
-      //   console.error('Schema validation errors:', ajv.errors);
-      //   return;  // Return to the same page without loading
-      // }      
       currentSchema = schema;
       definitions = schema.definitions || schema.$defs || {};
       renderForm(schema);
@@ -395,7 +388,7 @@ function loadSchemaFromFile() {
 
       document.getElementById('loadSchemaBtn').style.color = '#000000ff';
       document.getElementById('loadSchemaBtn').style.backgroundColor = '#99ff00ff';
-
+x
       schemaTooltip.innerText = schemaFilename + ' loaded.'
 
     } catch (error) {
@@ -755,19 +748,207 @@ function revalidateAndSetInvalid(el, pathStr) {
 // ==================== FORM RENDERING ====================
 
 function renderForm(schema) {
-  const configBtn = document.getElementById('configBtn');
-  const tabsContainer = document.getElementById('tabs-container');
+  // Step 1: Analyze schema structure
+  const analysis = analyzeSchemaStructure(schema);
+  const patterns = detectSchemaPattern(schema);
   
-  // Hide config modal if visible
+  console.log('Schema Analysis:', analysis);
+  console.log('Detected Patterns:', patterns);
+  
+  // Step 2: Hide config modal
   document.getElementById('config-modal').style.display = 'none';
-
-    // Show form and action buttons
-  configBtn.textContent = '⚙️ Configure';
-
-  document.getElementById('saveBtn').style.display = 'inline-block';
-  document.getElementById('loadDataBtn').style.display = 'inline-block';    
-  document.getElementById('exportBtn').style.display = 'inline-block';
   
+  // Step 3: Show form UI
+  document.getElementById('configBtn').textContent = '⚙️ Configure';
+  document.getElementById('saveBtn').style.display = 'inline-block';
+  document.getElementById('loadDataBtn').style.display = 'inline-block';
+  document.getElementById('exportBtn').style.display = 'inline-block';
+
+// Step 4: Route to appropriate renderer
+  switch(analysis.renderingStrategy) {
+    case 'multi-section-tabs':
+      renderMultiSectionForm(schema, analysis);
+      break;
+      
+    case 'polymorphic-selector':
+      renderPolymorphicForm(schema, analysis);
+      break;
+      
+    case 'dynamic-recursive':
+      renderRecursiveForm(schema, analysis);
+      break;
+      
+    case 'single-form-nested':
+    case 'single-form-flat':
+    case 'single-form-collapsible':
+      renderSingleForm(schema, analysis);
+      break;
+      
+    default:
+      renderSingleForm(schema, analysis);
+  }
+  
+  // Step 5: Attach event listeners
+  setTimeout(() => attachEventListeners(), 100);
+}
+
+/**
+ * Renders polymorphic forms (oneOf/anyOf at root)
+ * Generic for any schema with type selection
+ */
+function renderPolymorphicForm(schema, analysis) {
+  const tabsContainer = document.getElementById('tabs-container');
+  const tabContentsContainer = document.getElementById('tab-contents');
+  
+  // Hide tabs, show single container
+  document.getElementById('form-tabs').style.display = 'none';
+  tabContentsContainer.innerHTML = '';
+  
+  const container = document.createElement('div');
+  container.className = 'single-form-container';
+  
+  // Add title
+  const title = document.createElement('h2');
+  title.textContent = schema.title || 'Form';
+  container.appendChild(title);
+  
+  // Create type selector
+  const typeSelector = createPolymorphicTypeSelector(schema);
+  container.appendChild(typeSelector);
+  
+  // Create dynamic content area
+  const dynamicContent = document.createElement('div');
+  dynamicContent.id = 'polymorphic-content';
+  dynamicContent.className = 'polymorphic-content';
+  container.appendChild(dynamicContent);
+  
+  tabContentsContainer.appendChild(container);
+  tabsContainer.style.display = 'block';
+  
+  // Render initial selection
+  if (schema.oneOf && schema.oneOf.length > 0) {
+    renderPolymorphicOption(schema.oneOf[0], dynamicContent, []);
+  } else if (schema.anyOf && schema.anyOf.length > 0) {
+    renderPolymorphicOption(schema.anyOf[0], dynamicContent, []);
+  }
+}
+
+/**
+ * Creates type selector for polymorphic schemas
+ */
+function createPolymorphicTypeSelector(schema) {
+  const formGroup = document.createElement('div');
+  formGroup.className = 'form-group';
+  
+  const label = document.createElement('label');
+  label.className = 'required';
+  label.textContent = 'Type';
+  
+  const select = document.createElement('select');
+  select.id = 'polymorphic-type-selector';
+  select.className = 'polymorphic-type-selector';
+  
+  const options = schema.oneOf || schema.anyOf || [];
+  const keyword = schema.oneOf ? 'oneOf' : 'anyOf';
+  
+  options.forEach((option, index) => {
+    const opt = document.createElement('option');
+    opt.value = index;
+    opt.textContent = option.title || `Option ${index + 1}`;
+    select.appendChild(opt);
+  });
+  
+  select.addEventListener('change', (e) => {
+    const selectedIndex = parseInt(e.target.value);
+    const selectedOption = options[selectedIndex];
+    const contentArea = document.getElementById('polymorphic-content');
+    contentArea.innerHTML = '';
+    renderPolymorphicOption(selectedOption, contentArea, []);
+  });
+  
+  formGroup.appendChild(label);
+  formGroup.appendChild(select);
+  
+  return formGroup;
+}
+
+/**
+ * Renders selected polymorphic option
+ */
+function renderPolymorphicOption(optionSchema, container, path) {
+  if (optionSchema.$ref) {
+    optionSchema = resolveRef(optionSchema.$ref, currentSchema);
+  }
+  
+  if (!optionSchema) return;
+  
+  if (optionSchema.properties) {
+    for (const [key, prop] of Object.entries(optionSchema.properties)) {
+      const isRequired = optionSchema.required?.includes(key) || false;
+      const fieldHtml = createField(key, prop, isRequired, [...path, key]);
+      const div = document.createElement('div');
+      div.innerHTML = fieldHtml;
+      container.appendChild(div.firstElementChild);
+    }
+  }
+}
+
+/**
+ * Renders recursive schemas (like rule_data_schema.json)
+ * Handles self-referencing structures generically
+ */
+function renderRecursiveForm(schema, analysis) {
+  // Use polymorphic renderer if root has oneOf/anyOf
+  if (schema.oneOf || schema.anyOf) {
+    renderPolymorphicForm(schema, analysis);
+  } else {
+    // Treat as single form with special array handling
+    renderSingleForm(schema, analysis);
+  }
+}
+
+/**
+ * Renders single-container forms (no tabs)
+ * Generic for flat or lightly nested schemas
+ */
+function renderSingleForm(schema, analysis) {
+  const tabsContainer = document.getElementById('tabs-container');
+  const tabContentsContainer = document.getElementById('tab-contents');
+  
+  // Hide tabs
+  document.getElementById('form-tabs').style.display = 'none';
+  tabContentsContainer.innerHTML = '';
+  
+  const container = document.createElement('div');
+  container.className = 'single-form-container';
+  
+  // Add title
+  const title = document.createElement('h2');
+  title.textContent = schema.title || 'Form';
+  container.appendChild(title);
+  
+  // Render all properties
+  const properties = schema.properties || {};
+  const required = schema.required || [];
+  
+  for (const [key, prop] of Object.entries(properties)) {
+    const isRequired = required.includes(key);
+    const fieldHtml = createField(key, prop, isRequired, [key]);
+    const div = document.createElement('div');
+    div.innerHTML = fieldHtml;
+    container.appendChild(div.firstElementChild);
+  }
+  
+  tabContentsContainer.appendChild(container);
+  tabsContainer.style.display = 'block';
+}
+
+/**
+ * Existing multi-section renderer (keep as is)
+ * Used for complex nested schemas like test-schema.json
+ */
+function renderMultiSectionForm(schema, analysis) {
+  // Existing implementation from current code
   const properties = schema.properties || {};
   const required = schema.required || [];
   
@@ -779,14 +960,12 @@ function renderForm(schema) {
     tabContents[key] = tabContent;
   }
   
-  tabsContainer.style.display = 'block';
+  document.getElementById('tabs-container').style.display = 'block';
   
   if (Object.keys(properties).length > 0) {
     const firstTab = Object.keys(properties)[0];
     switchTab(firstTab);
   }
-  
-  attachEventListeners();
 }
 
 function createTabs(properties) {
@@ -1071,11 +1250,19 @@ function createArrayOfObjects(key, prop, isRequired, path) {
   const description = prop.description || '';
   const pathStr = path.join('.');
   
+  // NEW: Check if array items are recursive (self-referencing)
+  const itemSchema = prop.items;
+  const isRecursive = itemSchema?.$ref && 
+                     (itemSchema.$ref === '#' || itemSchema.$ref.includes(pathStr));
+  
   return `
     <div class="form-group" data-field-path="${pathStr}">
       <label class="${isRequired ? 'required' : ''}">${title}</label>
       ${description ? `<div class="description">${description}</div>` : ''}
-      <div class="array-container" id="array_${pathStr}" data-path="${pathStr}">
+      <div class="array-container ${isRecursive ? 'recursive-array' : ''}" 
+           id="array_${pathStr}" 
+           data-path="${pathStr}"
+           ${isRecursive ? 'data-recursive="true"' : ''}>
         <div class="array-controls">
           <button onclick="addArrayItem('${pathStr}', ${JSON.stringify(prop.items).replace(/"/g, '&quot;')})">Add Item</button>
         </div>
@@ -1083,7 +1270,6 @@ function createArrayOfObjects(key, prop, isRequired, path) {
     </div>
   `;
 }
-
 // ==================== GLOBAL WINDOW FUNCTIONS ====================
 
 window.toggleNested = function(header) {
@@ -1716,17 +1902,7 @@ function populateArrayField(pathStr, values) {
     console.log(`✓ Updated display for ${pathStr}`);
     
   } else {
-    // console.warn(`⚠ No multi-select container found for ${pathStr}`);
-    
-    // // Fallback to regular select
-    // const selectInput = document.querySelector(`select[data-path="${pathStr}"]`);
-    // if (selectInput) {
-    //   const valueToSet = Array.isArray(values) ? values[0] : values;
-    //   selectInput.value = String(valueToSet);
-    //   selectInput.dispatchEvent(new Event('change', { bubbles: true }));
-    //   console.log(`✓ Set select (fallback) ${pathStr} = ${valueToSet}`);
-    // }
-    console.warn(`⚠ No multi-select container found for ${pathStr}`);
+      console.warn(`⚠ No multi-select container found for ${pathStr}`);
     
     // Fallback to regular select, with added validity check
     const selectInput = document.querySelector(`select[data-path="${pathStr}"]`);
