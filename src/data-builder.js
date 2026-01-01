@@ -1462,31 +1462,184 @@ function createNestedObject(key, prop, isRequired, path) {
   `;
 }
 
+/**
+ * Enhanced: Creates array field with support for recursive references
+ * 
+ * @param {string} key - Field key
+ * @param {Object} prop - Property schema
+ * @param {boolean} isRequired - Whether field is required
+ * @param {Array} path - Path in data structure
+ * @returns {string} HTML string for array field
+ */
 function createArrayOfObjects(key, prop, isRequired, path) {
   const title = prop.title || key;
   const description = prop.description || '';
   const pathStr = path.join('.');
   
-  // NEW: Check if array items are recursive (self-referencing)
+  // Check if array items are recursive (self-referencing)
   const itemSchema = prop.items;
   const isRecursive = itemSchema?.$ref && 
-                     (itemSchema.$ref === '#' || itemSchema.$ref.includes(pathStr));
+                     (itemSchema.$ref === '#' || itemSchema.$ref.startsWith('#/'));
+  
+  // FIXED: Always apply proper escaping for HTML attributes
+  let itemSchemaData;
+  if (isRecursive) {
+    // For recursive refs, store a marker
+    const markerObj = { __recursive: true, ref: itemSchema.$ref };
+    itemSchemaData = JSON.stringify(markerObj).replace(/"/g, '&quot;');
+  } else {
+    // For non-recursive, store the actual schema
+    itemSchemaData = JSON.stringify(itemSchema).replace(/"/g, '&quot;');
+  }
+  
+  console.log('🔧 Creating array field:', {
+    path: pathStr,
+    isRecursive,
+    ref: itemSchema?.$ref,
+    escapedData: itemSchemaData.substring(0, 100) // Log first 100 chars
+  });
   
   return `
     <div class="form-group" data-field-path="${pathStr}">
       <label class="${isRequired ? 'required' : ''}">${title}</label>
       ${description ? `<div class="description">${description}</div>` : ''}
       <div class="array-container ${isRecursive ? 'recursive-array' : ''}" 
-           id="array_${pathStr}" 
+           id="array_${pathStr.replace(/\./g, '_')}" 
            data-path="${pathStr}"
-           ${isRecursive ? 'data-recursive="true"' : ''}>
+           ${isRecursive ? `data-recursive="true" data-ref="${itemSchema.$ref}"` : ''}
+           data-item-schema="${itemSchemaData}">
         <div class="array-controls">
-          <button onclick="addArrayItem('${pathStr}', ${JSON.stringify(prop.items).replace(/"/g, '&quot;')})">Add Item</button>
+          <button type="button" class="add-array-item-btn" onclick="addArrayItem('${pathStr}')">Add Item</button>
         </div>
       </div>
     </div>
   `;
 }
+
+
+/**
+ * NEW: Resolves recursive references safely
+ * For "#" reference, returns the top-level polymorphic options
+ * 
+ * @param {string} ref - Reference string (e.g., "#")
+ * @param {string} arrayPath - Current array path for context
+ * @returns {Object} Resolved schema (safe for rendering)
+ */
+function resolveRecursiveReference(ref, arrayPath) {
+  console.log('🔄 Resolving recursive reference:', ref, 'for path:', arrayPath);
+  
+  if (ref === '#') {
+    // Reference to root schema
+    console.log('📍 Root reference detected');
+    
+    // For rule_data_schema, root has oneOf with atomicRule and groupRule
+    if (currentSchema.oneOf || currentSchema.anyOf) {
+      console.log('✅ Root has polymorphic structure (oneOf/anyOf)');
+      return {
+        __polymorphic: true,
+        oneOf: currentSchema.oneOf,
+        anyOf: currentSchema.anyOf,
+        title: 'Rule',
+        type: 'object'
+      };
+    }
+    
+    // Fallback: return root properties if available
+    if (currentSchema.properties) {
+      console.log('✅ Using root properties as schema');
+      return {
+        type: 'object',
+        properties: currentSchema.properties,
+        required: currentSchema.required || []
+      };
+    }
+    
+    console.warn('⚠️  Root schema has neither oneOf/anyOf nor properties');
+    return null;
+  }
+  
+  // For other references, try normal resolution
+  console.log('🔗 Attempting normal $ref resolution for:', ref);
+  const resolved = resolveRef(ref, currentSchema);
+  
+  if (!resolved) {
+    console.error('❌ Could not resolve reference:', ref);
+    return null;
+  }
+  
+  console.log('✅ Resolved reference:', resolved);
+  return resolved;
+}
+
+
+/**
+ * NEW: Creates complex array item (object, polymorphic, nested)
+ * 
+ * @param {string} arrayPath - Path to array
+ * @param {Object} itemSchema - Schema for array item
+ * @param {number} index - Item index
+ * @param {HTMLElement} container - Array container element
+ */
+function createComplexArrayItem(arrayPath, itemSchema, index, container) {
+  console.log('🎨 Creating complex array item:', { arrayPath, index });
+  
+  const itemDiv = document.createElement('div');
+  itemDiv.className = 'array-item';
+  itemDiv.dataset.index = index;
+  itemDiv.dataset.arrayPath = arrayPath;
+  
+  // Create header with remove button
+  const headerDiv = document.createElement('div');
+  headerDiv.className = 'array-item-header';
+  headerDiv.innerHTML = `
+    <span class="array-item-title">Item ${index + 1}</span>
+    <button type="button" class="remove-item-btn" onclick="removeArrayItem(this)">Remove</button>
+  `;
+  itemDiv.appendChild(headerDiv);
+  
+  // Create content area
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'array-item-content';
+  contentDiv.id = `array-item-content-${arrayPath.replace(/\./g, '_')}-${index}`;
+  
+  // Handle different schema types
+  if (itemSchema.__polymorphic || itemSchema.oneOf || itemSchema.anyOf) {
+    // Polymorphic item - create type selector
+    console.log('🎨 Creating polymorphic array item');
+    renderPolymorphicArrayItem(itemSchema, contentDiv, arrayPath, index);
+  } else if (itemSchema.properties) {
+    // Object with properties
+    console.log('🎨 Creating object array item with properties:', Object.keys(itemSchema.properties));
+    const properties = itemSchema.properties || {};
+    const required = itemSchema.required || [];
+    
+    for (const [subKey, subProp] of Object.entries(properties)) {
+      const isSubRequired = required.includes(subKey);
+      const fieldPath = [arrayPath, index, subKey];
+      const fieldHtml = createField(subKey, subProp, isSubRequired, fieldPath);
+      const div = document.createElement('div');
+      div.innerHTML = fieldHtml;
+      contentDiv.appendChild(div.firstElementChild);
+    }
+  } else {
+    console.warn('⚠️  Unknown complex item schema:', itemSchema);
+    contentDiv.innerHTML = '<p style="color: orange;">⚠️ Unknown schema structure</p>';
+  }
+  
+  itemDiv.appendChild(contentDiv);
+  
+  // Insert before controls
+  const controls = container.querySelector('.array-controls');
+  if (controls) {
+    container.insertBefore(itemDiv, controls);
+    console.log('✅ Array item inserted before controls');
+  } else {
+    container.appendChild(itemDiv);
+    console.log('⚠️  No controls found, appended to container');
+  }
+}
+
+
 // ==================== GLOBAL WINDOW FUNCTIONS ====================
 
 window.toggleNested = function(header) {
@@ -1494,48 +1647,314 @@ window.toggleNested = function(header) {
   header.nextElementSibling.nextElementSibling.classList.toggle('collapsed');
 };
 
-window.addArrayItem = function(arrayPath, itemSchema) {
-  itemSchema = typeof itemSchema === 'string' ? JSON.parse(itemSchema.replace(/&quot;/g, '"')) : itemSchema;
+
+/**
+ * Enhanced: Adds item to array with recursive reference support
+ * Now reads schema from data attribute instead of parameter
+ * 
+ * @param {string} arrayPath - Path to the array field
+ */
+window.addArrayItem = function(arrayPath) {
+  console.log('➕ Adding array item to:', arrayPath);
   
-  if (itemSchema.$ref) {
-    itemSchema = resolveRef(itemSchema.$ref, currentSchema);
+  // FIXED: Handle path with dots - need to escape for ID selector
+  const escapedPath = arrayPath.replace(/\./g, '_');
+  const container = document.getElementById('array_' + escapedPath);
+  
+  if (!container) {
+    console.error('❌ Array container not found. Tried:', 'array_' + escapedPath);
+    console.log('Available containers:', 
+      Array.from(document.querySelectorAll('.array-container')).map(el => el.id)
+    );
+    return;
   }
   
-  const container = document.getElementById('array_' + arrayPath);
+  console.log('✅ Found container:', container.id);
+  console.log('📦 Container datasets:', container.dataset);
+  
+  // Get item schema from data attribute
+  const itemSchemaData = container.dataset.itemSchema;
+  if (!itemSchemaData) {
+    console.error('❌ No item schema found in dataset');
+    console.log('Available dataset keys:', Object.keys(container.dataset));
+    return;
+  }
+  
+  console.log('📄 Raw schema data (first 200 chars):', itemSchemaData.substring(0, 200));
+  
+  // FIXED: Properly unescape HTML entities before parsing
+  let itemSchema;
+  try {
+    // Convert HTML entities back to quotes
+    const unescaped = itemSchemaData.replace(/&quot;/g, '"')
+                                    .replace(/&apos;/g, "'")
+                                    .replace(/&lt;/g, '<')
+                                    .replace(/&gt;/g, '>')
+                                    .replace(/&amp;/g, '&');
+    
+    console.log('📄 Unescaped data:', unescaped.substring(0, 200));
+    
+    itemSchema = JSON.parse(unescaped);
+    console.log('✅ Parsed item schema:', itemSchema);
+  } catch (e) {
+    console.error('❌ Failed to parse item schema:', e);
+    console.error('Raw data:', itemSchemaData);
+    console.error('Attempted to parse:', itemSchemaData.replace(/&quot;/g, '"'));
+    alert('Error: Unable to parse array item schema. Check console for details.');
+    return;
+  }
+  
+  // Check if this is a recursive reference
+  if (itemSchema.__recursive) {
+    console.log('🔄 Handling recursive reference:', itemSchema.ref);
+    itemSchema = resolveRecursiveReference(itemSchema.ref, arrayPath);
+    
+    if (!itemSchema) {
+      console.error('❌ Failed to resolve recursive reference:', itemSchema.ref);
+      return;
+    }
+    console.log('✅ Resolved recursive schema:', itemSchema);
+  }
+  
+  // Handle $ref if present (non-recursive case)
+  if (itemSchema.$ref && !itemSchema.__recursive) {
+    console.log('🔗 Resolving $ref:', itemSchema.$ref);
+    const resolved = resolveRef(itemSchema.$ref, currentSchema);
+    if (resolved) {
+      itemSchema = resolved;
+      console.log('✅ Resolved $ref:', itemSchema);
+    } else {
+      console.error('❌ Could not resolve $ref:', itemSchema.$ref);
+      return;
+    }
+  }
+  
   const items = container.querySelectorAll('.array-item');
   const index = items.length;
   
-  const properties = itemSchema.properties || {};
-  const required = itemSchema.required || {};
+  console.log('📦 Creating array item at index:', index);
+  console.log('📋 Item schema type:', itemSchema.type, 'Has oneOf:', !!itemSchema.oneOf);
   
-  let fieldsHtml = '';
-  for (const [subKey, subProp] of Object.entries(properties)) {
-    const isSubRequired = required.includes(subKey);
-    fieldsHtml += createField(subKey, subProp, isSubRequired, [...arrayPath.split('.'), index, subKey]);
+  // Determine if this is a simple type or complex object
+  if (itemSchema.type === 'object' || itemSchema.properties || itemSchema.oneOf || 
+      itemSchema.anyOf || itemSchema.__polymorphic) {
+    createComplexArrayItem(arrayPath, itemSchema, index, container);
+  } else {
+    createSimpleArrayItem(arrayPath, itemSchema, index, container);
   }
   
-  const itemDiv = document.createElement('div');
-  itemDiv.className = 'array-item';
-  itemDiv.innerHTML = `
-    <div class="array-item-header">
-      <span class="array-item-title">Item ${index + 1}</span>
-      <button class="remove-item-btn" onclick="removeArrayItem(this)">Remove</button>
-    </div>
-    ${fieldsHtml}
-  `;
+  console.log('✅ Array item created successfully');
   
-  container.insertBefore(itemDiv, container.querySelector('.array-controls'));
-  attachEventListeners();
+  // Reattach event listeners
+  setTimeout(() => attachEventListeners(), 100);
 };
 
-window.removeArrayItem = function(btn) {
-  const item = btn.closest('.array-item');
-  item.remove();
-  const container = item.parentElement;
-  const items = container.querySelectorAll('.array-item');
-  items.forEach((item, idx) => {
-    item.querySelector('.array-item-title').textContent = 'Item ' + (idx + 1);
+
+
+/**
+ * NEW: Creates simple array item (string, number, etc.)
+ * 
+ * @param {string} arrayPath - Path to array
+ * @param {Object} itemSchema - Schema for array item
+ * @param {number} index - Item index
+ * @param {HTMLElement} container - Array container element
+ */
+function createSimpleArrayItem(arrayPath, itemSchema, index, container) {
+  const itemDiv = document.createElement('div');
+  itemDiv.className = 'array-item array-item-simple';
+  itemDiv.dataset.index = index;
+  
+  const itemPath = `${arrayPath}.${index}`;
+  const inputType = getInputTypeFromSchema(itemSchema);
+  
+  itemDiv.innerHTML = `
+    <div class="array-item-simple-content">
+      <input type="${inputType}" 
+             name="${itemPath}" 
+             data-path="${itemPath}"
+             placeholder="Item ${index + 1}"
+             class="array-item-input">
+      <button type="button" class="remove-item-btn" onclick="removeArrayItem(this)">×</button>
+    </div>
+  `;
+  
+  // Insert before controls
+  const controls = container.querySelector('.array-controls');
+  container.insertBefore(itemDiv, controls);
+}
+
+/**
+ * NEW: Renders polymorphic item in array (with type selector)
+ * 
+ * @param {Object} schema - Schema with oneOf/anyOf
+ * @param {HTMLElement} container - Container to render into
+ * @param {string} arrayPath - Path to array
+ * @param {number} index - Item index
+ */
+function renderPolymorphicArrayItem(schema, container, arrayPath, index) {
+  console.log('🎨 Rendering polymorphic array item:', { arrayPath, index });
+  
+  const options = schema.oneOf || schema.anyOf || [];
+  
+  if (options.length === 0) {
+    console.error('❌ No options in polymorphic array item');
+    container.innerHTML = '<p style="color: red;">❌ No type options available</p>';
+    return;
+  }
+  
+  console.log('📋 Available options:', options.length);
+  
+  // Create type selector
+  const selectorGroup = document.createElement('div');
+  selectorGroup.className = 'form-group';
+  
+  const label = document.createElement('label');
+  label.className = 'required';
+  label.textContent = 'Type';
+  selectorGroup.appendChild(label);
+  
+  const select = document.createElement('select');
+  select.className = 'array-item-type-selector';
+  const selectId = `array-type-${arrayPath.replace(/\./g, '_')}-${index}`;
+  select.id = selectId;
+  select.dataset.arrayPath = arrayPath;
+  select.dataset.index = index;
+  
+  console.log('📋 Creating selector with ID:', selectId);
+  
+  // Default option
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.textContent = '-- Select Type --';
+  select.appendChild(defaultOpt);
+  
+  // Add options
+  options.forEach((option, optIndex) => {
+    const opt = document.createElement('option');
+    opt.value = optIndex;
+    
+    // Get title
+    let title = option.title;
+    if (!title && option.$ref) {
+      const resolved = resolveRef(option.$ref, currentSchema);
+      title = resolved?.title || option.$ref.split('/').pop();
+    }
+    
+    opt.textContent = title || `Option ${optIndex + 1}`;
+    console.log(`  Option ${optIndex}: ${opt.textContent}`);
+    select.appendChild(opt);
   });
+  
+  selectorGroup.appendChild(select);
+  container.appendChild(selectorGroup);
+  
+  // Create dynamic content area
+  const dynamicContent = document.createElement('div');
+  dynamicContent.className = 'array-item-dynamic-content';
+  dynamicContent.id = `array-item-dynamic-${arrayPath.replace(/\./g, '_')}-${index}`;
+  container.appendChild(dynamicContent);
+  
+  console.log('✅ Polymorphic selector created, attaching change handler');
+  
+  // Add change handler
+  select.addEventListener('change', (e) => {
+    const selectedIndex = parseInt(e.target.value);
+    console.log('🔄 Array item type changed to index:', selectedIndex);
+    
+    dynamicContent.innerHTML = '';
+    
+    if (selectedIndex >= 0 && selectedIndex < options.length) {
+      let selectedOption = options[selectedIndex];
+      
+      console.log('📋 Selected option:', selectedOption);
+      
+      // Resolve reference
+      if (selectedOption.$ref) {
+        console.log('🔗 Resolving $ref:', selectedOption.$ref);
+        selectedOption = resolveRef(selectedOption.$ref, currentSchema);
+        console.log('✅ Resolved to:', selectedOption);
+      }
+      
+      if (!selectedOption) {
+        console.error('❌ Failed to resolve option');
+        dynamicContent.innerHTML = '<p style="color: red;">❌ Failed to load option</p>';
+        return;
+      }
+      
+      console.log('🎨 Rendering selected option:', selectedOption.title || 'Untitled');
+      
+      // Render the option
+      const itemPath = [arrayPath, index];
+      renderPolymorphicOption(selectedOption, dynamicContent, itemPath, 0);
+      
+      console.log('✅ Option rendered successfully');
+    }
+  });
+  
+  console.log('✅ Polymorphic array item setup complete');
+}
+
+
+/**
+ * Helper: Gets input type from schema
+ */
+function getInputTypeFromSchema(schema) {
+  if (schema.type === 'number' || schema.type === 'integer') {
+    return 'number';
+  }
+  if (schema.type === 'boolean') {
+    return 'checkbox';
+  }
+  if (schema.format === 'date') {
+    return 'date';
+  }
+  if (schema.format === 'email') {
+    return 'email';
+  }
+  return 'text';
+}
+
+
+/**
+ * Enhanced: Remove array item (already exists but ensure it updates indices)
+ */
+window.removeArrayItem = function(btn) {
+  console.log('🗑️  Removing array item');
+  
+  const item = btn.closest('.array-item');
+  if (!item) {
+    console.error('❌ Could not find array item to remove');
+    return;
+  }
+  
+  const container = item.closest('.array-container');
+  const arrayPath = container?.dataset.path;
+  
+  console.log('🗑️  Removing item from:', arrayPath);
+  
+  item.remove();
+  
+  // Update remaining item numbers and paths
+  const items = container.querySelectorAll('.array-item');
+  console.log(`📊 Remaining items: ${items.length}`);
+  
+  items.forEach((item, idx) => {
+    item.dataset.index = idx;
+    const title = item.querySelector('.array-item-title');
+    if (title) {
+      title.textContent = `Item ${idx + 1}`;
+    }
+    
+    // Update data-path attributes for simple items
+    const input = item.querySelector('.array-item-input');
+    if (input && arrayPath) {
+      const newPath = `${arrayPath}.${idx}`;
+      input.dataset.path = newPath;
+      input.name = newPath;
+    }
+  });
+  
+  console.log('✅ Array item removed and indices updated');
 };
 
 window.handleMultiSelectChange = function(event, path, dropdownId) {

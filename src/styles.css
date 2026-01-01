@@ -8,10 +8,12 @@
 :root {
   --primary-color: #00bbfa;
   --secondary-color: #0033ff;
+  --btn-color: #0033ff;
   --error-color: #d32f2f;
   --success-color: #4caf50;
   --text-color: #333;
   --background-color: #f5f5f5;
+  --btn-background-color: #f5f5f5;
   --header-height: 60px;
 }
 
@@ -892,3 +894,129 @@ select:focus,
   color: white;
 }
 /** Config - Modal End/
+
+/** Enhanced CSS for Array Items */
+/* Array item styling */
+.array-item {
+  background: var(--vscode-editor-background);
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+  position: relative;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.array-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--vscode-panel-border);
+}
+
+.array-item-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--vscode-editor-foreground);
+}
+
+.remove-item-btn {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.remove-item-btn:hover {
+  background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.array-item-content {
+  margin-top: 10px;
+}
+
+.array-item-dynamic-content {
+  margin-top: 15px;
+}
+
+.array-item-type-selector {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-radius: 4px;
+}
+
+/* Simple array items */
+.array-item-simple {
+  padding: 8px;
+  background: transparent;
+  border: none;
+}
+
+.array-item-simple-content {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.array-item-input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--vscode-input-border);
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border-radius: 4px;
+}
+
+.array-item-simple .remove-item-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 50%;
+}
+
+/* Array controls */
+.array-controls {
+  margin-top: 10px;
+}
+
+.add-array-item-btn {
+  background: var(--btn-background-color);
+  color: var(--btn-color);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.add-array-item-btn:hover {
+  background: var(--vscode-button-hoverBackground);
+}
+
+.recursive-array {
+  border-left: 3px solid var(--vscode-button-background);
+  padding-left: 15px;
+}
