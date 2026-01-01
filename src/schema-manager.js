@@ -2,13 +2,81 @@
 
 import {resolveRef} from './file-validation.js'
 
-
+/**
+ * Normalizes schema structure to handle variations
+ * Some schemas have properties nested in unusual locations
+ * 
+ * @param {Object} schema - Original JSON schema
+ * @returns {Object} Normalized schema with properties at root level
+ */
+function normalizeSchema(schema) {
+  // Standard case: properties already at root
+  if (schema.properties) {
+    return schema;
+  }
+  
+  // Case 1: Properties nested in $Defs (rule_schema.json pattern)
+  // Structure: { "$Defs": { "properties": {...}, "required": [...] } }
+  if (schema.$Defs && typeof schema.$Defs === 'object') {
+    if (schema.$Defs.properties) {
+      console.log('⚠️  Non-standard schema detected: properties nested in $Defs');
+      console.log('   Normalizing to standard structure...');
+      
+      return {
+        ...schema,
+        type: 'object',
+        properties: schema.$Defs.properties,
+        required: schema.$Defs.required || [],
+        title: schema.title || schema.$Defs.title || 'Form',
+        description: schema.description || schema.$Defs.description,
+        // Keep original $Defs for reference resolution if needed
+        $defs: schema.$defs || schema.definitions || {}
+      };
+    }
+  }
+  
+  // Case 2: Properties nested in definitions (rare)
+  if (schema.definitions && typeof schema.definitions === 'object') {
+    for (const [key, def] of Object.entries(schema.definitions)) {
+      if (def.properties && !schema.properties) {
+        console.log('⚠️  Properties found in definitions, promoting to root');
+        return {
+          ...schema,
+          type: 'object',
+          properties: def.properties,
+          required: def.required || [],
+          title: schema.title || def.title || 'Form'
+        };
+      }
+    }
+  }
+  
+  // Case 3: Properties nested in $defs (standard location, but no root properties)
+  if (schema.$defs && typeof schema.$defs === 'object') {
+    // Check if there's a single definition that should be the main form
+    const defKeys = Object.keys(schema.$defs);
+    if (defKeys.length === 1 && schema.$defs[defKeys[0]].properties) {
+      console.log('⚠️  Single definition in $defs, using as main form');
+      const mainDef = schema.$defs[defKeys[0]];
+      return {
+        ...schema,
+        type: 'object',
+        properties: mainDef.properties,
+        required: mainDef.required || [],
+        title: schema.title || mainDef.title || 'Form'
+      };
+    }
+  }
+  
+  // No normalization needed/possible
+  return schema;
+}
 
 /**
- * Determines if schema should use tab-based navigation
+ * Enhanced shouldUseTabNavigation with better primitive detection
+* Determines if schema should use tab-based navigation
  * Improved logic: Tabs are for top-level properties that reference complex definitions
- * 
- * @param {Object} schema - JSON schema
+ * @param {Object} schema - JSON schema (should be normalized first)
  * @returns {boolean} True if tabs should be used
  */
 function shouldUseTabNavigation(schema) {
@@ -20,18 +88,27 @@ function shouldUseTabNavigation(schema) {
   const propertyKeys = Object.keys(properties);
   const propertyCount = propertyKeys.length;
   
-  // Rule 1: Must have at least 2 top-level properties for tabs to make sense
-//   if (propertyCount < 2) {
-//     return false;
-//   }
+  // // Rule 1: Must have at least 2 top-level properties for tabs to make sense
+  // if (propertyCount < 2) {
+  //   return false;
+  // }
   
-  // Rule 2: Check if top-level properties are references to complex definitions
-  // This is the KEY pattern for test-schema.json
-  let complexRefCount = 0;
-  let primitiveCount = 0;
+  // Rule 2: Analyze property types
+  let complexRefCount = 0;      // $refs to complex objects
+  let inlineObjectCount = 0;    // Inline object definitions
+  let primitiveCount = 0;       // Primitives (string, number, boolean, etc.)
+  let arrayCount = 0;           // Arrays
+  let polymorphicCount = 0;     // oneOf/anyOf/allOf
   let totalNestedFieldCount = 0;
   
   for (const [key, prop] of Object.entries(properties)) {
+    // Check for polymorphic types (oneOf/anyOf/allOf)
+    if (prop.oneOf || prop.anyOf || prop.allOf) {
+      polymorphicCount++;
+      primitiveCount++; // Treat as primitive for tab decision
+      continue;
+    }
+    
     // Check if this property is a $ref to a definition
     if (prop.$ref) {
       const resolved = resolveRef(prop.$ref, schema);
@@ -40,44 +117,84 @@ function shouldUseTabNavigation(schema) {
         // This is a reference to a complex object definition
         complexRefCount++;
         totalNestedFieldCount += Object.keys(resolved.properties).length;
-      } else if (resolved) {
-        // Reference to something else (primitive, array, etc.)
+      } else {
+        // Reference to primitive or simple type
         primitiveCount++;
       }
     } else if (prop.type === 'object' && prop.properties) {
-      // Direct inline object definition (also counts as complex)
-      complexRefCount++;
+      // Direct inline object definition
+      inlineObjectCount++;
       totalNestedFieldCount += Object.keys(prop.properties).length;
+    } else if (prop.type === 'array') {
+      arrayCount++;
+      // Check if array of objects
+      if (prop.items && (prop.items.type === 'object' || prop.items.$ref)) {
+        // Array of complex items, might warrant tabs
+        inlineObjectCount += 0.5; // Partial weight
+      } else {
+        primitiveCount++;
+      }
+    } else if (prop.type) {
+      // Simple primitive type (string, number, integer, boolean)
+      primitiveCount++;
     } else {
-      // Primitive type at top level
+      // No type specified, assume primitive
       primitiveCount++;
     }
   }
   
-  // Rule 3: PRIMARY RULE - Multiple complex references = Tab pattern
+  console.log('📊 Tab Navigation Analysis:', {
+    propertyCount,
+    complexRefCount,
+    inlineObjectCount,
+    primitiveCount,
+    polymorphicCount,
+    arrayCount,
+    totalNestedFieldCount
+  });
+  
+  // Rule 3: PRIMARY RULE - All primitives = NO TABS
+  // This catches rule_schema.json pattern: variable, operator, value (all primitives/polymorphic)
+  if (primitiveCount === propertyCount) {
+    console.log('✅ All properties are primitives → NO TABS (single-form-flat)');
+    return false;
+  }
+  
+  // Rule 4: Mostly primitives with few complex = NO TABS
+  if (primitiveCount >= propertyCount * 0.8) {
+    console.log('✅ Mostly primitives (≥80%) → NO TABS');
+    return false;
+  }
+  
+  // Rule 5: Multiple complex references = TABS
   // This is the pattern: properties → $ref → $defs/ComplexObject
   if (complexRefCount >= 2) {
+    console.log('✅ Multiple complex refs (≥2) → TABS');
     return true;
   }
   
-  // Rule 4: Mixed case - If we have many properties and some are complex, use tabs
-  if (propertyCount >= 6 && complexRefCount >= 1) {
+  // Rule 6: Multiple inline complex objects = TABS
+  if (inlineObjectCount >= 2) {
+    console.log('✅ Multiple inline objects (≥2) → TABS');
     return true;
   }
   
-  // Rule 5: Many primitive properties at top level = tabs for organization
-  if (propertyCount >= 10 && primitiveCount >= 8) {
+  // Rule 7: Mixed case - many properties with some complex
+  if (propertyCount >= 6 && (complexRefCount + inlineObjectCount) >= 1) {
+    console.log('✅ Many properties with complexity → TABS');
     return true;
   }
   
-  // Rule 6: High nested field count suggests well-structured sections
-  if (complexRefCount >= 2 && totalNestedFieldCount >= 15) {
+  // Rule 8: High nested field count suggests well-structured sections
+  if ((complexRefCount + inlineObjectCount) >= 2 && totalNestedFieldCount >= 15) {
+    console.log('✅ High nested field count → TABS');
     return true;
   }
   
   // Default: Don't use tabs
+  console.log('✅ Default decision → NO TABS');
   return false;
-}
+}  
 
 
 /**
@@ -328,7 +445,7 @@ function hasPolymorphicPatterns(schema) {
 
 
 /**
- * Enhanced determineRenderingStrategy with improved tab detection
+ * Enhanced determineRenderingStrategy with improved tab detection and normalization
  * 
  * @param {Object} schema - JSON schema
  * @param {Object} depth - Depth analysis result
@@ -341,39 +458,46 @@ function determineRenderingStrategy(schema, depth, complexity) {
   const propCount = Object.keys(properties).length;
   
   // Strategy 1: Polymorphic root (oneOf/anyOf at root level, no properties)
-  // This handles rule_schema.json and rule_data_schema.json
+  // This handles rule_data_schema.json pattern
   if ((schema.oneOf || schema.anyOf) && propCount === 0) {
+    console.log('🎯 Strategy: polymorphic-selector (oneOf/anyOf at root)');
     return 'polymorphic-selector';
   }
   
-  // Strategy 2: Check for tab-appropriate structure FIRST
+  // Strategy 2: Check for tab-appropriate structure
   // This is the primary check for test-schema.json pattern
   const useTabs = shouldUseTabNavigation(schema);
   if (useTabs) {
+    console.log('🎯 Strategy: multi-section-tabs');
     return 'multi-section-tabs';
   }
   
   // Strategy 3: Polymorphic with properties (rare case)
   if ((schema.oneOf || schema.anyOf) && propCount > 0) {
+    console.log('🎯 Strategy: polymorphic-selector (oneOf/anyOf with properties)');
     return 'polymorphic-selector';
   }
   
   // Strategy 4: Recursive/dynamic (self-referencing schemas)
   if (patterns.hasRecursion) {
+    console.log('🎯 Strategy: dynamic-recursive');
     return 'dynamic-recursive';
   }
   
-  // Strategy 5: Single form with nested objects (some complexity but no tabs needed)
+  // Strategy 5: Single form with nested objects
   if (depth.hasNestedObjects && propCount <= 10) {
+    console.log('🎯 Strategy: single-form-nested');
     return 'single-form-nested';
   }
   
-  // Strategy 6: Simple flat form
-  if (!depth.hasNestedObjects && propCount <= 20) {
+  // Strategy 6: Simple flat form (primitives only)
+  if (!depth.hasNestedObjects || propCount <= 20) {
+    console.log('🎯 Strategy: single-form-flat');
     return 'single-form-flat';
   }
   
   // Default: Single form with collapsible sections
+  console.log('🎯 Strategy: single-form-collapsible (default)');
   return 'single-form-collapsible';
 }
 
@@ -545,8 +669,7 @@ function analyzePropertyComplexity(properties, schema) {
   };
 }
 
-
-//======================
-export { analyzeSchemaStructure, 
-         detectSchemaPattern
+export { analyzeSchemaStructure,
+         detectSchemaPattern,
+         normalizeSchema
         };

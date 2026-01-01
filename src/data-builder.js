@@ -1,7 +1,7 @@
 // data-builder.js - JSON data builder
 import {saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm} from './utils.js'
 import {validateOptionsAgainstSchema, showValidationErrorsDialog, resolveRef} from './file-validation.js'
-import {analyzeSchemaStructure, detectSchemaPattern} from './schema-manager.js'
+import {analyzeSchemaStructure, normalizeSchema, detectSchemaPattern} from './schema-manager.js'
 
 // Global variables
 let currentSchema = null;
@@ -746,49 +746,85 @@ function revalidateAndSetInvalid(el, pathStr) {
 }
 
 // ==================== FORM RENDERING ====================
-
+/**
+ * Enhanced renderForm with schema normalization
+ * 
+ * @param {Object} schema - JSON schema (potentially non-standard)
+ */
 function renderForm(schema) {
-  // Step 1: Analyze schema structure
-  const analysis = analyzeSchemaStructure(schema);
-  const patterns = detectSchemaPattern(schema);
+  console.log('📋 Original schema structure:', {
+    hasProperties: !!schema.properties,
+    hasOneOf: !!schema.oneOf,
+    hasAnyOf: !!schema.anyOf,
+    has$Defs: !!schema.$Defs,
+    has$defs: !!schema.$defs,
+    hasDefinitions: !!schema.definitions
+  });
   
-  console.log('Schema Analysis:', analysis);
-  console.log('Detected Patterns:', patterns);
+  // Step 1: Normalize schema structure
+  const normalizedSchema = normalizeSchema(schema);
+  currentSchema = normalizedSchema; // Update global reference
   
-  // Step 2: Hide config modal
+  console.log('📋 Normalized schema structure:', {
+    hasProperties: !!normalizedSchema.properties,
+    propertyCount: normalizedSchema.properties ? Object.keys(normalizedSchema.properties).length : 0,
+    propertyKeys: normalizedSchema.properties ? Object.keys(normalizedSchema.properties) : []
+  });
+  
+  // Step 2: Analyze normalized schema
+  const analysis = analyzeSchemaStructure(normalizedSchema);
+  const patterns = detectSchemaPattern(normalizedSchema);
+  
+  console.log('🔍 Schema Analysis:', analysis);
+  console.log('🔍 Detected Patterns:', patterns);
+  
+  // Step 3: Hide config modal
   document.getElementById('config-modal').style.display = 'none';
   
-  // Step 3: Show form UI
+  // Step 4: Show form UI
   document.getElementById('configBtn').textContent = '⚙️ Configure';
   document.getElementById('saveBtn').style.display = 'inline-block';
   document.getElementById('loadDataBtn').style.display = 'inline-block';
   document.getElementById('exportBtn').style.display = 'inline-block';
-
-// Step 4: Route to appropriate renderer
+  
+  // Step 5: Route to appropriate renderer
   switch(analysis.renderingStrategy) {
     case 'multi-section-tabs':
-      renderMultiSectionForm(schema, analysis);
+      console.log('🎨 Rendering: Multi-section with tabs');
+      renderMultiSectionForm(normalizedSchema, analysis);
       break;
       
     case 'polymorphic-selector':
-      renderPolymorphicForm(schema, analysis);
+      console.log('🎨 Rendering: Polymorphic form with type selector');
+      renderPolymorphicForm(normalizedSchema, analysis);
       break;
       
     case 'dynamic-recursive':
-      renderRecursiveForm(schema, analysis);
+      console.log('🎨 Rendering: Recursive/dynamic form');
+      renderRecursiveForm(normalizedSchema, analysis);
       break;
       
     case 'single-form-nested':
+      console.log('🎨 Rendering: Single form with nested objects');
+      renderSingleForm(normalizedSchema, analysis);
+      break;
+      
     case 'single-form-flat':
+      console.log('🎨 Rendering: Single flat form');
+      renderSingleForm(normalizedSchema, analysis);
+      break;
+      
     case 'single-form-collapsible':
-      renderSingleForm(schema, analysis);
+      console.log('🎨 Rendering: Single form with collapsible sections');
+      renderSingleForm(normalizedSchema, analysis);
       break;
       
     default:
-      renderSingleForm(schema, analysis);
+      console.log('🎨 Rendering: Default single form');
+      renderSingleForm(normalizedSchema, analysis);
   }
   
-  // Step 5: Attach event listeners
+  // Step 6: Attach event listeners
   setTimeout(() => attachEventListeners(), 100);
 }
 
