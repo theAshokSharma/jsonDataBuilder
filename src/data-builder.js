@@ -831,6 +831,7 @@ function renderForm(schema) {
 /**
  * Renders polymorphic forms (oneOf/anyOf at root)
  * Generic for any schema with type selection
+ * Enhanced: Renders polymorphic forms with better initial state
  */
 function renderPolymorphicForm(schema, analysis) {
   const tabsContainer = document.getElementById('tabs-container');
@@ -848,6 +849,14 @@ function renderPolymorphicForm(schema, analysis) {
   title.textContent = schema.title || 'Form';
   container.appendChild(title);
   
+  // Add description if present
+  if (schema.description) {
+    const desc = document.createElement('p');
+    desc.className = 'form-description';
+    desc.textContent = schema.description;
+    container.appendChild(desc);
+  }
+  
   // Create type selector
   const typeSelector = createPolymorphicTypeSelector(schema);
   container.appendChild(typeSelector);
@@ -861,16 +870,13 @@ function renderPolymorphicForm(schema, analysis) {
   tabContentsContainer.appendChild(container);
   tabsContainer.style.display = 'block';
   
-  // Render initial selection
-  if (schema.oneOf && schema.oneOf.length > 0) {
-    renderPolymorphicOption(schema.oneOf[0], dynamicContent, []);
-  } else if (schema.anyOf && schema.anyOf.length > 0) {
-    renderPolymorphicOption(schema.anyOf[0], dynamicContent, []);
-  }
+  // Don't auto-render anything - let user select
+  console.log('✅ Polymorphic form ready, awaiting user selection');
 }
 
 /**
  * Creates type selector for polymorphic schemas
+ * Enhanced: Creates type selector for polymorphic schemas with better titles
  */
 function createPolymorphicTypeSelector(schema) {
   const formGroup = document.createElement('div');
@@ -887,19 +893,45 @@ function createPolymorphicTypeSelector(schema) {
   const options = schema.oneOf || schema.anyOf || [];
   const keyword = schema.oneOf ? 'oneOf' : 'anyOf';
   
+  // Add default option
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.textContent = '-- Select Type --';
+  select.appendChild(defaultOpt);
+  
   options.forEach((option, index) => {
     const opt = document.createElement('option');
     opt.value = index;
-    opt.textContent = option.title || `Option ${index + 1}`;
+    
+    // Try to get a meaningful title
+    let title = option.title;
+    
+    // If no title, try to resolve $ref and get its title
+    if (!title && option.$ref) {
+      const resolved = resolveRef(option.$ref, schema);
+      if (resolved) {
+        title = resolved.title;
+      }
+      
+      // If still no title, extract from $ref path
+      if (!title) {
+        title = option.$ref.split('/').pop();
+      }
+    }
+    
+    opt.textContent = title || `Option ${index + 1}`;
     select.appendChild(opt);
   });
   
   select.addEventListener('change', (e) => {
     const selectedIndex = parseInt(e.target.value);
-    const selectedOption = options[selectedIndex];
     const contentArea = document.getElementById('polymorphic-content');
     contentArea.innerHTML = '';
-    renderPolymorphicOption(selectedOption, contentArea, []);
+    
+    if (selectedIndex >= 0 && selectedIndex < options.length) {
+      const selectedOption = options[selectedIndex];
+      renderPolymorphicOption(selectedOption, contentArea, [], 0);
+    }
   });
   
   formGroup.appendChild(label);
@@ -909,16 +941,42 @@ function createPolymorphicTypeSelector(schema) {
 }
 
 /**
- * Renders selected polymorphic option
+ * Enhanced: Renders selected polymorphic option with support for nested oneOf/anyOf
+ * 
+ * @param {Object} optionSchema - The selected schema option
+ * @param {HTMLElement} container - Container to render into
+ * @param {Array} path - Current path in data structure
+ * @param {number} level - Nesting level (for recursive rendering)
  */
-function renderPolymorphicOption(optionSchema, container, path) {
+function renderPolymorphicOption(optionSchema, container, path, level = 0) {
+  // Resolve reference if needed
   if (optionSchema.$ref) {
     optionSchema = resolveRef(optionSchema.$ref, currentSchema);
   }
   
-  if (!optionSchema) return;
+  if (!optionSchema) {
+    console.error('Could not resolve schema reference');
+    return;
+  }
   
+  console.log(`🎨 Rendering polymorphic option at level ${level}:`, {
+    hasProperties: !!optionSchema.properties,
+    hasOneOf: !!optionSchema.oneOf,
+    hasAnyOf: !!optionSchema.anyOf,
+    type: optionSchema.type,
+    title: optionSchema.title
+  });
+  
+  // Case 1: Nested polymorphic structure (oneOf/anyOf within the option)
+  if (optionSchema.oneOf || optionSchema.anyOf) {
+    console.log('📍 Nested polymorphic structure detected, creating sub-selector');
+    renderNestedPolymorphic(optionSchema, container, path, level);
+    return;
+  }
+  
+  // Case 2: Standard object with properties
   if (optionSchema.properties) {
+    console.log('📍 Rendering properties for option');
     for (const [key, prop] of Object.entries(optionSchema.properties)) {
       const isRequired = optionSchema.required?.includes(key) || false;
       const fieldHtml = createField(key, prop, isRequired, [...path, key]);
@@ -926,8 +984,131 @@ function renderPolymorphicOption(optionSchema, container, path) {
       div.innerHTML = fieldHtml;
       container.appendChild(div.firstElementChild);
     }
+    return;
+  }
+  
+  // Case 3: Simple type (string, number, etc.)
+  if (optionSchema.type && optionSchema.type !== 'object') {
+    console.log('📍 Simple type option');
+    const fieldHtml = createField('value', optionSchema, false, [...path, 'value']);
+    const div = document.createElement('div');
+    div.innerHTML = fieldHtml;
+    container.appendChild(div.firstElementChild);
+    return;
+  }
+  
+  console.warn('⚠️  Unknown schema structure:', optionSchema);
+}
+
+
+/**
+ * NEW: Handles nested polymorphic structures (oneOf/anyOf within oneOf/anyOf)
+ * This is specifically for groupRule pattern in rule_data_schema.json
+ * 
+ * @param {Object} schema - Schema with nested oneOf/anyOf
+ * @param {HTMLElement} container - Container to render into
+ * @param {Array} path - Current path in data structure
+ * @param {number} level - Nesting level
+ */
+function renderNestedPolymorphic(schema, container, path, level) {
+  const options = schema.oneOf || schema.anyOf || [];
+  const keyword = schema.oneOf ? 'oneOf' : 'anyOf';
+  
+  if (options.length === 0) {
+    console.warn('⚠️  No options in nested polymorphic structure');
+    return;
+  }
+  
+  // Create a form group for the nested selector
+  const formGroup = document.createElement('div');
+  formGroup.className = 'form-group nested-polymorphic-group';
+  formGroup.style.marginLeft = `${level * 20}px`; // Indent based on nesting level
+  
+  // Add label
+  const label = document.createElement('label');
+  label.className = 'required';
+  label.textContent = schema.title || 'Select Type';
+  formGroup.appendChild(label);
+  
+  // Create selector dropdown
+  const select = document.createElement('select');
+  select.className = 'nested-polymorphic-selector';
+  select.id = `nested-polymorphic-${level}-${path.join('_')}`;
+  select.dataset.level = level;
+  select.dataset.path = path.join('.');
+  
+  // Add default option
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = '';
+  defaultOpt.textContent = '-- Select --';
+  select.appendChild(defaultOpt);
+  
+  // Add options from oneOf/anyOf
+  options.forEach((option, index) => {
+    const opt = document.createElement('option');
+    opt.value = index;
+    
+    // Get title from option or from its properties
+    let optionTitle = option.title;
+    if (!optionTitle && option.properties) {
+      // Use the property key as title (e.g., "ALL_OF", "ANY_OF")
+      const propKeys = Object.keys(option.properties);
+      if (propKeys.length > 0) {
+        optionTitle = propKeys[0];
+      }
+    }
+    if (!optionTitle && option.$ref) {
+      // Extract title from $ref
+      optionTitle = option.$ref.split('/').pop();
+    }
+    
+    opt.textContent = optionTitle || `Option ${index + 1}`;
+    select.appendChild(opt);
+  });
+  
+  formGroup.appendChild(select);
+  
+  // Create dynamic content area for selected option
+  const dynamicContent = document.createElement('div');
+  dynamicContent.id = `nested-content-${level}-${path.join('_')}`;
+  dynamicContent.className = 'nested-polymorphic-content';
+  dynamicContent.style.marginTop = '15px';
+  formGroup.appendChild(dynamicContent);
+  
+  container.appendChild(formGroup);
+  
+  // Add change event listener
+  select.addEventListener('change', (e) => {
+    const selectedIndex = parseInt(e.target.value);
+    dynamicContent.innerHTML = '';
+    
+    if (selectedIndex >= 0 && selectedIndex < options.length) {
+      const selectedOption = options[selectedIndex];
+      
+      // Resolve reference if needed
+      let resolvedOption = selectedOption;
+      if (selectedOption.$ref) {
+        resolvedOption = resolveRef(selectedOption.$ref, currentSchema);
+      }
+      
+      console.log(`🔄 Nested option selected at level ${level}:`, {
+        index: selectedIndex,
+        title: resolvedOption.title,
+        hasProperties: !!resolvedOption.properties
+      });
+      
+      // Render the selected option (could be recursive!)
+      renderPolymorphicOption(resolvedOption, dynamicContent, path, level + 1);
+    }
+  });
+  
+  // Auto-select first option if there's only one
+  if (options.length === 1) {
+    select.value = '0';
+    select.dispatchEvent(new Event('change'));
   }
 }
+
 
 /**
  * Renders recursive schemas (like rule_data_schema.json)
