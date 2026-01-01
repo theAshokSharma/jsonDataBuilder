@@ -333,7 +333,7 @@ function hasPolymorphicPatterns(schema) {
  * @param {Object} schema - JSON schema
  * @param {Object} depth - Depth analysis result
  * @param {Object} complexity - Complexity analysis result
- * @returns {string} Rendering strategy name
+ * @returns {string} Rendering strategy name    
  */
 function determineRenderingStrategy(schema, depth, complexity) {
   const patterns = detectSchemaPattern(schema);
