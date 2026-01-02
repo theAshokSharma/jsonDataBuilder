@@ -1,20 +1,31 @@
-/* styles.css - Optimized */
+/* styles.css - Optimized and Organized */
+
+/* ============================================
+   1. ROOT VARIABLES & RESET
+   ============================================ */
+:root {
+  --primary-color: #00bbfa;
+  --secondary-color: #0033ff;
+  --button-color: #0033ff;
+  --error-color: #d32f2f;
+  --success-color: #4caf50;
+  --text-color: #333;
+  --background-color: #f5f5f5;
+  --button-background-color: #f5f5f5;
+  --button-hoverBackground: #70844e;
+  --header-height: 60px;
+
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-:root {
-  --primary-color: #00bbfa;
-  --secondary-color: #0033ff;
-  --error-color: #d32f2f;
-  --success-color: #4caf50;
-  --text-color: #333;
-  --background-color: #f5f5f5;
-  --header-height: 60px;
-}
-
+/* ============================================
+   2. BASE ELEMENTS
+   ============================================ */
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   color: #333;
@@ -23,6 +34,9 @@ body {
   line-height: 1.6;
 }
 
+/* ============================================
+   3. LAYOUT CONTAINERS
+   ============================================ */
 .container {
   max-width: 1200px;
   margin: 0 auto;
@@ -32,6 +46,9 @@ body {
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
+/* ============================================
+   4. HEADER & NAVIGATION
+   ============================================ */
 .header {
   display: flex;
   justify-content: space-between;
@@ -51,37 +68,26 @@ body {
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-@media (max-width: 768px) {
-  .header {
-    padding: 0 15px;
-    flex-wrap: wrap;
-    height: auto;
-  }
-}
-
 .header-brand {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-
 .icon-container {
-    position: relative;
-    display: inline-block;
+  position: relative;
+  display: inline-block;
 }
 
-/* Original icon */
-.app-icon{
-    width: 48px;
-    height: 48px;
-    cursor: pointer;
+.app-icon {
+  width: 48px;
+  height: 48px;
+  cursor: pointer;
 }
 
 .app-icon:hover {
-    content: url("media/jsondatabuilder-w.svg");
+  content: url("media/jsondatabuilder-w.svg");
 }
-
 
 .app-title {
   margin: 0;
@@ -90,36 +96,10 @@ body {
   font-weight: 600;
 }
 
-@media (max-width: 768px) {
-  .app-title {
-    font-size: 20px;
-  }
-}
-
 .header-nav {
   display: flex;
   align-items: center;
   gap: 10px;
-}
-
-@media (max-width: 768px) {
-  .header-nav {
-    display: none;
-    flex-direction: column;
-    width: 100%;
-    gap: 15px;
-    padding: 15px 0;
-    border-top: 1px solid #ddd;
-  }
-
-  .header-nav.active {
-    display: flex;
-  }
-
-  .header-nav button {
-    width: 100%;
-    justify-content: flex-start;
-  }
 }
 
 .hamburger {
@@ -136,12 +116,150 @@ body {
   transform: rotate(90deg);
 }
 
-@media (max-width: 768px) {
-  .hamburger {
-    display: block;
-  }
+/* ============================================
+   5. BUTTONS
+   ============================================ */
+button {
+  background-color: #0033ff;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
+button:hover {
+  background-color: #0160c0;
+}
+
+.header-button {
+  padding: 8px 16px;
+  background: transparent;
+  color: var(--secondary-color);
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 120px;
+  text-align: center;
+}
+
+.config-btn {
+  background: transparent;
+  color: var(--secondary-color);
+  border: 1px solid var(--secondary-color);
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.config-btn:hover {
+  background: var(--secondary-color);
+  color: white;
+}
+
+.about-btn,
+.loaddata-btn,
+.savefile-btn,
+.savetoclip-btn {
+  background: transparent;
+  color: var(--secondary-color);
+  border: 1px solid var(--secondary-color);
+}
+
+.about-btn:hover,
+.loaddata-btn:hover,
+.savefile-btn:hover,
+.savetoclip-btn:hover {
+  background: var(--secondary-color);
+  color: white;
+}
+
+.remove-item-btn {
+  background-color: #d32f2f;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.remove-item-btn:hover {
+  background-color: #b71c1c;
+}
+
+.add-array-item-btn {
+  background: var(--button-background-color);
+  color: var(--button-color);
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.2s;
+}
+
+.add-array-item-btn:hover {
+  background: var(-button-hoverBackground);
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary {
+  background: var(--secondary-color);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  background: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+}
+
+.btn-icon {
+  font-size: 18px;
+}
+
+/* ============================================
+   6. TABS
+   ============================================ */
 .tabs-container {
   border-bottom: 1px solid #ddd;
   margin-bottom: 20px;
@@ -194,31 +312,9 @@ body {
   padding-bottom: 10px;
 }
 
-button {
-  background-color: #0033ff;
-  color: white;
-  border: none;
-  padding: 10px 15px;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-button:hover {
-  background-color: #0160c0;
-}
-
-.remove-item-btn {
-  background-color: #d32f2f;
-  padding: 4px 8px;
-  font-size: 11px;
-}
-
-.remove-item-btn:hover {
-  background-color: #b71c1c;
-}
-
+/* ============================================
+   7. FORM ELEMENTS
+   ============================================ */
 .form-group {
   margin-bottom: 15px;
   padding: 15px;
@@ -246,7 +342,7 @@ button:hover {
   color: #d32f2f;
 }
 
-/* Unified form controls */
+/* Form Controls */
 input[type="text"],
 input[type="number"],
 input[type="email"],
@@ -273,7 +369,7 @@ input[type="date"] {
   cursor: pointer;
 }
 
-/* Focus states */
+/* Focus States */
 input:focus,
 textarea:focus,
 select:focus,
@@ -283,7 +379,7 @@ select:focus,
   box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
 }
 
-/* Checkbox & radio */
+/* Checkbox & Radio */
 .checkbox-group {
   display: flex;
   flex-direction: column;
@@ -302,7 +398,7 @@ select:focus,
   cursor: pointer;
 }
 
-/* N/A option styling */
+/* N/A Option */
 .na-option {
   margin-top: 10px;
   padding-top: 10px;
@@ -314,7 +410,30 @@ select:focus,
   color: #666;
 }
 
-/* Custom Multi-Select */
+/* Disabled States */
+.form-group.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.form-group.disabled input,
+.form-group.disabled select,
+.form-group.disabled textarea,
+.form-group.disabled .multi-select-trigger {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
+.disabled-indicator {
+  font-size: 11px;
+  color: #999;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+/* ============================================
+   8. MULTI-SELECT
+   ============================================ */
 .multi-select-container {
   position: relative;
   width: 100%;
@@ -390,28 +509,9 @@ select:focus,
   color: #999;
 }
 
-/* Disabled states */
-.form-group.disabled {
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.form-group.disabled input,
-.form-group.disabled select,
-.form-group.disabled textarea,
-.form-group.disabled .multi-select-trigger {
-  background-color: #f5f5f5;
-  cursor: not-allowed;
-}
-
-.disabled-indicator {
-  font-size: 11px;
-  color: #999;
-  font-style: italic;
-  margin-top: 4px;
-}
-
-/* Nested & Array Structures */
+/* ============================================
+   9. NESTED & ARRAY STRUCTURES
+   ============================================ */
 .nested-object {
   margin-top: 10px;
   padding: 15px;
@@ -445,6 +545,7 @@ select:focus,
   display: none;
 }
 
+/* Array Container */
 .array-container {
   border: 1px solid #ddd;
   padding: 10px;
@@ -453,31 +554,135 @@ select:focus,
   background-color: #fafafa;
 }
 
+.array-controls {
+  margin-top: 10px;
+}
+
+.recursive-array {
+  border-left: 3px solid var(--button-background-color);
+  padding-left: 15px;
+}
+
+/* Array Items */
 .array-item {
-  margin-bottom: 15px;
-  padding: 15px;
-  background-color: white;
+  background: white;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: 6px;
+  padding: 15px;
+  margin-bottom: 15px;
+  position: relative;
+  animation: slideIn 0.3s ease-out;
 }
 
 .array-item-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
   padding-bottom: 10px;
   border-bottom: 1px solid #ddd;
 }
 
 .array-item-title {
   font-weight: 600;
+  font-size: 14px;
   color: #0066cc;
 }
 
-.array-controls {
+.array-item-content {
+  margin-top: 10px;
+}
+
+.array-item-dynamic-content {
+  margin-top: 15px;
+}
+
+.array-item-type-selector {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  background: white;
+  color: #333;
+  border-radius: 4px;
+}
+
+/* Simple Array Items */
+.array-item-simple {
+  padding: 8px;
+  background: transparent;
+  border: none;
+}
+
+.array-item-simple-content {
   display: flex;
-  gap...(truncated 2037 characters)...0 12px 0;
+  gap: 10px;
+  align-items: center;
+}
+
+.array-item-input {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid #ccc;
+  background: white;
+  color: #333;
+  border-radius: 4px;
+}
+
+.array-item-simple .remove-item-btn {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 50%;
+}
+
+/* ============================================
+   10. VALIDATION & ERROR STATES
+   ============================================ */
+.invalid-data {
+  border-color: #dc3545 !important;
+  background-color: #fff5f5 !important;
+}
+
+.invalid-data-warning {
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-left: 4px solid #ffc107;
+  padding: 12px;
+  margin-top: 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: slideIn 0.3s ease-out;
+}
+
+.warning-icon {
+  font-size: 20px;
+  color: #856404;
+  flex-shrink: 0;
+}
+
+.warning-text {
+  color: #856404;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.invalid-fields-summary {
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-left: 4px solid #dc3545;
+  padding: 16px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  position: relative;
+}
+
+.invalid-fields-summary strong {
+  display: block;
+  margin-bottom: 12px;
   color: #721c24;
   font-size: 16px;
   display: flex;
@@ -527,45 +732,9 @@ select:focus,
   animation: slideInRight 0.3s ease-out, fadeOut 0.3s ease-out 2.7s forwards;
 }
 
-@keyframes slideIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slideInRight {
-  from { opacity: 0; transform: translateX(100%); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-@keyframes fadeOut {
-  to { opacity: 0; }
-}
-
-/** Config Modal */
-.config-btn {
-  background: transparent;
-  color: var(--secondary-color);
-  border: 1px solid var(--secondary-color);
-  padding: 8px 16px;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  /* box-shadow: 0 4px 12px rgba(251, 197, 1, 0.985); */
-  transition: all 0.3s ease;
-}
-
-.config-btn:hover {
-  background: var(--secondary-color);
-  color: white;
-  /* transform: translateY(-2px); */
-  /* box-shadow: 0 6px 16px rgba(106, 17, 203, 0.4); */
-}
-
-/* Config Modal */
+/* ============================================
+   11. CONFIG MODAL
+   ============================================ */
 .config-modal {
   position: fixed;
   top: 0;
@@ -776,50 +945,9 @@ select:focus,
   gap: 16px;
 }
 
-.btn-primary, .btn-secondary {
-  padding: 12px 28px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  border: none;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-primary {
-  background: var(--secondary-color);
-  color: white;
-  /* box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3); */
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  /* box-shadow: 0 6px 16px rgba(40, 167, 69, 0.4); */
-}
-
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.btn-secondary {
-  background: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background: #5a6268;
-  transform: translateY(-2px);
-}
-
-.btn-icon {
-  font-size: 18px;
-}
-
-/* Animations */
+/* ============================================
+   12. ANIMATIONS
+   ============================================ */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -836,59 +964,59 @@ select:focus,
   }
 }
 
-/* Header Button Standardization */
-.header-button {
-  padding: 8px 16px;
-  background: transparent;
-  color: var(--secondary-color);
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-  min-width: 120px;
-  text-align: center;
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
-.about-btn {
-  background: transparent;
-  color: var(--secondary-color);
-  border: 1px solid var(--secondary-color);
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
-.about-btn:hover {
-  background: var(--secondary-color);
-  color: white;
+@keyframes fadeOut {
+  to { opacity: 0; }
 }
 
-.loaddata-btn {
-  background: transparent;
-  color: var(--secondary-color);
-  border: 1px solid var(--secondary-color);
-}
+/* ============================================
+   13. RESPONSIVE DESIGN
+   ============================================ */
+@media (max-width: 768px) {
+  .header {
+    padding: 0 15px;
+    flex-wrap: wrap;
+    height: auto;
+  }
 
-.loaddata-btn:hover {
-  background: var(--secondary-color);
-  color: white;
-}
+  .app-title {
+    font-size: 20px;
+  }
 
-.savefile-btn {
-  background: transparent;
-  color: var(--secondary-color);
-  border: 1px solid var(--secondary-color);
-}
+  .header-nav {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+    gap: 15px;
+    padding: 15px 0;
+    border-top: 1px solid #ddd;
+  }
 
-.savefile-btn:hover {
-  background: var(--secondary-color);
-  color: white;
-}
-.savetoclip-btn {
-  background: transparent;
-  color: var(--secondary-color);
-  border: 1px solid var(--secondary-color);
-}
+  .header-nav.active {
+    display: flex;
+  }
 
-.savetoclip-btn:hover {
-  background: var(--secondary-color);
-  color: white;
+  .header-nav button {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .hamburger {
+    display: block;
+  }
 }
-/** Config - Modal End/
