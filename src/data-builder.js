@@ -782,7 +782,7 @@ function renderForm(schema) {
   document.getElementById('config-modal').style.display = 'none';
   
   // Step 4: Show form UI
-  document.getElementById('configBtn').textContent = '⚙️ Configure';
+  document.getElementById('configBtn').textContent = '⚙️ Config';
   document.getElementById('saveBtn').style.display = 'inline-block';
   document.getElementById('loadDataBtn').style.display = 'inline-block';
   document.getElementById('exportBtn').style.display = 'inline-block';
