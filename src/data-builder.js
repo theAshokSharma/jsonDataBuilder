@@ -4,16 +4,22 @@ import { state, updateState, getState } from './state.js';
 import {saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm} from './utils.js'
 import {validateOptionsAgainstSchema, showValidationErrorsDialog, resolveRef} from './file-validation.js'
 import {analyzeSchemaStructure, normalizeSchema, detectSchemaPattern} from './schema-manager.js'
-import {createInputControl, createDefaultInput, populateCheckboxList, populateRadioButton, populateSlider} from './input-control.js'
+import {createInputControl,
+        createDefaultInput,
+        populateCheckboxList,
+        populateRadioButton,
+        populateSlider,
+        updateSelectOptions,
+        updateMultiSelectOptions,
+        updateCheckboxOptions,
+        updateRadioOptions,
+        expandRangeValues,
+        updateMultiSelectDisplay} from './input-control.js'
 
 let selectedOptionsFile = null;
 
 // Initialize on page load
 console.log('JSON Data Builder Loaded - Version 2.5');
-
-
-// Configuration state
-
 
 
 // Button event listeners
@@ -603,65 +609,27 @@ function setNestedValue(obj, path, value) {
 }
 
 // New: Update options for a dependent field
-function updateFieldOptions(pathStr, depValue, element, rule) {
-  const rawValues = rule.optionsMap[depValue] || rule.defaultValues;
+function updateFieldOptions(pathStr, depValue, element, rule, explicitValues = null) {
+  const rawValues = explicitValues || 
+                    (depValue && rule.optionsMap[depValue]) || 
+                    rule.defaultValues;
+  
   const enumValues = expandRangeValues(rawValues);
   const naValue = rule.na || null;
   const hasNAOption = naValue !== null;
   const responseType = rule.responseType;
+  
+  console.log(`  📝 Updating ${pathStr} with ${enumValues.length} options`);
 
-  if (responseType === 'single-select') {
-    element.innerHTML = '<option value="">-- Select --</option>';
-    enumValues.forEach(val => {
-      const opt = document.createElement('option');
-      opt.value = val;
-      opt.textContent = val;
-      element.appendChild(opt);
-    });
-    if (hasNAOption) {
-      const opt = document.createElement('option');
-      opt.value = naValue;
-      opt.textContent = naValue;
-      element.appendChild(opt);
-    }
-  } else if (responseType === 'multi-select') {
-    const dropdown = element.querySelector('.multi-select-dropdown');
-    if (!dropdown) return;
-    dropdown.innerHTML = '';
-    enumValues.forEach((val, idx) => {
-      const optionDiv = document.createElement('div');
-      optionDiv.className = 'multi-select-option';
-      optionDiv.innerHTML = `
-        <input type="checkbox" 
-               id="${pathStr}_${idx}" 
-               value="${val}" 
-               data-path="${pathStr}"
-               data-dropdown="${element.id}"
-               class="multi-select-checkbox"
-               onchange="handleMultiSelectChange(event, '${pathStr}', '${element.id}')">
-        <label for="${pathStr}_${idx}">${val}</label>
-      `;
-      dropdown.appendChild(optionDiv);
-    });
-    if (hasNAOption) {
-      const naDiv = document.createElement('div');
-      naDiv.className = 'multi-select-option na-option';
-      naDiv.innerHTML = `
-        <input type="checkbox" 
-               id="${pathStr}_na" 
-               value="${naValue}" 
-               data-path="${pathStr}"
-               data-dropdown="${element.id}"
-               class="na-checkbox"
-               onchange="handleNAChange('${pathStr}', '${element.id}')">
-        <label for="${pathStr}_na">${naValue} (exclusive)</label>
-      `;
-      dropdown.appendChild(naDiv);
-    }
-  }
-
-  if (responseType === 'multi-select') {
-    updateMultiSelectDisplay(element.id, pathStr);
+  // Handle different input control types
+  if (element.tagName === 'SELECT') {
+    updateSelectOptions(element, enumValues, naValue, hasNAOption, pathStr);
+  } else if (element.classList.contains('multi-select-container')) {
+    updateMultiSelectOptions(element, enumValues, naValue, hasNAOption, pathStr);
+  } else if (element.classList.contains('checkbox-container')) {
+    updateCheckboxOptions(element, enumValues, naValue, hasNAOption, pathStr);
+  } else if (element.classList.contains('radio-container')) {
+    updateRadioOptions(element, enumValues, naValue, hasNAOption, pathStr);
   }
 }
 
@@ -803,8 +771,14 @@ function renderForm(schema) {
       renderSingleForm(normalizedSchema, analysis);
   }
   
-  // Step 6: Attach event listeners
-  setTimeout(() => attachEventListeners(), 100);
+    // Step 6: Attach event listeners
+    setTimeout(() => {
+      attachEventListeners();
+      
+      // NEW: Initialize dependent fields with default values
+      initializeDependentFields();
+      
+    }, 100);
 }
 
 /**
@@ -1902,34 +1876,34 @@ window.toggleMultiSelectDropdown = function(dropdownId) {
   }
 };
 
-function updateMultiSelectDisplay(dropdownId, path) {
-  const selectedContainer = document.getElementById(dropdownId + '_selected');
-  if (!selectedContainer) return;
+// function updateMultiSelectDisplay(dropdownId, path) {
+//   const selectedContainer = document.getElementById(dropdownId + '_selected');
+//   if (!selectedContainer) return;
   
-  const naCheckbox = document.getElementById(path + '_na');
-  const selectedCheckboxes = document.querySelectorAll(`[data-path="${path}"].multi-select-checkbox:checked`);
+//   const naCheckbox = document.getElementById(path + '_na');
+//   const selectedCheckboxes = document.querySelectorAll(`[data-path="${path}"].multi-select-checkbox:checked`);
   
-  selectedContainer.innerHTML = '';
+//   selectedContainer.innerHTML = '';
   
-  if (naCheckbox && naCheckbox.checked) {
-    const tag = document.createElement('span');
-    tag.className = 'multi-select-tag';
-    tag.textContent = naCheckbox.value;
-    selectedContainer.appendChild(tag);
-  } else if (selectedCheckboxes.length > 0) {
-    selectedCheckboxes.forEach(cb => {
-      const tag = document.createElement('span');
-      tag.className = 'multi-select-tag';
-      tag.textContent = cb.value;
-      selectedContainer.appendChild(tag);
-    });
-  } else {
-    const placeholder = document.createElement('span');
-    placeholder.className = 'multi-select-placeholder';
-    placeholder.textContent = '-- Select --';
-    selectedContainer.appendChild(placeholder);
-  }
-}
+//   if (naCheckbox && naCheckbox.checked) {
+//     const tag = document.createElement('span');
+//     tag.className = 'multi-select-tag';
+//     tag.textContent = naCheckbox.value;
+//     selectedContainer.appendChild(tag);
+//   } else if (selectedCheckboxes.length > 0) {
+//     selectedCheckboxes.forEach(cb => {
+//       const tag = document.createElement('span');
+//       tag.className = 'multi-select-tag';
+//       tag.textContent = cb.value;
+//       selectedContainer.appendChild(tag);
+//     });
+//   } else {
+//     const placeholder = document.createElement('span');
+//     placeholder.className = 'multi-select-placeholder';
+//     placeholder.textContent = '-- Select --';
+//     selectedContainer.appendChild(placeholder);
+//   }
+// }
 
 document.addEventListener('click', function(event) {
   if (!event.target.closest('.multi-select-container')) {
@@ -2123,19 +2097,25 @@ function attachEventListeners() {
         });
         setTimeout(() => applyConditionalRules(), 100);
         
-        // New: Handle dependency updates on change
+        // Handle dependency updates on change
         const changedPath = e.target.dataset.path;
-        if (changedPath && state.triggersToAffected[changedPath]) {
+        if (changedPath && state.triggersToAffected[changedPath]) {  
           const newValue = getFieldValue(changedPath);
-          state.triggersToAffected[changedPath].forEach(rule => {
+          console.log(`  🔗 Trigger field changed: ${changedPath} = ${newValue}`);
+          
+          state.triggersToAffected[changedPath].forEach(rule => { 
             const affected = rule.affected;
-            const affectedEl = document.querySelector(`select[data-path="${affected}"][data-dependent="true"]`) ||
-              document.querySelector(`.multi-select-container[data-dependent="true"][id^="multiselect_${affected.replace(/\./g, '_')}"]`);
+            const affectedEl = findDependentFieldElement(affected);
+            
             if (affectedEl) {
+              console.log(`    ↳ Updating dependent field: ${affected}`);
+              
               if (!window.isPopulating) {
                 resetFieldValue(affected);
               }
-              updateFieldOptions(affected, newValue, affectedEl, rule);
+              
+              // Pass null for explicitValues to use rule logic
+              updateFieldOptions(affected, newValue, affectedEl, rule, null);
             }
           });
         }
@@ -2741,4 +2721,69 @@ function showAboutModal() {
       aboutModal.style.display = 'none';
     }
   };
+}
+
+/**
+ * Initialize dependent fields with default values on form load
+ */
+function initializeDependentFields() {
+  console.log('🔄 Initializing dependent fields with default values...');
+  
+  Object.entries(state.customOptions).forEach(([fieldPath, config]) => {
+    if (config.dependent_values && typeof config.dependent_values === 'object') {
+      const depField = Object.keys(config.dependent_values)[0];
+      const depFieldValue = getFieldValue(depField);
+      
+      console.log(`  Checking dependent field: ${fieldPath}`);
+      console.log(`    Depends on: ${depField} = ${depFieldValue}`);
+      
+      const element = findDependentFieldElement(fieldPath);
+      
+      if (!element) {
+        console.warn(`    ⚠ Element not found for ${fieldPath}`);
+        return;
+      }
+      
+      let valuesToUse;
+      if (depFieldValue && config.dependent_values[depFieldValue]) {
+        valuesToUse = config.dependent_values[depFieldValue];
+        console.log(`    ✓ Using values for "${depFieldValue}"`);
+      } else {
+        valuesToUse = config.values || [];
+        console.log(`    ✓ Using default values`);
+      }
+      
+      const rule = {
+        affected: fieldPath,
+        optionsMap: config.dependent_values,
+        defaultValues: config.values || [],
+        responseType: config.response_type || 'single-select',
+        na: config.na
+      };
+      
+      updateFieldOptions(fieldPath, depFieldValue || null, element, rule, valuesToUse);
+    }
+  });
+  
+  console.log('✅ Dependent fields initialized');
+}
+
+/**
+ * Find the DOM element for a dependent field
+ */
+function findDependentFieldElement(fieldPath) {
+  let element = document.querySelector(`select[data-path="${fieldPath}"][data-dependent="true"]`);
+  if (element) return element;
+  
+  const escapedPath = fieldPath.replace(/\./g, '_');
+  element = document.querySelector(`.multi-select-container[data-dependent="true"][id^="multiselect_${escapedPath}"]`);
+  if (element) return element;
+  
+  element = document.querySelector(`.checkbox-container[data-dependent="true"][id^="checkbox_${escapedPath}"]`);
+  if (element) return element;
+  
+  element = document.querySelector(`.radio-container[data-dependent="true"][id^="radio_${escapedPath}"]`);
+  if (element) return element;
+  
+  return null;
 }

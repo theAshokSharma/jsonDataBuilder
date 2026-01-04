@@ -500,6 +500,182 @@ function expandRangeValues(rawValues) {
   return expanded;
 }
 
+/**
+ * Update options for single-select dropdown
+ */
+function updateSelectOptions(selectElement, enumValues, naValue, hasNAOption, pathStr) {
+  selectElement.innerHTML = '<option value="">-- Select --</option>';
+  
+  enumValues.forEach(val => {
+    const opt = document.createElement('option');
+    opt.value = val;
+    opt.textContent = val;
+    selectElement.appendChild(opt);
+  });
+  
+  if (hasNAOption) {
+    const opt = document.createElement('option');
+    opt.value = naValue;
+    opt.textContent = naValue;
+    selectElement.appendChild(opt);
+  }
+}
+
+/**
+ * Update options for multi-select dropdown
+ */
+function updateMultiSelectOptions(container, enumValues, naValue, hasNAOption, pathStr) {
+  const dropdown = container.querySelector('.multi-select-dropdown');
+  if (!dropdown) return;
+  
+  dropdown.innerHTML = '';
+  
+  enumValues.forEach((val, idx) => {
+    const optionDiv = document.createElement('div');
+    optionDiv.className = 'multi-select-option';
+    optionDiv.innerHTML = `
+      <input type="checkbox" 
+             id="${pathStr}_${idx}" 
+             value="${val}" 
+             data-path="${pathStr}"
+             data-dropdown="${container.id}"
+             class="multi-select-checkbox"
+             onchange="handleMultiSelectChange(event, '${pathStr}', '${container.id}')">
+      <label for="${pathStr}_${idx}">${val}</label>
+    `;
+    dropdown.appendChild(optionDiv);
+  });
+  
+  if (hasNAOption) {
+    const naDiv = document.createElement('div');
+    naDiv.className = 'multi-select-option na-option';
+    naDiv.innerHTML = `
+      <input type="checkbox" 
+             id="${pathStr}_na" 
+             value="${naValue}" 
+             data-path="${pathStr}"
+             data-dropdown="${container.id}"
+             class="na-checkbox"
+             onchange="handleNAChange('${pathStr}', '${container.id}')">
+      <label for="${pathStr}_na">${naValue} (exclusive)</label>
+    `;
+    dropdown.appendChild(naDiv);
+  }
+  
+  updateMultiSelectDisplay(container.id, pathStr);
+}
+
+/**
+ * Update options for checkbox list
+ */
+function updateCheckboxOptions(container, enumValues, naValue, hasNAOption, pathStr) {
+  container.innerHTML = '';
+  const containerId = container.id;
+  
+  enumValues.forEach((val, idx) => {
+    const optionDiv = document.createElement('div');
+    optionDiv.className = 'checkbox-option';
+    optionDiv.innerHTML = `
+      <input type="checkbox" 
+             id="${pathStr}_cb_${idx}" 
+             value="${val}" 
+             data-path="${pathStr}"
+             data-container="${containerId}"
+             class="checkbox-input"
+             onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
+      <label for="${pathStr}_cb_${idx}">${val}</label>
+    `;
+    container.appendChild(optionDiv);
+  });
+  
+  if (hasNAOption) {
+    const naDiv = document.createElement('div');
+    naDiv.className = 'checkbox-option na-option';
+    naDiv.innerHTML = `
+      <input type="checkbox" 
+             id="${pathStr}_cb_na" 
+             value="${naValue}" 
+             data-path="${pathStr}"
+             data-container="${containerId}"
+             class="na-checkbox-input"
+             onchange="handleCheckboxNAChange('${pathStr}', '${containerId}')">
+      <label for="${pathStr}_cb_na">${naValue} (exclusive)</label>
+    `;
+    container.appendChild(naDiv);
+  }
+}
+
+/**
+ * Update options for radio button list
+ */
+function updateRadioOptions(container, enumValues, naValue, hasNAOption, pathStr) {
+  container.innerHTML = '';
+  
+  enumValues.forEach((val, idx) => {
+    const optionDiv = document.createElement('div');
+    optionDiv.className = 'radio-option';
+    optionDiv.innerHTML = `
+      <input type="radio" 
+             id="${pathStr}_rb_${idx}" 
+             name="${pathStr}" 
+             value="${val}" 
+             data-path="${pathStr}"
+             class="radio-input"
+             onchange="handleRadioChange(event, '${pathStr}')">
+      <label for="${pathStr}_rb_${idx}">${val}</label>
+    `;
+    container.appendChild(optionDiv);
+  });
+  
+  if (hasNAOption) {
+    const naDiv = document.createElement('div');
+    naDiv.className = 'radio-option na-option';
+    naDiv.innerHTML = `
+      <input type="radio" 
+             id="${pathStr}_rb_na" 
+             name="${pathStr}" 
+             value="${naValue}" 
+             data-path="${pathStr}"
+             class="radio-input"
+             onchange="handleRadioChange(event, '${pathStr}')">
+      <label for="${pathStr}_rb_na">${naValue}</label>
+    `;
+    container.appendChild(naDiv);
+  }
+}
+
+/**
+ * Update multi-select display
+ */
+function updateMultiSelectDisplay(dropdownId, path) {
+  const selectedContainer = document.getElementById(dropdownId + '_selected');
+  if (!selectedContainer) return;
+  
+  const naCheckbox = document.getElementById(path + '_na');
+  const selectedCheckboxes = document.querySelectorAll(`[data-path="${path}"].multi-select-checkbox:checked`);
+  
+  selectedContainer.innerHTML = '';
+  
+  if (naCheckbox && naCheckbox.checked) {
+    const tag = document.createElement('span');
+    tag.className = 'multi-select-tag';
+    tag.textContent = naCheckbox.value;
+    selectedContainer.appendChild(tag);
+  } else if (selectedCheckboxes.length > 0) {
+    selectedCheckboxes.forEach(cb => {
+      const tag = document.createElement('span');
+      tag.className = 'multi-select-tag';
+      tag.textContent = cb.value;
+      selectedContainer.appendChild(tag);
+    });
+  } else {
+    const placeholder = document.createElement('span');
+    placeholder.className = 'multi-select-placeholder';
+    placeholder.textContent = '-- Select --';
+    selectedContainer.appendChild(placeholder);
+  }
+}
+
 // ==================== EXPORT FOR MODULE USAGE (OPTIONAL) ====================
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -511,7 +687,13 @@ if (typeof module !== 'undefined' && module.exports) {
     createSliderControl,
     populateCheckboxList,
     populateRadioButton,
-    populateSlider
+    populateSlider,
+    expandRangeValues,
+    updateSelectOptions,
+    updateMultiSelectOptions,
+    updateCheckboxOptions,
+    updateRadioOptions ,
+    updateMultiSelectDisplay  
   };
 }
 
@@ -521,5 +703,10 @@ export {
     populateRadioButton,
     populateSlider,
     createDefaultInput,
-    expandRangeValues
+    expandRangeValues,
+    updateSelectOptions,
+    updateMultiSelectOptions,
+    updateCheckboxOptions,
+    updateRadioOptions,
+    updateMultiSelectDisplay
 }
