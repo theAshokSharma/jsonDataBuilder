@@ -1,29 +1,19 @@
 // data-builder.js - JSON data builder
+import { state, updateState, getState } from './state.js';
+
 import {saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm} from './utils.js'
 import {validateOptionsAgainstSchema, showValidationErrorsDialog, resolveRef} from './file-validation.js'
 import {analyzeSchemaStructure, normalizeSchema, detectSchemaPattern} from './schema-manager.js'
+import {createInputControl, createDefaultInput, populateCheckboxList, populateRadioButton, populateSlider} from './input-control.js'
 
-// Global variables
-let currentSchema = null;
-let formData = {};
-let definitions = {};
-let customOptions = {};
-let conditionalRules = {};
-let triggersToAffected = {}; // New: Map of trigger fields to affected dependent fields
-let exclusiveOptionsMap = {};   // list all exclusive values for multi-select options
-let currentTab = null;
-let tabContents = {};
-let dataFilename = null;  // stores data file and name and path
-let dataFilePath = '';
-
+let selectedOptionsFile = null;
 
 // Initialize on page load
-console.log('JSON Data Builder Loaded - Version 2.0');
+console.log('JSON Data Builder Loaded - Version 2.5');
 
 
 // Configuration state
-let selectedSchemaFile = null;
-let selectedOptionsFile = null;
+
 
 
 // Button event listeners
@@ -65,7 +55,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     
     const data = collectFormData();
     // saveJsonToFile(data);
-    await saveJsonWithDialog(data, dataFilename, dataFilePath);    
+    await saveJsonWithDialog(data, state.dataFilename, state.dataFilePath);    
   } catch (error) {
     console.error('Error saving data:', error);
     await ashAlert('Error saving data: ' + error.message);
@@ -142,8 +132,10 @@ function showConfigModal() {
   configModal.style.display = 'flex';
   
   // Reset state
-  selectedSchemaFile = null;
-  selectedOptionsFile = null;
+  updateState({
+    selectedSchemaFile: null,
+    selectedOptionsFile: null
+  });
   
   const schemaFileInput = document.getElementById('schemaFileInput');
   const optionsFileInput = document.getElementById('optionsFileInput');
@@ -165,23 +157,27 @@ function showConfigModal() {
   // File input change handlers
   schemaFileInput.onchange = (e) => {
     if (e.target.files[0]) {
-      selectedSchemaFile = e.target.files[0];
-      schemaFileName.textContent = `📋 ${selectedSchemaFile.name}`;
+      updateState({
+        selectedSchemaFile: e.target.files[0]
+      });
+      schemaFileName.textContent = `📋 ${state.selectedSchemaFile.name}`;
       updateValidationStatus();
     }
   };
   
   optionsFileInput.onchange = (e) => {
     if (e.target.files[0]) {
-      selectedOptionsFile = e.target.files[0];
-      optionsFileName.textContent = `⚙️ ${selectedOptionsFile.name}`;
+      updateState({
+        selectedOptionsFile: e.target.files[0]
+      });
+      optionsFileName.textContent = `⚙️ ${state.selectedOptionsFile.name}`;
       updateValidationStatus();
     }
   };
   
   // Confirm button handler
   confirmBtn.onclick = async () => {
-    if (!selectedSchemaFile) {
+    if (!state.selectedSchemaFile) {
       await ashAlert('Please select a schema file.');
       return;
     }
@@ -204,18 +200,24 @@ function showConfigModal() {
     
     try {
       // Load schema
-      const schemaText = await selectedSchemaFile.text();
+      const schemaText = await state.selectedSchemaFile.text();
       const schema = JSON.parse(schemaText);
-      currentSchema = schema;
-      definitions = schema.definitions || schema.$defs || {};
-      
+
+      updateState({
+        currentSchema: schema
+      });
+
+      updateState({
+        definitions: schema.definitions || schema.$defs || {}
+      });
+
       // Load options if provided
-      if (selectedOptionsFile) {
-        const optionsText = await selectedOptionsFile.text();
+      if (state.selectedOptionsFile) {
+        const optionsText = await state.selectedOptionsFile.text();
         const options = JSON.parse(optionsText);
         
         // Validate options against schema
-        const validationResults = validateOptionsAgainstSchema(options, currentSchema);
+        const validationResults = validateOptionsAgainstSchema(options, state.currentSchema);
         
         if (!validationResults.isValid) {
           // Show validation errors in a custom dialog with scrollable list
@@ -223,7 +225,9 @@ function showConfigModal() {
           
           if (!shouldProceed) {
             // User chose to cancel - clear options selection
-            selectedOptionsFile = null;
+            updateState({
+              selectedOptionsFile: null
+            });
             document.getElementById('optionsFileName').textContent = '';
             document.getElementById('optionsFileInput').value = '';
             
@@ -235,31 +239,34 @@ function showConfigModal() {
             `;
             
             // Clear options data
-            customOptions = {};
-            conditionalRules = {};
-            triggersToAffected = {};
-            
+            updateState({
+              customOptions: {},
+              conditionalRules: {},
+              triggersToAffected: {}
+            });
+
             return; // Stay on config page
           }
           
           // User chose to proceed despite validation errors
-          customOptions = options;
-          conditionalRules = options.conditional_rules || {};
-          
-          // Build triggersToAffected map for dependencies
-          triggersToAffected = {};
-          Object.entries(customOptions).forEach(([field, config]) => {
+          updateState({
+            customOptions: options,
+            conditionalRules: options.conditional_rules || {},
+            triggersToAffected: {}
+          });
+
+          Object.entries(state.customOptions).forEach(([field, config]) => {
             if (config.dependent_values) {
               const depField = Object.keys(config.dependent_values)[0];
               if (depField) {
-                triggersToAffected[depField] = triggersToAffected[depField] || [];
-                triggersToAffected[depField].push({
-                  affected: field,
-                  optionsMap: config.dependent_values[depField],
-                  defaultValues: config.values || [],
-                  responseType: config.response_type,
-                  na: config.na
-                });
+                  state.triggersToAffected[depField] = state.triggersToAffected[depField] || [];
+                  state.triggersToAffected[depField].push({
+                    affected: field,
+                    optionsMap: config.dependent_values[depField],
+                    defaultValues: config.values || [],
+                    responseType: config.response_type,
+                    na: config.na
+                  });
               }
             }
           });
@@ -271,17 +278,19 @@ function showConfigModal() {
           `;
         } else {
           // Validation successful
-          customOptions = options;
-          conditionalRules = options.conditional_rules || {};
+          updateState({
+            customOptions: options,
+            conditionalRules: options.conditional_rules || {},
+            triggersToAffected: {}
+          });
+
           
-          // Build triggersToAffected map for dependencies
-          triggersToAffected = {};
-          Object.entries(customOptions).forEach(([field, config]) => {
+          Object.entries(state.customOptions).forEach(([field, config]) => {
             if (config.dependent_values) {
               const depField = Object.keys(config.dependent_values)[0];
               if (depField) {
-                triggersToAffected[depField] = triggersToAffected[depField] || [];
-                triggersToAffected[depField].push({
+                state.triggersToAffected[depField] = state.triggersToAffected[depField] || [];
+                state.triggersToAffected[depField].push({
                   affected: field,
                   optionsMap: config.dependent_values[depField],
                   defaultValues: config.values || [],
@@ -299,10 +308,12 @@ function showConfigModal() {
           `;
         }
       } else {
-        // No options file selected
-        customOptions = {};
-        conditionalRules = {};
-        triggersToAffected = {};
+        // No options file 
+        updateState({
+          customOptions: {},
+          conditionalRules: {},
+          triggersToAffected: {}
+        });
 
         validationStatus.className = 'validation-status validation-success';
         validationStatus.innerHTML = `
@@ -314,7 +325,7 @@ function showConfigModal() {
       // Hide modal and render form
       setTimeout(() => {
         configModal.style.display = 'none';
-        renderForm(currentSchema);
+        renderForm(state.currentSchema);
         console.log('✓ Configuration loaded successfully');
       }, 500);
       
@@ -347,12 +358,12 @@ function updateValidationStatus() {
   const confirmBtn = document.getElementById('confirmConfigBtn');
   const validationStatus = document.getElementById('validationStatus');
   
-  if (selectedSchemaFile) {
+  if (state.selectedSchemaFile) {
     confirmBtn.disabled = false;
     validationStatus.className = 'validation-status validation-success';
     validationStatus.innerHTML = `
       <div class="status-icon">✅</div>
-      <div class="status-text">Ready to load ${selectedOptionsFile ? 'both files' : 'schema file'}</div>
+      <div class="status-text">Ready to load ${state.selectedOptionsFile ? 'both files' : 'schema file'}</div>
     `;
   } else {
     confirmBtn.disabled = true;
@@ -381,8 +392,13 @@ function loadSchemaFromFile() {
       const text = await file.text();
       const schema = JSON.parse(text);
 
-      currentSchema = schema;
-      definitions = schema.definitions || schema.$defs || {};
+      updateState({
+        currentSchema: schema
+      });
+
+      updateState({
+        definitions: schema.definitions || schema.$defs || {}
+      });
       renderForm(schema);
       console.log('✓ Schema loaded successfully');
 
@@ -416,8 +432,8 @@ function loadOptionsFromFile() {
       const options = JSON.parse(text);
 
       // Validate options file ie the corect file for the loaded schema
-      if (currentSchema) {
-        const validationResults = validateOptionsAgainstSchema(options, currentSchema);
+      if (state.currentSchema) {
+        const validationResults = validateOptionsAgainstSchema(options, state.currentSchema);
         
         if (!displayValidationResults(validationResults)) {
           // Validation failed - ask user if they want to proceed anyway
@@ -431,17 +447,18 @@ function loadOptionsFromFile() {
         console.warn('No schema loaded - skipping validation');
       }        
 
-      customOptions = options;
-      conditionalRules = options.conditional_rules || {};
-      
-      // New: Build triggersToAffected map for dependencies
-      triggersToAffected = {};
-      Object.entries(customOptions).forEach(([field, config]) => {
+      updateState({
+        customOptions: options,
+        conditionalRules: options.conditional_rules || {},
+        triggersToAffected: {}
+      });
+
+      Object.entries(state.customOptions).forEach(([field, config]) => {
         if (config.dependent_values) {
           const depField = Object.keys(config.dependent_values)[0];
           if (depField) {
-            triggersToAffected[depField] = triggersToAffected[depField] || [];
-            triggersToAffected[depField].push({
+            state.triggersToAffected[depField] = state.triggersToAffected[depField] || [];
+            state.triggersToAffected[depField].push({
               affected: field,
               optionsMap: config.dependent_values[depField],
               defaultValues: config.values || [],
@@ -451,9 +468,9 @@ function loadOptionsFromFile() {
           }
         }
       });
-      
-      if (currentSchema) {
-        renderForm(currentSchema);
+
+      if (state.currentSchema) {
+        renderForm(state.currentSchema);
       }
 
       document.getElementById('loadOptionsBtn').style.color = '#000000ff';
@@ -461,7 +478,7 @@ function loadOptionsFromFile() {
 
       optionsTooltip.innerText = optionsFilename + ' loaded.'
           
-      console.log('✓ Options loaded with', Object.keys(customOptions).length, 'entries');
+      console.log('✓ Options loaded with', Object.keys(state.customOptions).length, 'entries');
     } catch (error) {
         ashAlert('Invalid JSON options file: ' + error.message);
         console.error('Options load error:', error);
@@ -472,7 +489,7 @@ function loadOptionsFromFile() {
 }
 
 function loadDataFromFile() {
-  if (!currentSchema) {
+  if (!state.currentSchema) {
     ashAlert('Please load a schema first');
     return;
   }
@@ -486,8 +503,10 @@ function loadDataFromFile() {
     if (!file) return;
     
     // New: Store filename and path (path is limited in browsers)
-    const dataFilename = file.name.endsWith('.json') ? file.name : `${file.name}.json`;
-
+    updateState({
+      dataFilename: file.name.endsWith('.json') ? file.name : `${file.name}.json`,
+      dataFilePath: file.webkitRelativePath || file.name
+    });
     try {
       const text = await file.text();
       const data = JSON.parse(text);
@@ -508,7 +527,7 @@ function loadDataFromFile() {
           if (pathStr) {
             const depField = el.dataset.depField;
             const currentDepValue = getFieldValue(depField);
-            const triggerRules = triggersToAffected[depField] || [];
+            const triggerRules = state.triggersToAffected[depField] || [];
             const rule = triggerRules.find(r => r.affected === pathStr);
             if (rule) {
               updateFieldOptions(pathStr, currentDepValue, el, rule);
@@ -520,7 +539,7 @@ function loadDataFromFile() {
         document.getElementById('loadDataBtn').style.color = '#000000ff';
         document.getElementById('loadDataBtn').style.backgroundColor = '#99ff00ff';
         loadDataBtn.textContent = 'File loaded';           
-        dataTooltip.innerText = dataFilename + ' loaded.'
+        dataTooltip.innerText = state.dataFilename + ' loaded.'
 
         console.log('✓ Data loaded successfully');
       }, 100);
@@ -535,52 +554,10 @@ function loadDataFromFile() {
 
 // ==================== UTILITY FUNCTIONS ====================
 
-// function resolveRef(ref) {
-//   if (!ref || !ref.startsWith('#/')) return null;
-//   const path = ref.substring(2).split('/');
-//   let result = currentSchema;
-  
-//   for (const key of path) {
-//     if (key === 'definitions' && !result[key] && result.$defs) {
-//       result = result.$defs;
-//     } else {
-//       result = result[key];
-//     }
-//     if (!result) return null;
-//   }
-//   return result;
-// }
-
-function expandRangeValues(rawValues) {
-  const expanded = [];
-  
-  rawValues.forEach(val => {
-    if (typeof val === 'string' && val.includes('-')) {
-      const rangeMatch = val.match(/^(\d+)-(\d+)$/);
-      if (rangeMatch) {
-        const start = parseInt(rangeMatch[1]);
-        const end = parseInt(rangeMatch[2]);
-        if (start <= end) {
-          for (let i = start; i <= end; i++) {
-            expanded.push(String(i));
-          }
-        } else {
-          expanded.push(val);
-        }
-      } else {
-        expanded.push(val);
-      }
-    } else {
-      expanded.push(val);
-    }
-  });
-  
-  return expanded;
-}
 
 function getFieldTypeFromSchema(fieldPath) {
   const keys = fieldPath.split('.');
-  let current = currentSchema.properties;
+  let current = state.currentSchema.properties;
   
   for (let i = 0; i < keys.length; i++) {
     if (!current || !current[keys[i]]) return 'string';
@@ -588,7 +565,7 @@ function getFieldTypeFromSchema(fieldPath) {
     const prop = current[keys[i]];
     
     if (prop.$ref) {
-      const resolved = resolveRef(prop.$ref, currentSchema);
+      const resolved = resolveRef(prop.$ref, state.currentSchema);
       if (i === keys.length - 1) {
         return resolved.type || 'string';
       }
@@ -763,7 +740,9 @@ function renderForm(schema) {
   
   // Step 1: Normalize schema structure
   const normalizedSchema = normalizeSchema(schema);
-  currentSchema = normalizedSchema; // Update global reference
+  updateState({
+    currentSchema: normalizedSchema
+  });
   
   console.log('📋 Normalized schema structure:', {
     hasProperties: !!normalizedSchema.properties,
@@ -951,7 +930,7 @@ function createPolymorphicTypeSelector(schema) {
 function renderPolymorphicOption(optionSchema, container, path, level = 0) {
   // Resolve reference if needed
   if (optionSchema.$ref) {
-    optionSchema = resolveRef(optionSchema.$ref, currentSchema);
+    optionSchema = resolveRef(optionSchema.$ref, state.currentSchema);
   }
   
   if (!optionSchema) {
@@ -1088,7 +1067,7 @@ function renderNestedPolymorphic(schema, container, path, level) {
       // Resolve reference if needed
       let resolvedOption = selectedOption;
       if (selectedOption.$ref) {
-        resolvedOption = resolveRef(selectedOption.$ref, currentSchema);
+        resolvedOption = resolveRef(selectedOption.$ref, state.currentSchema);
       }
       
       console.log(`🔄 Nested option selected at level ${level}:`, {
@@ -1174,7 +1153,13 @@ function renderMultiSectionForm(schema, analysis) {
   for (const [key, prop] of Object.entries(properties)) {
     const isRequired = required.includes(key);
     const tabContent = createTabContent(key, prop, isRequired, [key]);
-    tabContents[key] = tabContent;
+    updateState({
+      tabContents: {
+        ...state.tabContents,
+        [key]: tabContent
+      }
+    });
+
   }
   
   document.getElementById('tabs-container').style.display = 'block';
@@ -1191,7 +1176,10 @@ function createTabs(properties) {
   
   tabsContainer.innerHTML = '';
   tabContentsContainer.innerHTML = '';
-  tabContents = {};
+  
+  updateState({
+    tabContents: {}
+  });
   
   Object.keys(properties).forEach((key) => {
     const prop = properties[key];
@@ -1221,9 +1209,9 @@ function createTabContent(key, prop, isRequired, path) {
 }
 
 function switchTab(tabKey) {
-  if (currentTab) {
-    const prevTabButton = document.getElementById(`tab-${currentTab}`);
-    const prevTabContent = document.getElementById(`content-${currentTab}`);
+  if (state.currentTab) {
+    const prevTabButton = document.getElementById(`tab-${state.currentTab}`);
+    const prevTabContent = document.getElementById(`content-${state.currentTab}`);
     if (prevTabButton) prevTabButton.classList.remove('active');
     if (prevTabContent) prevTabContent.classList.remove('active');
   }
@@ -1237,13 +1225,15 @@ function switchTab(tabKey) {
     
     if (newTabContent.children.length <= 1) {
       const div = document.createElement('div');
-      div.innerHTML = tabContents[tabKey];
+      div.innerHTML = state.tabContents[tabKey];
       newTabContent.appendChild(div.firstElementChild);
       
       setTimeout(() => attachEventListeners(), 100);
     }
-    
-    currentTab = tabKey;
+
+    updateState({
+      currentTab: tabKey
+    });
   }
 }
 
@@ -1251,7 +1241,7 @@ function renderAllTabs() {
   console.log('Rendering all tabs for data loading...');
   
   // Get all tab keys
-  const tabKeys = Object.keys(tabContents);
+  const tabKeys = Object.keys(state.tabContents);
   
   // Render each tab's content if not already rendered
   tabKeys.forEach(tabKey => {
@@ -1260,7 +1250,7 @@ function renderAllTabs() {
     if (tabContent && tabContent.children.length <= 1) {
       // Tab content hasn't been rendered yet
       const div = document.createElement('div');
-      div.innerHTML = tabContents[tabKey];
+      div.innerHTML = state.tabContents[tabKey];
       tabContent.appendChild(div.firstElementChild);
       console.log(`✓ Rendered tab: ${tabKey}`);
     }
@@ -1274,7 +1264,7 @@ function renderAllTabs() {
 
 function createField(key, prop, isRequired, path) {
   if (prop.$ref) {
-    prop = resolveRef(prop.$ref, currentSchema);
+    prop = resolveRef(prop.$ref, state.currentSchema);
     if (!prop) return '';
   }
 
@@ -1294,134 +1284,37 @@ function createField(key, prop, isRequired, path) {
     }
   }
 
-  let enumValues = [];
-  let responseType = null;
-  let hasNAOption = false;
-  let naValue = null;
-  let isDependent = false;
-  let depField = null;
-  
-  const choiceConfig = customOptions[key] || customOptions[pathStr];
-  
-  if (choiceConfig && typeof choiceConfig === 'object' && !Array.isArray(choiceConfig)) {
-    responseType = choiceConfig.response_type || (type === 'array' ? 'multi-select' : 'single-select');
-    naValue = choiceConfig.na || null;
-    hasNAOption = naValue !== null;
-    isDependent = !!choiceConfig.dependent_values;
-    let rawValues;
-    if (isDependent) {
-      depField = Object.keys(choiceConfig.dependent_values)[0];
-      rawValues = []; // Empty initially for dependent fields
-    } else {
-      rawValues = choiceConfig.values || [];
-    }
-    enumValues = expandRangeValues(rawValues);
-
-    // New: Add dynamic exclusive values
-    const exclusiveValues = choiceConfig.exclusive_values || [];
-    exclusiveOptionsMap[pathStr] = exclusiveValues;
-  } else if (Array.isArray(choiceConfig)) {
-    enumValues = choiceConfig;
-    responseType = type === 'array' ? 'multi-select' : 'single-select';
-  } else {
-    enumValues = prop.enum || [];
-    responseType = type === 'array' ? 'multi-select' : 'single-select';
-  }
+  const choiceConfig = state.customOptions[key] || state.customOptions[pathStr];
   
   let inputHtml = '';
+  let isDependent = false;
+  let depField = null;
 
-  if (enumValues.length > 0 || isDependent) {
-    if (responseType === 'multi-select') {
-      const dropdownId = 'multiselect_' + pathStr.replace(/\./g, '_');
-      inputHtml = `
-        <div class="multi-select-container" id="${dropdownId}" ${isDependent ? `data-dependent="true" data-dep-field="${depField}"` : ''}>
-          <div class="multi-select-trigger" onclick="toggleMultiSelectDropdown('${dropdownId}')" tabindex="0">
-            <div class="multi-select-selected" id="${dropdownId}_selected">
-              <span class="multi-select-placeholder">-- Select --</span>
-            </div>
-          </div>
-          <div class="multi-select-dropdown" id="${dropdownId}_dropdown">
-      `;
-      
-      if (!isDependent) {
-        enumValues.forEach((val, idx) => {
-          inputHtml += `
-            <div class="multi-select-option">
-              <input type="checkbox" 
-                     id="${pathStr}_${idx}" 
-                     value="${val}" 
-                     data-path="${pathStr}"
-                     data-dropdown="${dropdownId}"
-                     class="multi-select-checkbox"
-                     onchange="handleMultiSelectChange(event, '${pathStr}', '${dropdownId}')">
-              <label for="${pathStr}_${idx}">${val}</label>
-            </div>
-          `;
-        });
-        
-        if (hasNAOption) {
-          inputHtml += `
-            <div class="multi-select-option na-option">
-              <input type="checkbox" 
-                     id="${pathStr}_na" 
-                     value="${naValue}" 
-                     data-path="${pathStr}"
-                     data-dropdown="${dropdownId}"
-                     class="na-checkbox"
-                     onchange="handleNAChange('${pathStr}', '${dropdownId}')">
-              <label for="${pathStr}_na">${naValue} (exclusive)</label>
-            </div>
-          `;
-        }
-      }
-      
-      inputHtml += `
-          </div>
-        </div>
-      `;
-    } else if (responseType === 'single-select') {
-      inputHtml = `<select name="${pathStr}" id="${pathStr}" data-path="${pathStr}" ${isDependent ? `data-dependent="true" data-dep-field="${depField}"` : ''}>
-        <option value="">-- Select --</option>
-      `;
-      
-      if (!isDependent) {
-        inputHtml += `${enumValues.map(val => `<option value="${val}">${val}</option>`).join('')}`;
-        if (hasNAOption) {
-          inputHtml += `<option value="${naValue}">${naValue}</option>`;
-        }
-      }
-      
-      inputHtml += `</select>`;
+  if (choiceConfig && typeof choiceConfig === 'object' && !Array.isArray(choiceConfig)) {
+    isDependent = !!choiceConfig.dependent_values;
+    if (isDependent) {
+      depField = Object.keys(choiceConfig.dependent_values)[0];
     }
+    inputHtml = createInputControl(key, prop, pathStr, choiceConfig, isRequired, isDependent, depField);
+    
+  } else if (Array.isArray(choiceConfig)) {
+    const legacyConfig = {
+      values: choiceConfig,
+      input_control: 'drop-down',
+      response_type: type === 'array' ? 'multi-select' : 'single-select'
+    };
+    inputHtml = createInputControl(key, prop, pathStr, legacyConfig, isRequired, false, null);
+    
+  } else if (prop.enum && prop.enum.length > 0) {
+    const enumConfig = {
+      values: prop.enum,
+      input_control: 'drop-down',
+      response_type: type === 'array' ? 'multi-select' : 'single-select'
+    };
+    inputHtml = createInputControl(key, prop, pathStr, enumConfig, isRequired, false, null);
+    
   } else {
-    switch (type) {
-      case 'string':
-        if (prop.format === 'date') {
-          inputHtml = `<input type="date" name="${pathStr}" id="${pathStr}" data-path="${pathStr}" ${isRequired ? 'required' : ''}>`;
-        } else if (prop.format === 'email') {
-          inputHtml = `<input type="email" name="${pathStr}" id="${pathStr}" data-path="${pathStr}" ${isRequired ? 'required' : ''}>`;
-        } else if (prop.maxLength && prop.maxLength > 100) {
-          inputHtml = `<textarea name="${pathStr}" id="${pathStr}" data-path="${pathStr}" ${isRequired ? 'required' : ''}></textarea>`;
-        } else {
-          inputHtml = `<input type="text" name="${pathStr}" id="${pathStr}" data-path="${pathStr}" ${isRequired ? 'required' : ''}>`;
-        }
-        break;
-      case 'integer':
-      case 'number':
-        inputHtml = `<input type="number" name="${pathStr}" id="${pathStr}" data-path="${pathStr}"
-          ${prop.minimum !== undefined ? `min="${prop.minimum}"` : ''}
-          ${prop.maximum !== undefined ? `max="${prop.maximum}"` : ''}
-          ${isRequired ? 'required' : ''}>`;
-        break;
-      case 'boolean':
-        inputHtml = `<input type="checkbox" name="${pathStr}" id="${pathStr}" data-path="${pathStr}">`;
-        break;
-      case 'array':
-        inputHtml = `<textarea name="${pathStr}" id="${pathStr}" data-path="${pathStr}" placeholder="Enter comma-separated values"></textarea>`;
-        break;
-      default:
-        inputHtml = `<input type="text" name="${pathStr}" id="${pathStr}" data-path="${pathStr}" ${isRequired ? 'required' : ''}>`;
-    }
+    inputHtml = createDefaultInput(pathStr, prop, isRequired);
   }
 
   return `
@@ -1429,9 +1322,9 @@ function createField(key, prop, isRequired, path) {
       <label class="${isRequired ? 'required' : ''}">${title}</label>
       ${description ? `<div class="description">${description}</div>` : ''}
       ${inputHtml}
-    </div>
-  `;
+    </div>`;
 }
+
 
 function createNestedObject(key, prop, isRequired, path) {
   const title = prop.title || key;
@@ -1533,24 +1426,24 @@ function resolveRecursiveReference(ref, arrayPath) {
     console.log('📍 Root reference detected');
     
     // For rule_data_schema, root has oneOf with atomicRule and groupRule
-    if (currentSchema.oneOf || currentSchema.anyOf) {
+    if (state.currentSchema.oneOf || state.currentSchema.anyOf) {
       console.log('✅ Root has polymorphic structure (oneOf/anyOf)');
       return {
         __polymorphic: true,
-        oneOf: currentSchema.oneOf,
-        anyOf: currentSchema.anyOf,
+        oneOf: state.currentSchema.oneOf,
+        anyOf: state.currentSchema.anyOf,
         title: 'Rule',
         type: 'object'
       };
     }
     
     // Fallback: return root properties if available
-    if (currentSchema.properties) {
+    if (state.currentSchema.properties) {
       console.log('✅ Using root properties as schema');
       return {
         type: 'object',
-        properties: currentSchema.properties,
-        required: currentSchema.required || []
+        properties: state.currentSchema.properties,
+        required: state.currentSchema.required || []
       };
     }
     
@@ -1560,7 +1453,7 @@ function resolveRecursiveReference(ref, arrayPath) {
   
   // For other references, try normal resolution
   console.log('🔗 Attempting normal $ref resolution for:', ref);
-  const resolved = resolveRef(ref, currentSchema);
+  const resolved = resolveRef(ref, state.currentSchema);
   
   if (!resolved) {
     console.error('❌ Could not resolve reference:', ref);
@@ -1719,7 +1612,7 @@ window.addArrayItem = function(arrayPath) {
   // Handle $ref if present (non-recursive case)
   if (itemSchema.$ref && !itemSchema.__recursive) {
     console.log('🔗 Resolving $ref:', itemSchema.$ref);
-    const resolved = resolveRef(itemSchema.$ref, currentSchema);
+    const resolved = resolveRef(itemSchema.$ref, state.currentSchema);
     if (resolved) {
       itemSchema = resolved;
       console.log('✅ Resolved $ref:', itemSchema);
@@ -1836,7 +1729,7 @@ function renderPolymorphicArrayItem(schema, container, arrayPath, index) {
     // Get title
     let title = option.title;
     if (!title && option.$ref) {
-      const resolved = resolveRef(option.$ref, currentSchema);
+      const resolved = resolveRef(option.$ref, statecurrentSchema);
       title = resolved?.title || option.$ref.split('/').pop();
     }
     
@@ -1871,7 +1764,7 @@ function renderPolymorphicArrayItem(schema, container, arrayPath, index) {
       // Resolve reference
       if (selectedOption.$ref) {
         console.log('🔗 Resolving $ref:', selectedOption.$ref);
-        selectedOption = resolveRef(selectedOption.$ref, currentSchema);
+        selectedOption = resolveRef(selectedOption.$ref, state.currentSchema);
         console.log('✅ Resolved to:', selectedOption);
       }
       
@@ -1963,7 +1856,7 @@ window.handleMultiSelectChange = function(event, path, dropdownId) {
   const changedValue = changedCheckbox.value;
   
   // Updated: Use dynamic exclusive options from map
-  const exclusiveOptions = exclusiveOptionsMap[path] || [];
+  const exclusiveOptions = state.exclusiveOptionsMap[path] || [];
   
   if (exclusiveOptions.includes(changedValue) && isChecked) {
     const allCheckboxes = document.querySelectorAll(`[data-path="${path}"].multi-select-checkbox, #${path}_na`);
@@ -2049,13 +1942,13 @@ document.addEventListener('click', function(event) {
 // ==================== CONDITIONAL RULES ====================
 
 function applyConditionalRules() {
-  if (!conditionalRules || Object.keys(conditionalRules).length === 0) {
+  if (!state.conditionalRules || Object.keys(state.conditionalRules).length === 0) {
     return;
   }
 
   console.log('Applying conditional rules...');
 
-  for (const [triggerField, conditions] of Object.entries(conditionalRules)) {
+  for (const [triggerField, conditions] of Object.entries(state.conditionalRules)) {
     conditions.forEach(condition => {
       const triggerValue = condition.value;
       const affectedFields = condition.disable_fields || [];
@@ -2105,31 +1998,49 @@ function applyConditionalRules() {
 }
 
 function getFieldValue(fieldPath) {
+  // Select dropdown
   let input = document.querySelector(`select[data-path="${fieldPath}"]`);
-  if (input) {
-    return input.value;
-  }
+  if (input) return input.value;
   
+  // Text/email
   input = document.querySelector(`input[type="text"][data-path="${fieldPath}"], input[type="email"][data-path="${fieldPath}"]`);
-  if (input) {
-    return input.value;
+  if (input) return input.value;
+  
+  // Number/slider
+  input = document.querySelector(`input[type="number"][data-path="${fieldPath}"], input[type="range"][data-path="${fieldPath}"]`);
+  if (input) return input.value ? Number(input.value) : null;
+  
+  // Date/datetime/time
+  input = document.querySelector(`input[type="date"][data-path="${fieldPath}"], input[type="datetime-local"][data-path="${fieldPath}"], input[type="time"][data-path="${fieldPath}"]`);
+  if (input) return input.value;
+  
+  // Radio buttons (NEW)
+  input = document.querySelector(`input[type="radio"][data-path="${fieldPath}"]:checked`);
+  if (input) return input.value;
+  
+  // Boolean checkbox
+  input = document.querySelector(`input[type="checkbox"][data-path="${fieldPath}"]:not(.multi-select-checkbox):not(.na-checkbox):not(.checkbox-input):not(.na-checkbox-input)`);
+  if (input) return input.checked;
+  
+  // Checkbox list (NEW)
+  const checkboxInputs = document.querySelectorAll(`[data-path="${fieldPath}"].checkbox-input:checked`);
+  if (checkboxInputs.length > 0) {
+    return Array.from(checkboxInputs).map(cb => cb.value);
   }
   
-  input = document.querySelector(`input[type="number"][data-path="${fieldPath}"]`);
-  if (input) {
-    return input.value ? Number(input.value) : null;
+  // Checkbox N/A (NEW)
+  const checkboxNA = document.getElementById(fieldPath + '_cb_na');
+  if (checkboxNA && checkboxNA.checked) {
+    return checkboxNA.value;
   }
   
-  input = document.querySelector(`input[type="checkbox"][data-path="${fieldPath}"]:not(.multi-select-checkbox):not(.na-checkbox)`);
-  if (input) {
-    return input.checked;
-  }
-  
+  // Multi-select dropdown N/A
   const naCheckbox = document.getElementById(fieldPath + '_na');
   if (naCheckbox && naCheckbox.checked) {
     return naCheckbox.value;
   }
   
+  // Multi-select dropdown
   const multiCheckboxes = document.querySelectorAll(`[data-path="${fieldPath}"].multi-select-checkbox:checked`);
   if (multiCheckboxes.length > 0) {
     return Array.from(multiCheckboxes).map(cb => cb.value);
@@ -2206,14 +2117,17 @@ function attachEventListeners() {
     if (!input.dataset.listenerAttached) {
       input.addEventListener('change', (e) => {
         console.log('Field changed:', input.dataset.path || input.name, 'Value:', input.value);
-        formData = collectFormData();
+
+        updateState({
+          formData: collectFormData()
+        });
         setTimeout(() => applyConditionalRules(), 100);
         
         // New: Handle dependency updates on change
         const changedPath = e.target.dataset.path;
-        if (changedPath && triggersToAffected[changedPath]) {
+        if (changedPath && state.triggersToAffected[changedPath]) {
           const newValue = getFieldValue(changedPath);
-          triggersToAffected[changedPath].forEach(rule => {
+          state.triggersToAffected[changedPath].forEach(rule => {
             const affected = rule.affected;
             const affectedEl = document.querySelector(`select[data-path="${affected}"][data-dependent="true"]`) ||
               document.querySelector(`.multi-select-container[data-dependent="true"][id^="multiselect_${affected.replace(/\./g, '_')}"]`);
@@ -2355,6 +2269,7 @@ function populateFields(data, parentPath) {
   }
 }
 
+  
 function populateSingleField(pathStr, value) {
   if (value === null || value === undefined) {
     console.log(`Skipping null/undefined for ${pathStr}`);
@@ -2370,6 +2285,22 @@ function populateSingleField(pathStr, value) {
   if (multiSelectContainer) {
     console.log(`Redirecting ${pathStr} to multi-select handler`);
     populateArrayField(pathStr, value);
+    return;
+  }
+  
+  // ===== NEW: Check for checkbox container =====
+  const checkboxContainer = document.getElementById(`checkbox_${escapedPath}`);
+  if (checkboxContainer) {
+    console.log(`Populating checkbox list for ${pathStr}`);
+    populateCheckboxList(pathStr, value);
+    return;
+  }
+  
+  // ===== NEW: Check for radio container =====
+  const radioContainer = document.getElementById(`radio_${escapedPath}`);
+  if (radioContainer) {
+    console.log(`Populating radio buttons for ${pathStr}`);
+    populateRadioButton(pathStr, value);
     return;
   }
   
@@ -2421,6 +2352,13 @@ function populateSingleField(pathStr, value) {
     return;
   }
   
+  // ===== NEW: Try slider =====
+  input = document.querySelector(`input[type="range"][data-path="${pathStr}"]`);
+  if (input) {
+    populateSlider(pathStr, value);
+    return;
+  }
+  
   // Try date input
   input = document.querySelector(`input[type="date"][data-path="${pathStr}"]`);
   if (input) {
@@ -2432,7 +2370,7 @@ function populateSingleField(pathStr, value) {
   }
   
   // Try boolean checkbox
-  input = document.querySelector(`input[type="checkbox"][data-path="${pathStr}"]:not(.multi-select-checkbox):not(.na-checkbox)`);
+  input = document.querySelector(`input[type="checkbox"][data-path="${pathStr}"]:not(.multi-select-checkbox):not(.na-checkbox):not(.checkbox-input):not(.na-checkbox-input)`);
   if (input) {
     input.checked = value === true;
     input.classList.remove('invalid-data');
@@ -2457,6 +2395,7 @@ function populateSingleField(pathStr, value) {
   
   console.warn(`⚠ Could not find input for: ${pathStr}`);
 }
+
 
 function populateArrayField(pathStr, values) {
   console.log(`Populating array field: ${pathStr}`, values);
@@ -2591,12 +2530,12 @@ function populateArrayOfObjects(pathStr, items) {
   
   // Get schema for items
   const keys = pathStr.split('.');
-  let currentProp = currentSchema.properties;
+  let currentProp = state.currentSchema.properties;
   
   for (let i = 0; i < keys.length; i++) {
     if (currentProp[keys[i]]) {
       if (currentProp[keys[i]].$ref) {
-        currentProp = resolveRef(currentProp[keys[i]].$ref, currentSchema);
+        currentProp = resolveRef(currentProp[keys[i]].$ref, state.currentSchema);
         if (i < keys.length - 1) {
           currentProp = currentProp.properties;
         }

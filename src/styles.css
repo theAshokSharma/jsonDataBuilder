@@ -1020,3 +1020,289 @@ select:focus,
     display: block;
   }
 }
+
+/* ==================== CHECKBOX LIST STYLES ==================== */
+.checkbox-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.checkbox-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.checkbox-option:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.checkbox-option.na-option {
+  border-top: 1px solid var(--vscode-input-border);
+  margin-top: 8px;
+  padding-top: 14px;
+}
+
+.checkbox-option input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.checkbox-option label {
+  cursor: pointer;
+  flex: 1;
+  margin: 0;
+  user-select: none;
+}
+
+.checkbox-container.invalid-data {
+  border-color: var(--vscode-errorForeground);
+  background: rgba(255, 0, 0, 0.05);
+}
+
+/* ==================== RADIO BUTTON STYLES ==================== */
+.radio-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.radio-option:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+
+.radio-option.na-option {
+  border-top: 1px solid var(--vscode-input-border);
+  margin-top: 8px;
+  padding-top: 14px;
+}
+
+.radio-option input[type="radio"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.radio-option label {
+  cursor: pointer;
+  flex: 1;
+  margin: 0;
+  user-select: none;
+}
+
+/* ==================== SLIDER STYLES ==================== */
+.slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+}
+
+.slider-input {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--vscode-input-border);
+  cursor: pointer;
+}
+
+.slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--vscode-button-background);
+  cursor: pointer;
+  border: 2px solid var(--vscode-button-foreground);
+  transition: all 0.2s;
+}
+
+.slider-input::-webkit-slider-thumb:hover {
+  background: var(--vscode-button-hoverBackground);
+  transform: scale(1.1);
+}
+
+.slider-input::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--vscode-button-background);
+  cursor: pointer;
+  border: 2px solid var(--vscode-button-foreground);
+  transition: all 0.2s;
+}
+
+.slider-input::-moz-range-thumb:hover {
+  background: var(--vscode-button-hoverBackground);
+  transform: scale(1.1);
+}
+
+.slider-value-display {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 8px;
+  background: var(--vscode-editor-background);
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--vscode-foreground);
+  min-width: 60px;
+}
+
+/* ==================== DATE-TIME PICKER STYLES ==================== */
+.datetime-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  font-size: 14px;
+  font-family: var(--vscode-font-family);
+  cursor: pointer;
+}
+
+.datetime-input:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+.datetime-input:hover {
+  border-color: var(--vscode-inputOption-activeBorder);
+}
+
+/* Calendar icon styling for date inputs */
+.datetime-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(0.5);
+}
+
+.datetime-input::-webkit-calendar-picker-indicator:hover {
+  filter: invert(0.8);
+}
+
+/* ==================== SCROLLBAR STYLING FOR CONTAINERS ==================== */
+.checkbox-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.checkbox-container::-webkit-scrollbar-track {
+  background: var(--vscode-editor-background);
+  border-radius: 4px;
+}
+
+.checkbox-container::-webkit-scrollbar-thumb {
+  background: var(--vscode-scrollbarSlider-background);
+  border-radius: 4px;
+}
+
+.checkbox-container::-webkit-scrollbar-thumb:hover {
+  background: var(--vscode-scrollbarSlider-hoverBackground);
+}
+
+/* ==================== INVALID STATE STYLING ==================== */
+.radio-container.invalid-data,
+.slider-container.invalid-data,
+.datetime-input.invalid-data {
+  border-color: var(--vscode-errorForeground);
+  background: rgba(255, 0, 0, 0.05);
+}
+
+/* ==================== RESPONSIVE DESIGN ==================== */
+@media (max-width: 768px) {
+  .checkbox-container,
+  .radio-container {
+    max-height: 200px;
+  }
+  
+  .slider-value-display {
+    font-size: 14px;
+    padding: 6px;
+  }
+}
+
+/* ==================== DISABLED STATE ==================== */
+.checkbox-container.disabled,
+.radio-container.disabled,
+.slider-container.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+  background: var(--vscode-input-background);
+}
+
+.checkbox-container.disabled .checkbox-option,
+.radio-container.disabled .radio-option {
+  cursor: not-allowed;
+}
+
+.checkbox-container.disabled input,
+.radio-container.disabled input,
+.slider-container.disabled input {
+  cursor: not-allowed;
+}
+
+/* ==================== FOCUS STATES ==================== */
+.checkbox-option:has(input:focus),
+.radio-option:has(input:focus) {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.slider-input:focus {
+  outline: 2px solid var(--vscode-focusBorder);
+  outline-offset: 4px;
+}
+
+/* ==================== ANIMATION ==================== */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.checkbox-container,
+.radio-container,
+.slider-container {
+  animation: slideIn 0.2s ease-out;
+}
