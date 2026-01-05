@@ -1,6 +1,6 @@
 // state.js : Manage all global variables
 
-export const state = {
+const initialState = {
   currentSchema: null,
   formData: {},
   definitions: {},
@@ -13,7 +13,15 @@ export const state = {
   dataFilename: null,
   dataFilePath: '',
   selectedSchemaFile: null,
-  selectedOptionsFile: null
+  selectedOptionsFile: null,
+  dataTooltip: null,
+  pendingDependentInits: {}  
+};
+
+export const state = { ...initialState };
+
+export const resetState = () => {
+  Object.assign(state, JSON.parse(JSON.stringify(initialState)));
 };
 
 export function updateState(updates) {

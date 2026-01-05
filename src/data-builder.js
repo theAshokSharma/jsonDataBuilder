@@ -1,5 +1,5 @@
 // data-builder.js - JSON data builder
-import { state, updateState, getState } from './state.js';
+import { state, updateState, resetState } from './state.js';
 
 import {saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm} from './utils.js'
 import {validateOptionsAgainstSchema, showValidationErrorsDialog, resolveRef} from './file-validation.js'
@@ -16,8 +16,6 @@ import {createInputControl,
         expandRangeValues,
         updateMultiSelectDisplay} from './input-control.js'
 
-let selectedOptionsFile = null;
-
 // Initialize on page load
 console.log('JSON Data Builder Loaded - Version 2.5');
 
@@ -29,7 +27,10 @@ const configTooltip = addTooltip(configBtn, 'Configure the data builder.');
 
 const loadDataBtn = document.getElementById('loadDataBtn');
 loadDataBtn.addEventListener('click', loadDataFromFile);
-const dataTooltip = addTooltip(loadDataBtn, 'Load data file in JSON format.');
+updateState({ 
+  dataTooltip: addTooltip(loadDataBtn, 'Load data file in JSON format.')
+});
+
 
 const aboutBtn = document.getElementById('aboutBtn');
 aboutBtn.addEventListener('click', showAboutModal);
@@ -136,13 +137,9 @@ window.addEventListener('scroll', () => {
 function showConfigModal() {
   const configModal = document.getElementById('config-modal');
   configModal.style.display = 'flex';
-  
-  // Reset state
-  updateState({
-    selectedSchemaFile: null,
-    selectedOptionsFile: null
-  });
-  
+  const currentSchemafile = state.selectedSchemaFile;
+  const currentOptionsFile = state.selectedOptionsFile;
+
   const schemaFileInput = document.getElementById('schemaFileInput');
   const optionsFileInput = document.getElementById('optionsFileInput');
   const schemaFileName = document.getElementById('schemaFileName');
@@ -160,6 +157,13 @@ function showConfigModal() {
   `;
   confirmBtn.disabled = true;
   
+  if (currentSchemafile){
+    schemaFileName.textContent = `📋 ${currentSchemafile.name}`;
+  }
+  if (currentOptionsFile){
+    optionsFileName.textContent = `⚙️ ${currentOptionsFile.name}`;
+  }
+
   // File input change handlers
   schemaFileInput.onchange = (e) => {
     if (e.target.files[0]) {
@@ -187,15 +191,15 @@ function showConfigModal() {
       await ashAlert('Please select a schema file.');
       return;
     }
-    
-  // Reset Load Data button to original state when confirming new configuration
-  const loadDataBtn = document.getElementById('loadDataBtn');
-  if (loadDataBtn) {
-    loadDataBtn.textContent = 'Load Data';
-    loadDataBtn.style.color = '';
-    loadDataBtn.style.backgroundColor = '';
-    dataTooltip.innerText = 'Load data file in JSON format.';
-  }
+  
+    // Reset Load Data button to original state when confirming new configuration
+    const loadDataBtn = document.getElementById('loadDataBtn');
+    if (loadDataBtn) {
+      loadDataBtn.textContent = 'Load Data';
+      loadDataBtn.style.color = '';
+      loadDataBtn.style.backgroundColor = '';
+      state.dataTooltip.innerText = 'Load data file in JSON format.';
+    }
       
     // Show loading state
     validationStatus.className = 'validation-status';
@@ -248,7 +252,9 @@ function showConfigModal() {
             updateState({
               customOptions: {},
               conditionalRules: {},
-              triggersToAffected: {}
+              triggersToAffected: {},
+              pendingDependentInits: {},
+              exclusiveOptionsMap: {}
             });
 
             return; // Stay on config page
@@ -359,7 +365,6 @@ function showConfigModal() {
   };
 }
 
-
 function updateValidationStatus() {
   const confirmBtn = document.getElementById('confirmConfigBtn');
   const validationStatus = document.getElementById('validationStatus');
@@ -380,8 +385,6 @@ function updateValidationStatus() {
     `;
   }
 }
-
-// ==================== FILE LOADING FUNCTIONS ====================
 
 function loadSchemaFromFile() {
   const input = document.createElement('input');
@@ -410,7 +413,7 @@ function loadSchemaFromFile() {
 
       document.getElementById('loadSchemaBtn').style.color = '#000000ff';
       document.getElementById('loadSchemaBtn').style.backgroundColor = '#99ff00ff';
-x
+
       schemaTooltip.innerText = schemaFilename + ' loaded.'
 
     } catch (error) {
@@ -559,8 +562,6 @@ function loadDataFromFile() {
 }
 
 // ==================== UTILITY FUNCTIONS ====================
-
-
 function getFieldTypeFromSchema(fieldPath) {
   const keys = fieldPath.split('.');
   let current = state.currentSchema.properties;
@@ -725,16 +726,19 @@ function renderForm(schema) {
   console.log('🔍 Schema Analysis:', analysis);
   console.log('🔍 Detected Patterns:', patterns);
   
-  // Step 3: Hide config modal
+  // Step 3: CRITICAL - Reset UI state before rendering new form
+  resetFormUI();
+
+  // Step 4: Hide config modal
   document.getElementById('config-modal').style.display = 'none';
   
-  // Step 4: Show form UI
+  // Step 5: Show form UI
   document.getElementById('configBtn').textContent = '⚙️ Config';
   document.getElementById('saveBtn').style.display = 'inline-block';
   document.getElementById('loadDataBtn').style.display = 'inline-block';
   document.getElementById('exportBtn').style.display = 'inline-block';
   
-  // Step 5: Route to appropriate renderer
+  // Step 6: Route to appropriate renderer
   switch(analysis.renderingStrategy) {
     case 'multi-section-tabs':
       console.log('🎨 Rendering: Multi-section with tabs');
@@ -1122,8 +1126,10 @@ function renderMultiSectionForm(schema, analysis) {
   const properties = schema.properties || {};
   const required = schema.required || [];
   
+  // IMPORTANT: Create tabs BEFORE creating content
   createTabs(properties);
   
+  // Then create tab contents
   for (const [key, prop] of Object.entries(properties)) {
     const isRequired = required.includes(key);
     const tabContent = createTabContent(key, prop, isRequired, [key]);
@@ -1133,15 +1139,18 @@ function renderMultiSectionForm(schema, analysis) {
         [key]: tabContent
       }
     });
-
   }
   
+  // Show tabs container
   document.getElementById('tabs-container').style.display = 'block';
   
+  // Activate first tab
   if (Object.keys(properties).length > 0) {
     const firstTab = Object.keys(properties)[0];
     switchTab(firstTab);
   }
+  
+  console.log('✅ Multi-section form with tabs rendered');
 }
 
 function createTabs(properties) {
@@ -1150,6 +1159,9 @@ function createTabs(properties) {
   
   tabsContainer.innerHTML = '';
   tabContentsContainer.innerHTML = '';
+
+  // Make tabs visible
+  tabsContainer.style.display = 'block';  // or 'block' depending on your CSS
   
   updateState({
     tabContents: {}
@@ -1176,6 +1188,7 @@ function createTabs(properties) {
     tabsContainer.appendChild(tabButton);
     tabContentsContainer.appendChild(tabContent);
   });
+  console.log(`✅ Created ${Object.keys(properties).length} tabs`);
 }
 
 function createTabContent(key, prop, isRequired, path) {
@@ -1202,7 +1215,11 @@ function switchTab(tabKey) {
       div.innerHTML = state.tabContents[tabKey];
       newTabContent.appendChild(div.firstElementChild);
       
-      setTimeout(() => attachEventListeners(), 100);
+      setTimeout(() => {
+        attachEventListeners();
+        // NEW: Initialize any dependent fields in this newly rendered tab
+        initializePendingDependentFields();
+      }, 100);
     }
 
     updateState({
@@ -2133,6 +2150,9 @@ function attachEventListeners() {
     }
   });
   
+  // NEW: Initialize any pending dependent fields that are now rendered
+  initializePendingDependentFields();
+  
   setTimeout(() => applyConditionalRules(), 200);
 }
 
@@ -2726,6 +2746,52 @@ function showAboutModal() {
 /**
  * Initialize dependent fields with default values on form load
  */
+// function initializeDependentFields() {
+//   console.log('🔄 Initializing dependent fields with default values...');
+  
+//   Object.entries(state.customOptions).forEach(([fieldPath, config]) => {
+//     if (config.dependent_values && typeof config.dependent_values === 'object') {
+//       const depField = Object.keys(config.dependent_values)[0];
+//       const depFieldValue = getFieldValue(depField);
+      
+//       console.log(`  Checking dependent field: ${fieldPath}`);
+//       console.log(`    Depends on: ${depField} = ${depFieldValue}`);
+      
+//       const element = findDependentFieldElement(fieldPath);
+      
+//       if (!element) {
+//         console.warn(`    ⚠ Element not found for ${fieldPath}`);
+//         return;
+//       }
+      
+//       let valuesToUse;
+//       if (depFieldValue && config.dependent_values[depFieldValue]) {
+//         valuesToUse = config.dependent_values[depFieldValue];
+//         console.log(`    ✓ Using values for "${depFieldValue}"`);
+//       } else {
+//         valuesToUse = config.values || [];
+//         console.log(`    ✓ Using default values`);
+//       }
+      
+//       const rule = {
+//         affected: fieldPath,
+//         optionsMap: config.dependent_values,
+//         defaultValues: config.values || [],
+//         responseType: config.response_type || 'single-select',
+//         na: config.na
+//       };
+      
+//       updateFieldOptions(fieldPath, depFieldValue || null, element, rule, valuesToUse);
+//     }
+//   });
+  
+//   console.log('✅ Dependent fields initialized');
+// }
+
+/**
+ * Initialize dependent fields with default values on form load
+ * FIXED: Handle both rendered fields (single-form) and unrendered fields (tab-based)
+ */
 function initializeDependentFields() {
   console.log('🔄 Initializing dependent fields with default values...');
   
@@ -2737,35 +2803,91 @@ function initializeDependentFields() {
       console.log(`  Checking dependent field: ${fieldPath}`);
       console.log(`    Depends on: ${depField} = ${depFieldValue}`);
       
+      // Try to find the element (might not exist yet in tab-based forms)
       const element = findDependentFieldElement(fieldPath);
       
       if (!element) {
-        console.warn(`    ⚠ Element not found for ${fieldPath}`);
+        console.log(`    ⏭️ Element not rendered yet (tab-based form) - will initialize on tab switch`);
+        // Store the initialization data for later use when tab is rendered
+        if (!state.pendingDependentInits) {
+          state.pendingDependentInits = {};
+        }
+        state.pendingDependentInits[fieldPath] = {
+          depField,
+          config,
+          depFieldValue
+        };
         return;
       }
       
-      let valuesToUse;
-      if (depFieldValue && config.dependent_values[depFieldValue]) {
-        valuesToUse = config.dependent_values[depFieldValue];
-        console.log(`    ✓ Using values for "${depFieldValue}"`);
-      } else {
-        valuesToUse = config.values || [];
-        console.log(`    ✓ Using default values`);
-      }
-      
-      const rule = {
-        affected: fieldPath,
-        optionsMap: config.dependent_values,
-        defaultValues: config.values || [],
-        responseType: config.response_type || 'single-select',
-        na: config.na
-      };
-      
-      updateFieldOptions(fieldPath, depFieldValue || null, element, rule, valuesToUse);
+      // Element exists, initialize it now
+      initializeSingleDependentField(fieldPath, depField, depFieldValue, config, element);
     }
   });
   
   console.log('✅ Dependent fields initialized');
+}
+
+/**
+ * NEW: Initialize a single dependent field
+ * Extracted for reuse when tabs are switched
+ */
+function initializeSingleDependentField(fieldPath, depField, depFieldValue, config, element) {
+  let valuesToUse;
+  if (depFieldValue && config.dependent_values[depFieldValue]) {
+    valuesToUse = config.dependent_values[depFieldValue];
+    console.log(`    ✓ Using values for "${depFieldValue}"`);
+  } else {
+    valuesToUse = config.values || [];
+    console.log(`    ✓ Using default values`);
+  }
+  
+  const rule = {
+    affected: fieldPath,
+    optionsMap: config.dependent_values,
+    defaultValues: config.values || [],
+    responseType: config.response_type || 'single-select',
+    na: config.na
+  };
+  
+  updateFieldOptions(fieldPath, depFieldValue || null, element, rule, valuesToUse);
+}
+
+/**
+ * NEW: Initialize pending dependent fields after tab content is rendered
+ * Call this after rendering tab content
+ */
+function initializePendingDependentFields() {
+  if (!state.pendingDependentInits || Object.keys(state.pendingDependentInits).length === 0) {
+    return;
+  }
+  
+  console.log('🔄 Initializing pending dependent fields after tab render...');
+  
+  const stillPending = {};
+  
+  Object.entries(state.pendingDependentInits).forEach(([fieldPath, initData]) => {
+    const element = findDependentFieldElement(fieldPath);
+    
+    if (element) {
+      console.log(`  ✓ Initializing ${fieldPath}`);
+      initializeSingleDependentField(
+        fieldPath,
+        initData.depField,
+        initData.depFieldValue,
+        initData.config,
+        element
+      );
+    } else {
+      // Still not rendered, keep it pending
+      stillPending[fieldPath] = initData;
+    }
+  });
+  
+  // Update pending list
+  state.pendingDependentInits = stillPending;
+  
+  console.log(`✅ Pending dependent fields processed (${Object.keys(stillPending).length} still pending)`);
 }
 
 /**
@@ -2786,4 +2908,41 @@ function findDependentFieldElement(fieldPath) {
   if (element) return element;
   
   return null;
+}
+
+/**
+ * NEW: Reset form UI state before rendering a new form
+ * Critical for switching between different form types (tabs vs single-form)
+ */
+function resetFormUI() {
+  console.log('🔄 Resetting form UI state...');
+  
+  // Reset tab containers
+  const tabsContainer = document.getElementById('form-tabs');
+  const tabContentsContainer = document.getElementById('tab-contents');
+  
+  if (tabsContainer) {
+    tabsContainer.innerHTML = '';
+    tabsContainer.style.display = 'none';
+  }
+  
+  if (tabContentsContainer) {
+    tabContentsContainer.innerHTML = '';
+  }
+  
+  // Reset state
+  updateState({
+    currentTab: null,
+    tabContents: {},
+    pendingDependentInits: {}
+  });
+  
+  // Remove any event listeners from old form elements
+  // (They'll be garbage collected when elements are removed)
+  const allInputs = document.querySelectorAll('[data-listener-attached="true"]');
+  allInputs.forEach(input => {
+    delete input.dataset.listenerAttached;
+  });
+  
+  console.log('✅ Form UI reset complete');
 }

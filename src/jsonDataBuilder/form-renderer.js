@@ -45,16 +45,19 @@ function renderForm(schema) {
   console.log('🔍 Schema Analysis:', analysis);
   console.log('🔍 Detected Patterns:', patterns);
   
-  // Step 3: Hide config modal
+  // step 3: CRITICAL - Reset UI state before rendering new form
+  resetFormUI();
+
+  // Step 4: Hide config modal
   document.getElementById('config-modal').style.display = 'none';
   
-  // Step 4: Show form UI
+  // Step 5: Show form UI
   document.getElementById('configBtn').textContent = '⚙️ Config';
   document.getElementById('saveBtn').style.display = 'inline-block';
   document.getElementById('loadDataBtn').style.display = 'inline-block';
   document.getElementById('exportBtn').style.display = 'inline-block';
   
-  // Step 5: Route to appropriate renderer
+  // Step 6: Route to appropriate renderer
   switch(analysis.renderingStrategy) {
     case 'multi-section-tabs':
       console.log('🎨 Rendering: Multi-section with tabs');
@@ -112,7 +115,7 @@ function renderPolymorphicForm(schema, analysis) {
   const tabsContainer = document.getElementById('tabs-container');
   const tabContentsContainer = document.getElementById('tab-contents');
   
-  // Hide tabs, show single container
+  // Hide tabs UI completely (important!)
   document.getElementById('form-tabs').style.display = 'none';
   tabContentsContainer.innerHTML = '';
   
@@ -143,7 +146,7 @@ function renderPolymorphicForm(schema, analysis) {
   container.appendChild(dynamicContent);
   
   tabContentsContainer.appendChild(container);
-  tabsContainer.style.display = 'block';
+  tabsContainer.style.display = 'block';  // Show container but not tabs
   
   // Don't auto-render anything - let user select
   console.log('✅ Polymorphic form ready, awaiting user selection');
@@ -434,6 +437,9 @@ function renderSingleForm(schema, analysis) {
   
   tabContentsContainer.appendChild(container);
   tabsContainer.style.display = 'block';
+
+  console.log('✅ Single form rendered');
+
 }
 
 /**
@@ -445,8 +451,10 @@ function renderMultiSectionForm(schema, analysis) {
   const properties = schema.properties || {};
   const required = schema.required || [];
   
+  // IMPORTANT: Create tabs BEFORE creating content
   createTabs(properties);
   
+  // Then create tab contents
   for (const [key, prop] of Object.entries(properties)) {
     const isRequired = required.includes(key);
     const tabContent = createTabContent(key, prop, isRequired, [key]);
@@ -456,15 +464,18 @@ function renderMultiSectionForm(schema, analysis) {
         [key]: tabContent
       }
     });
-
   }
   
+  // Show tabs container
   document.getElementById('tabs-container').style.display = 'block';
   
+  // Activate first tab
   if (Object.keys(properties).length > 0) {
     const firstTab = Object.keys(properties)[0];
     switchTab(firstTab);
   }
+  
+  console.log('✅ Multi-section form with tabs rendered');
 }
 
 function createTabs(properties) {
@@ -474,6 +485,9 @@ function createTabs(properties) {
   tabsContainer.innerHTML = '';
   tabContentsContainer.innerHTML = '';
   
+  // Make tabs visible
+  tabsContainer.style.display = 'block';  // or 'block' depending on your CSS
+    
   updateState({
     tabContents: {}
   });
@@ -499,6 +513,8 @@ function createTabs(properties) {
     tabsContainer.appendChild(tabButton);
     tabContentsContainer.appendChild(tabContent);
   });
+
+  console.log(`✅ Created ${Object.keys(properties).length} tabs`);
 }
 
 function createTabContent(key, prop, isRequired, path) {
@@ -994,6 +1010,44 @@ function getInputTypeFromSchema(schema) {
   }
   return 'text';
 }
+
+/**
+ * NEW: Reset form UI state before rendering a new form
+ * Critical for switching between different form types (tabs vs single-form)
+ */
+function resetFormUI() {
+  console.log('🔄 Resetting form UI state...');
+  
+  // Reset tab containers
+  const tabsContainer = document.getElementById('form-tabs');
+  const tabContentsContainer = document.getElementById('tab-contents');
+  
+  if (tabsContainer) {
+    tabsContainer.innerHTML = '';
+    tabsContainer.style.display = 'none';
+  }
+  
+  if (tabContentsContainer) {
+    tabContentsContainer.innerHTML = '';
+  }
+  
+  // Reset state
+  updateState({
+    currentTab: null,
+    tabContents: {},
+    pendingDependentInits: {}
+  });
+  
+  // Remove any event listeners from old form elements
+  // (They'll be garbage collected when elements are removed)
+  const allInputs = document.querySelectorAll('[data-listener-attached="true"]');
+  allInputs.forEach(input => {
+    delete input.dataset.listenerAttached;
+  });
+  
+  console.log('✅ Form UI reset complete');
+}
+
 
 window.toggleNested = function(header) {
   header.classList.toggle('collapsed');
