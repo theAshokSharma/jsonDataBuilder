@@ -7,14 +7,9 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./src/index.html:/usr/share/nginx/html/index.html
-      - ./src/styles.css:/usr/share/nginx/html/styles.css
-      - ./src/data-builder.js:/usr/share/nginx/html/data-builder.js
-      - ./src/file-validation.js:/usr/share/nginx/html/file-validation.js
-      - ./src/utils.js:/usr/share/nginx/html/utils.js
-      - ./src/media/jsondatabuilder.svg:/usr/share/nginx/html/media/jsondatabuilder.svg
-      - ./src/media/jsondatabuilder-w.svg:/usr/share/nginx/html/media/jsondatabuilder-w.svg
-   
+      - ./src/jsonDataBuilder:/usr/share/nginx/html/
+      # - ./src/jsonDataBuilder/media/*.*:/usr/share/nginx/html/media/
+
     environment:
       - NGINX_ENV=development
     restart: unless-stopped
@@ -34,7 +29,7 @@ services:
     networks:
       - blueaura-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      test: ["CMD", "curl", "-f", "http://localhost:8090/"]
       interval: 30s
       timeout: 10s
       retries: 3

@@ -14,7 +14,16 @@
   --button-background-color: #f5f5f5;
   --button-hoverBackground: #70844e;
   --header-height: 60px;
-
+  --red-bg-light:#fae0de; --red-fg:#e00b00;
+  --blue-bg-light:#dae7f9; --blue-fg:#0255b4;
+  --green-bg-light:#e0f6e5; --green-fg:#019240;
+  --purple-bg-light:#F2EAF7; --purple-fg:#5d02ad;
+  --orange-bg-light:#FFF1E6; --orange-fg:#d74908;
+  --teal-bg-light:#E6F7F6; --teal-fg:#04959f;
+  --gold-bg-light:#fdf3d2; --gold-fg:#d49d04;
+  --pink-bg-light:#f9e5ee; --pink-fg:#cf0459;
+  --gray-bg-light:#F2F2F2; --gray-fg:#3c3b3b;
+  --brown-bg-light:#f7e7db; --brown-fg:#3d1502;
 }
 
 * {
