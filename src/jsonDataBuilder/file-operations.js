@@ -186,13 +186,9 @@ function loadDataFromFile() {
 function showConfigModal() {
   const configModal = document.getElementById('config-modal');
   configModal.style.display = 'flex';
-  
-  // Reset state
-  updateState({
-    selectedSchemaFile: null,
-    selectedOptionsFile: null
-  });
-  
+  const currentSchemafile = state.selectedSchemaFile;
+  const currentOptionsFile = state.selectedOptionsFile;
+
   const schemaFileInput = document.getElementById('schemaFileInput');
   const optionsFileInput = document.getElementById('optionsFileInput');
   const schemaFileName = document.getElementById('schemaFileName');
@@ -210,6 +206,13 @@ function showConfigModal() {
   `;
   confirmBtn.disabled = true;
   
+  if (currentSchemafile){
+    schemaFileName.textContent = `📋 ${currentSchemafile.name}`;
+  }
+  if (currentOptionsFile){
+    optionsFileName.textContent = `⚙️ ${currentOptionsFile.name}`;
+  }
+
   // File input change handlers
   schemaFileInput.onchange = (e) => {
     if (e.target.files[0]) {
@@ -298,7 +301,9 @@ function showConfigModal() {
             updateState({
               customOptions: {},
               conditionalRules: {},
-              triggersToAffected: {}
+              triggersToAffected: {},
+              pendingDependentInits: {},
+              exclusiveOptionsMap: {}
             });
 
             return; // Stay on config page

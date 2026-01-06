@@ -296,7 +296,6 @@ function showConfigModal() {
             triggersToAffected: {}
           });
 
-          
           Object.entries(state.customOptions).forEach(([field, config]) => {
             if (config.dependent_values) {
               const depField = Object.keys(config.dependent_values)[0];
