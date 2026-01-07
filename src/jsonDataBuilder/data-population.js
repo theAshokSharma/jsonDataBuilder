@@ -1,4 +1,6 @@
 // form-population.js - Functions for populating form fields with data
+// form-population.js - Functions for populating form fields with data
+// UPDATED: Enhanced logging to show both value and label for better debugging
 import { state } from './state.js';
 import { populateCheckboxList,
          populateRadioButton,
@@ -77,7 +79,7 @@ function populateSingleField(pathStr, value) {
     return;
   }
   
-  // ===== NEW: Check for checkbox container =====
+  // ===== Check for checkbox container =====
   const checkboxContainer = document.getElementById(`checkbox_${escapedPath}`);
   if (checkboxContainer) {
     console.log(`Populating checkbox list for ${pathStr}`);
@@ -85,7 +87,7 @@ function populateSingleField(pathStr, value) {
     return;
   }
   
-  // ===== NEW: Check for radio container =====
+  // ===== Check for radio container =====
   const radioContainer = document.getElementById(`radio_${escapedPath}`);
   if (radioContainer) {
     console.log(`Populating radio buttons for ${pathStr}`);
@@ -98,14 +100,25 @@ function populateSingleField(pathStr, value) {
   if (input) {
     const stringValue = String(value);
     const optionExists = Array.from(input.options).some(option => option.value === stringValue);
+    
     if (optionExists) {
       input.value = stringValue;
       input.classList.remove('invalid-data');
       input.dispatchEvent(new Event('change', { bubbles: true }));
-      console.log(`✓ Set select ${pathStr} = ${stringValue}`);
+      
+      // UPDATED: Enhanced logging to show both value and label
+      const selectedOption = input.options[input.selectedIndex];
+      const displayLabel = selectedOption ? selectedOption.textContent : stringValue;
+      console.log(`✓ Set select ${pathStr} = "${stringValue}" (displays as: "${displayLabel}")`);
     } else {
       console.warn(`⚠ Value "${stringValue}" not in dropdown for ${pathStr}`);
-      console.log('Available options:', Array.from(input.options).map(o => o.value));
+      
+      // UPDATED: Enhanced logging to show available value/label pairs
+      const availableOptions = Array.from(input.options)
+        .filter(o => o.value) // Skip empty option
+        .map(o => `"${o.value}" → "${o.textContent}"`)
+        .join(', ');
+      console.log(`Available options: ${availableOptions}`);
       
       // Mark as invalid and store the original value
       input.classList.add('invalid-data');
@@ -141,7 +154,7 @@ function populateSingleField(pathStr, value) {
     return;
   }
   
-  // ===== NEW: Try slider =====
+  // ===== Try slider =====
   input = document.querySelector(`input[type="range"][data-path="${pathStr}"]`);
   if (input) {
     populateSlider(pathStr, value);
@@ -218,7 +231,6 @@ function populateArrayField(pathStr, values) {
     
     // Handle different value types
     const valuesToCheck = Array.isArray(values) ? values : [values];
-    const exclusiveOptions = ['None of the listed options', 'Unknown/Unsure', 'N/A'];
     
     console.log(`Values to check for ${pathStr}:`, valuesToCheck);
     
@@ -231,20 +243,31 @@ function populateArrayField(pathStr, values) {
       // Check if it's the N/A checkbox
       if (naCheckbox && naCheckbox.value === stringValue) {
         naCheckbox.checked = true;
-        console.log(`✓ Checked NA for ${pathStr}`);
+        
+        // UPDATED: Enhanced logging with label
+        const naLabel = naCheckbox.dataset.label || naCheckbox.value;
+        console.log(`✓ Checked NA for ${pathStr}: value="${stringValue}", label="${naLabel}"`);
         return;
       }
       
-      // Find and check the matching checkbox
+      // UPDATED: Find and check the matching checkbox by VALUE (not label)
       const matchingCheckbox = Array.from(allCheckboxes).find(cb => String(cb.value) === stringValue);
       if (matchingCheckbox) {
         matchingCheckbox.checked = true;
-        console.log(`✓ Checked ${stringValue} for ${pathStr}`);
+        
+        // UPDATED: Enhanced logging with label
+        const label = matchingCheckbox.dataset.label || matchingCheckbox.value;
+        console.log(`✓ Checked for ${pathStr}: value="${stringValue}", label="${label}"`);
       } else {
         hasInvalidValues = true;
         invalidValues.push(stringValue);
         console.warn(`⚠ Checkbox not found for value: "${stringValue}" in ${pathStr}`);
-        console.log('Available checkbox values:', Array.from(allCheckboxes).map(cb => cb.value));
+        
+        // UPDATED: Enhanced logging to show available value/label pairs
+        const available = Array.from(allCheckboxes).map(cb => 
+          `"${cb.value}" → "${cb.dataset.label || cb.value}"`
+        ).join(', ');
+        console.log(`Available options: ${available}`);
       }
     });
     
@@ -259,48 +282,58 @@ function populateArrayField(pathStr, values) {
       removeInvalidWarning(container);
     }
     
-    // Update display
+    // Update display (will show labels)
     const dropdownId = container.id;
     updateMultiSelectDisplay(dropdownId, pathStr);
-    console.log(`✓ Updated display for ${pathStr}`);
+    console.log(`✓ Updated multi-select display for ${pathStr} (showing labels)`);
     
   } else {
-      console.warn(`⚠ No multi-select container found for ${pathStr}`);
+    console.warn(`⚠ No multi-select container found for ${pathStr}`);
     
     // Fallback to regular select, with added validity check
     const selectInput = document.querySelector(`select[data-path="${pathStr}"]`);
     if (selectInput) {
-        // For single-select, take the first value if array; warn if multiple values
-        let valueToSet = Array.isArray(values) ? values[0] : values;
-        if (Array.isArray(values) && values.length > 1) {
-          console.warn(`⚠ Multiple values provided for single-select field ${pathStr}; using first value only`);
-        }
-        
-        const stringValue = String(valueToSet);
-        const optionExists = Array.from(selectInput.options).some(option => option.value === stringValue);
+      // For single-select, take the first value if array; warn if multiple values
+      let valueToSet = Array.isArray(values) ? values[0] : values;
+      if (Array.isArray(values) && values.length > 1) {
+        console.warn(`⚠ Multiple values provided for single-select field ${pathStr}; using first value only`);
+      }
       
-        if (optionExists) {
-          selectInput.value = stringValue;
-          selectInput.classList.remove('invalid-data');
-          selectInput.dispatchEvent(new Event('change', { bubbles: true }));
-          console.log(`✓ Set select (fallback) ${pathStr} = ${stringValue}`);
-        } else {
-          console.warn(`⚠ Value "${stringValue}" not in dropdown for ${pathStr}`);
-          console.log('Available options:', Array.from(selectInput.options).map(o => o.value));
+      const stringValue = String(valueToSet);
+      const optionExists = Array.from(selectInput.options).some(option => option.value === stringValue);
+      
+      if (optionExists) {
+        selectInput.value = stringValue;
+        selectInput.classList.remove('invalid-data');
+        selectInput.dispatchEvent(new Event('change', { bubbles: true }));
         
-          // Mark as invalid and store the original value
-          selectInput.classList.add('invalid-data');
-          selectInput.dataset.invalidValue = stringValue;
-          selectInput.value = '';
-          
-          // Add warning message
-          addInvalidDataWarning(selectInput, stringValue, pathStr);
-          
-          // Enforce valid selection
-          enforceValidSelection(selectInput, pathStr);
-        }
+        // UPDATED: Enhanced logging with label
+        const selectedOption = selectInput.options[selectInput.selectedIndex];
+        const displayLabel = selectedOption ? selectedOption.textContent : stringValue;
+        console.log(`✓ Set select (fallback) ${pathStr} = "${stringValue}" (displays as: "${displayLabel}")`);
+      } else {
+        console.warn(`⚠ Value "${stringValue}" not in dropdown for ${pathStr}`);
+        
+        // UPDATED: Enhanced logging to show available value/label pairs
+        const availableOptions = Array.from(selectInput.options)
+          .filter(o => o.value)
+          .map(o => `"${o.value}" → "${o.textContent}"`)
+          .join(', ');
+        console.log(`Available options: ${availableOptions}`);
+        
+        // Mark as invalid and store the original value
+        selectInput.classList.add('invalid-data');
+        selectInput.dataset.invalidValue = stringValue;
+        selectInput.value = '';
+        
+        // Add warning message
+        addInvalidDataWarning(selectInput, stringValue, pathStr);
+        
+        // Enforce valid selection
+        enforceValidSelection(selectInput, pathStr);
       }
     }
+  }
 }
 
 function populateArrayOfObjects(pathStr, items) {
@@ -519,5 +552,6 @@ export {
   addInvalidDataWarning,
   removeInvalidWarning
 };
+
 
 // ==== END OF PROGRAM ====/

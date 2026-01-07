@@ -1,5 +1,6 @@
 // conditional-rules.js: Conditional rules implementation
 // Handle conditional field logic and dependencies
+// UPDATED: Enhanced to work with value/label pairs from options
 import { state, updateState } from './state.js';
 import { resolveRef } from './file-validation.js';
 import { updateSelectOptions,
@@ -66,50 +67,54 @@ function applyConditionalRules() {
   }
 }
 
+/**
+ * IMPORTANT: getFieldValue always returns VALUES (not labels)
+ * This is correct - conditional rules work with stored values
+ */
 function getFieldValue(fieldPath) {
-  // Select dropdown
+  // Select dropdown - returns value attribute
   let input = document.querySelector(`select[data-path="${fieldPath}"]`);
   if (input) return input.value;
   
-  // Text/email
+  // Text/email - returns value
   input = document.querySelector(`input[type="text"][data-path="${fieldPath}"], input[type="email"][data-path="${fieldPath}"]`);
   if (input) return input.value;
   
-  // Number/slider
+  // Number/slider - returns value
   input = document.querySelector(`input[type="number"][data-path="${fieldPath}"], input[type="range"][data-path="${fieldPath}"]`);
   if (input) return input.value ? Number(input.value) : null;
   
-  // Date/datetime/time
+  // Date/datetime/time - returns value
   input = document.querySelector(`input[type="date"][data-path="${fieldPath}"], input[type="datetime-local"][data-path="${fieldPath}"], input[type="time"][data-path="${fieldPath}"]`);
   if (input) return input.value;
   
-  // Radio buttons (NEW)
+  // Radio buttons - returns value attribute
   input = document.querySelector(`input[type="radio"][data-path="${fieldPath}"]:checked`);
   if (input) return input.value;
   
-  // Boolean checkbox
+  // Boolean checkbox - returns boolean
   input = document.querySelector(`input[type="checkbox"][data-path="${fieldPath}"]:not(.multi-select-checkbox):not(.na-checkbox):not(.checkbox-input):not(.na-checkbox-input)`);
   if (input) return input.checked;
   
-  // Checkbox list (NEW)
+  // Checkbox list - returns array of values
   const checkboxInputs = document.querySelectorAll(`[data-path="${fieldPath}"].checkbox-input:checked`);
   if (checkboxInputs.length > 0) {
     return Array.from(checkboxInputs).map(cb => cb.value);
   }
   
-  // Checkbox N/A (NEW)
+  // Checkbox N/A - returns value
   const checkboxNA = document.getElementById(fieldPath + '_cb_na');
   if (checkboxNA && checkboxNA.checked) {
     return checkboxNA.value;
   }
   
-  // Multi-select dropdown N/A
+  // Multi-select dropdown N/A - returns value
   const naCheckbox = document.getElementById(fieldPath + '_na');
   if (naCheckbox && naCheckbox.checked) {
     return naCheckbox.value;
   }
   
-  // Multi-select dropdown
+  // Multi-select dropdown - returns array of values
   const multiCheckboxes = document.querySelectorAll(`[data-path="${fieldPath}"].multi-select-checkbox:checked`);
   if (multiCheckboxes.length > 0) {
     return Array.from(multiCheckboxes).map(cb => cb.value);
@@ -178,32 +183,68 @@ function setDisabledFieldValue(fieldPath, fieldGroup) {
   }
 }
 
-// New: Update options for a dependent field
+/**
+ * UPDATED: Update options for a dependent field
+ * Now properly handles value/label pairs from expandRangeValues()
+ * 
+ * @param {string} pathStr - Field path
+ * @param {string} depValue - Current value of dependency field
+ * @param {HTMLElement} element - DOM element (select, container, etc)
+ * @param {Object} rule - Rule configuration with optionsMap, defaultValues, etc
+ * @param {Array} explicitValues - Optional explicit values to use (for initialization)
+ */
 function updateFieldOptions(pathStr, depValue, element, rule, explicitValues = null) {
+  // Get raw values (can be strings, objects, or mixed)
   const rawValues = explicitValues || 
                     (depValue && rule.optionsMap[depValue]) || 
                     rule.defaultValues;
   
+  // UPDATED: expandRangeValues now returns [{value, label}, ...]
   const enumValues = expandRangeValues(rawValues);
+  
   const naValue = rule.na || null;
   const hasNAOption = naValue !== null;
   const responseType = rule.responseType;
   
-  console.log(`  📝 Updating ${pathStr} with ${enumValues.length} options`);
+  console.log(`🔄 Updating ${pathStr}:`, {
+    depValue,
+    rawValueCount: rawValues.length,
+    expandedCount: enumValues.length,
+    hasNA: hasNAOption,
+    responseType
+  });
+  
+  // UPDATED: Log sample of value/label pairs for debugging
+  if (enumValues.length > 0) {
+    const sample = enumValues.slice(0, 3).map(item => 
+      `"${item.value}" → "${item.label}"`
+    ).join(', ');
+    console.log(`  📋 Sample options: ${sample}${enumValues.length > 3 ? '...' : ''}`);
+  }
 
   // Handle different input control types
+  // All update functions now receive [{value, label}, ...] arrays
   if (element.tagName === 'SELECT') {
     updateSelectOptions(element, enumValues, naValue, hasNAOption, pathStr);
+    console.log(`  ✓ Updated select dropdown with ${enumValues.length} options`);
   } else if (element.classList.contains('multi-select-container')) {
     updateMultiSelectOptions(element, enumValues, naValue, hasNAOption, pathStr);
+    console.log(`  ✓ Updated multi-select with ${enumValues.length} options`);
   } else if (element.classList.contains('checkbox-container')) {
     updateCheckboxOptions(element, enumValues, naValue, hasNAOption, pathStr);
+    console.log(`  ✓ Updated checkbox list with ${enumValues.length} options`);
   } else if (element.classList.contains('radio-container')) {
     updateRadioOptions(element, enumValues, naValue, hasNAOption, pathStr);
+    console.log(`  ✓ Updated radio buttons with ${enumValues.length} options`);
+  } else {
+    console.warn(`  ⚠️ Unknown element type for ${pathStr}`);
   }
 }
 
-// New: Reset a field's value to initial (empty)
+/**
+ * Reset a field's value to initial (empty)
+ * Works with values (not labels)
+ */
 function resetFieldValue(pathStr) {
   const el = document.querySelector(`select[data-path="${pathStr}"][data-dependent="true"]`) ||
     document.querySelector(`.multi-select-container[data-dependent="true"][id^="multiselect_${pathStr.replace(/\./g, '_')}"]`);
@@ -211,49 +252,65 @@ function resetFieldValue(pathStr) {
 
   if (el.tagName === 'SELECT') {
     el.value = '';
+    console.log(`  🔄 Reset select ${pathStr} to empty`);
   } else {
     const checkboxes = el.querySelectorAll('input[type="checkbox"]');
     checkboxes.forEach(cb => cb.checked = false);
     updateMultiSelectDisplay(el.id, pathStr);
+    console.log(`  🔄 Reset multi-select ${pathStr} to empty`);
   }
 }
 
-// New: Revalidate and set previously invalid values now that options may be available
+/**
+ * Revalidate and set previously invalid values now that options may be available
+ * Works with values (not labels)
+ */
 function revalidateAndSetInvalid(el, pathStr) {
   if (el.classList.contains('invalid-data')) {
     if (el.tagName === 'SELECT') {
       const invalidValue = el.dataset.invalidValue;
       if (invalidValue) {
+        // Check if value now exists in options
         const optionExistsNow = Array.from(el.options).some(opt => opt.value === invalidValue);
         if (optionExistsNow) {
           el.value = invalidValue;
           el.classList.remove('invalid-data');
           delete el.dataset.invalidValue;
           removeInvalidWarning(el);
-          console.log(`✓ Recovered invalid value for ${pathStr}: ${invalidValue}`);
+          
+          // UPDATED: Enhanced logging
+          const selectedOption = el.options[el.selectedIndex];
+          const label = selectedOption ? selectedOption.textContent : invalidValue;
+          console.log(`✓ Recovered invalid value for ${pathStr}: "${invalidValue}" (displays as: "${label}")`);
         }
       }
     } else { // multi-select
       const invalidValues = JSON.parse(el.dataset.invalidValues || '[]');
       if (invalidValues.length > 0) {
         let stillInvalid = [];
+        let recovered = [];
+        
         invalidValues.forEach(val => {
+          // Find checkbox by value
           const matchingCb = Array.from(el.querySelectorAll('.multi-select-checkbox')).find(cb => cb.value === val);
           if (matchingCb) {
             matchingCb.checked = true;
+            recovered.push(`"${val}" → "${matchingCb.dataset.label || val}"`);
           } else {
             stillInvalid.push(val);
           }
         });
+        
         if (stillInvalid.length === 0) {
           el.classList.remove('invalid-data');
           delete el.dataset.invalidValues;
           removeInvalidWarning(el);
           updateMultiSelectDisplay(el.id, pathStr);
-          console.log(`✓ Recovered invalid values for ${pathStr}`);
+          console.log(`✓ Recovered invalid values for ${pathStr}: ${recovered.join(', ')}`);
         } else {
           el.dataset.invalidValues = JSON.stringify(stillInvalid);
           addInvalidMultiSelectWarning(el, stillInvalid, pathStr);
+          console.log(`⚠️ Still invalid for ${pathStr}: ${stillInvalid.join(', ')}`);
         }
       }
     }
@@ -261,11 +318,8 @@ function revalidateAndSetInvalid(el, pathStr) {
 }
 
 /**
- * Initialize dependent fields with default values on form load
- */
-/**
- * Initialize dependent fields with default values on form load
- * FIXED: Handle both rendered fields (single-form) and unrendered fields (tab-based)
+ * UPDATED: Initialize dependent fields with default values on form load
+ * Properly handles value/label pairs
  */
 function initializeDependentFields() {
   console.log('🔄 Initializing dependent fields with default values...');
@@ -273,7 +327,7 @@ function initializeDependentFields() {
   Object.entries(state.customOptions).forEach(([fieldPath, config]) => {
     if (config.dependent_values && typeof config.dependent_values === 'object') {
       const depField = Object.keys(config.dependent_values)[0];
-      const depFieldValue = getFieldValue(depField);
+      const depFieldValue = getFieldValue(depField); // Gets VALUE (not label)
       
       console.log(`  Checking dependent field: ${fieldPath}`);
       console.log(`    Depends on: ${depField} = ${depFieldValue}`);
@@ -282,7 +336,7 @@ function initializeDependentFields() {
       const element = findDependentFieldElement(fieldPath);
       
       if (!element) {
-        console.log(`    ⏭️ Element not rendered yet (tab-based form) - will initialize on tab switch`);
+        console.log(`    ⏸️ Element not rendered yet (tab-based form) - will initialize on tab switch`);
         // Store the initialization data for later use when tab is rendered
         if (!state.pendingDependentInits) {
           state.pendingDependentInits = {};
@@ -306,17 +360,21 @@ function initializeDependentFields() {
 /**
  * NEW: Initialize a single dependent field
  * Extracted for reuse when tabs are switched
+ * UPDATED: Properly handles value/label pairs
  */
 function initializeSingleDependentField(fieldPath, depField, depFieldValue, config, element) {
   let valuesToUse;
+  
+  // Get values based on current dependency value
   if (depFieldValue && config.dependent_values[depFieldValue]) {
     valuesToUse = config.dependent_values[depFieldValue];
-    console.log(`    ✓ Using values for "${depFieldValue}"`);
+    console.log(`    ✓ Using values for dependency value: "${depFieldValue}"`);
   } else {
     valuesToUse = config.values || [];
-    console.log(`    ✓ Using default values`);
+    console.log(`    ℹ️ Using default values (dependency value not matched or empty)`);
   }
   
+  // Create rule object (same structure as in triggersToAffected)
   const rule = {
     affected: fieldPath,
     optionsMap: config.dependent_values,
@@ -325,6 +383,8 @@ function initializeSingleDependentField(fieldPath, depField, depFieldValue, conf
     na: config.na
   };
   
+  // UPDATED: updateFieldOptions will call expandRangeValues internally
+  // Pass valuesToUse as explicitValues parameter
   updateFieldOptions(fieldPath, depFieldValue || null, element, rule, valuesToUse);
 }
 
@@ -426,8 +486,8 @@ function attachEventListeners() {
         // Handle dependency updates on change
         const changedPath = e.target.dataset.path;
         if (changedPath && state.triggersToAffected[changedPath]) {  
-          const newValue = getFieldValue(changedPath);
-          console.log(`  🔗 Trigger field changed: ${changedPath} = ${newValue}`);
+          const newValue = getFieldValue(changedPath); // Gets VALUE (not label)
+          console.log(`  🔗 Trigger field changed: ${changedPath} = "${newValue}"`);
           
           state.triggersToAffected[changedPath].forEach(rule => { 
             const affected = rule.affected;
@@ -440,7 +500,8 @@ function attachEventListeners() {
                 resetFieldValue(affected);
               }
               
-              // Pass null for explicitValues to use rule logic
+              // UPDATED: Pass null for explicitValues to use rule logic
+              // updateFieldOptions will call expandRangeValues internally
               updateFieldOptions(affected, newValue, affectedEl, rule, null);
             }
           });
@@ -459,7 +520,7 @@ function attachEventListeners() {
     }
   });
   
-  // NEW: Initialize any pending dependent fields that are now rendered
+  // Initialize any pending dependent fields that are now rendered
   initializePendingDependentFields();
   
   setTimeout(() => applyConditionalRules(), 200);
@@ -470,7 +531,7 @@ export {
   getFieldValue,
   attachEventListeners,
   initializeDependentFields,
-  initializePendingDependentFields,  // NEW EXPORT
+  initializePendingDependentFields,
   revalidateAndSetInvalid
 };
-//==== END OF PROGRAM ====/
+//==== END OF PROGRAM ====//
