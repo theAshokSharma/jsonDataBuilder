@@ -40,6 +40,14 @@ const hamburgerBtn = document.getElementById('hamburgerBtn');
 const headerNav = document.querySelector('.header-nav');
 
 
+const aboutBtn = document.getElementById('aboutBtn');
+aboutBtn.addEventListener('click', showAboutModal);
+addTooltip(aboutBtn, 'Learn more about this application.');
+
+const hamburgerBtn = document.getElementById('hamburgerBtn');
+const headerNav = document.querySelector('.header-nav');
+
+
 document.getElementById('saveBtn').addEventListener('click', async () => {
   try {
     renderAllTabs();    // ensure all tabs are rendered before collecting data
@@ -407,12 +415,13 @@ function loadSchemaFromFile() {
       updateState({
         definitions: schema.definitions || schema.$defs || {}
       });
+ || schema.$defs || {};
       renderForm(schema);
       console.log('✓ Schema loaded successfully');
 
       document.getElementById('loadSchemaBtn').style.color = '#000000ff';
       document.getElementById('loadSchemaBtn').style.backgroundColor = '#99ff00ff';
-
+x
       schemaTooltip.innerText = schemaFilename + ' loaded.'
 
     } catch (error) {
@@ -705,7 +714,7 @@ function renderForm(schema) {
     has$defs: !!schema.$defs,
     hasDefinitions: !!schema.definitions
   });
-  
+ 
   // Step 1: Normalize schema structure
   const normalizedSchema = normalizeSchema(schema);
   updateState({
@@ -717,7 +726,7 @@ function renderForm(schema) {
     propertyCount: normalizedSchema.properties ? Object.keys(normalizedSchema.properties).length : 0,
     propertyKeys: normalizedSchema.properties ? Object.keys(normalizedSchema.properties) : []
   });
-  
+
   // Step 2: Analyze normalized schema
   const analysis = analyzeSchemaStructure(normalizedSchema);
   const patterns = detectSchemaPattern(normalizedSchema);
@@ -732,6 +741,7 @@ function renderForm(schema) {
   document.getElementById('config-modal').style.display = 'none';
   
   // Step 5: Show form UI
+
   document.getElementById('configBtn').textContent = '⚙️ Config';
   document.getElementById('saveBtn').style.display = 'inline-block';
   document.getElementById('loadDataBtn').style.display = 'inline-block';
@@ -773,7 +783,7 @@ function renderForm(schema) {
       console.log('🎨 Rendering: Default single form');
       renderSingleForm(normalizedSchema, analysis);
   }
-  
+
     // Step 6: Attach event listeners
     setTimeout(() => {
       attachEventListeners();
@@ -907,7 +917,9 @@ function createPolymorphicTypeSelector(schema) {
 function renderPolymorphicOption(optionSchema, container, path, level = 0) {
   // Resolve reference if needed
   if (optionSchema.$ref) {
+
     optionSchema = resolveRef(optionSchema.$ref, state.currentSchema);
+
   }
   
   if (!optionSchema) {
@@ -1550,8 +1562,7 @@ window.addArrayItem = function(arrayPath) {
       Array.from(document.querySelectorAll('.array-container')).map(el => el.id)
     );
     return;
-  }
-  
+  } 
   console.log('✅ Found container:', container.id);
   console.log('📦 Container datasets:', container.dataset);
   
@@ -1796,8 +1807,6 @@ function getInputTypeFromSchema(schema) {
   }
   return 'text';
 }
-
-
 /**
  * Enhanced: Remove array item (already exists but ensure it updates indices)
  */

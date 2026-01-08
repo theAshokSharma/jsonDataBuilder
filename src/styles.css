@@ -31,7 +31,6 @@
   margin: 0;
   padding: 0;
 }
-
 /* ============================================
    2. BASE ELEMENTS
    ============================================ */
@@ -1157,6 +1156,7 @@ select:focus,
   cursor: pointer;
   border: 2px solid var(--vscode-button-foreground);
   transition: all 0.2s;
+
 }
 
 .slider-input::-webkit-slider-thumb:hover {
@@ -1314,4 +1314,5 @@ select:focus,
 .radio-container,
 .slider-container {
   animation: slideIn 0.2s ease-out;
+
 }
