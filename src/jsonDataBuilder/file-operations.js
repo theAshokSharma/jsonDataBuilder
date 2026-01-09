@@ -6,7 +6,7 @@ import { validateOptionsAgainstSchema, showValidationErrorsDialog } from './file
 import { ashAlert, ashConfirm} from './utils.js'
 import { renderForm, renderAllTabs } from './form-renderer.js';
 import { revalidateAndSetInvalid } from './conditional-rules.js'
-import { populateFormWithData } from './data-population.js'
+import { populateFormWithData } from './form-population.js'
 
 function loadSchemaFromFile() {
   const input = document.createElement('input');

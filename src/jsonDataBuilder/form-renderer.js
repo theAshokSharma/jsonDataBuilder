@@ -162,7 +162,7 @@ function createPolymorphicTypeSelector(schema) {
   
   const label = document.createElement('label');
   label.className = 'required';
-  label.textContent = 'Type';
+  label.textContent = 'Rule Type';
   
   const select = document.createElement('select');
   select.id = 'polymorphic-type-selector';
@@ -174,7 +174,7 @@ function createPolymorphicTypeSelector(schema) {
   // Add default option
   const defaultOpt = document.createElement('option');
   defaultOpt.value = '';
-  defaultOpt.textContent = '-- Select Type --';
+  defaultOpt.textContent = '-- Select Rule Type --';
   select.appendChild(defaultOpt);
   
   options.forEach((option, index) => {
@@ -201,6 +201,11 @@ function createPolymorphicTypeSelector(schema) {
     select.appendChild(opt);
   });
   
+  // Store the options in state for later use in data population
+  updateState({
+    polymorphicOptions: options
+  });
+  
   select.addEventListener('change', (e) => {
     const selectedIndex = parseInt(e.target.value);
     const contentArea = document.getElementById('polymorphic-content');
@@ -208,7 +213,25 @@ function createPolymorphicTypeSelector(schema) {
     
     if (selectedIndex >= 0 && selectedIndex < options.length) {
       const selectedOption = options[selectedIndex];
+      
+      // Store the selected option type in state for data population
+      updateState({
+        selectedPolymorphicType: {
+          index: selectedIndex,
+          option: selectedOption
+        }
+      });
+      
+      console.log(`🔄 Selected polymorphic type: ${selectedIndex}`);
+      console.log('Option:', selectedOption);
+      
       renderPolymorphicOption(selectedOption, contentArea, [], 0);
+      
+      // Attach event listeners after rendering
+      setTimeout(() => {
+        attachEventListeners();
+        initializePendingDependentFields();
+      }, 100);
     }
   });
   

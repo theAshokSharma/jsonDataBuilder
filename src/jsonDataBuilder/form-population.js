@@ -1,6 +1,5 @@
 // form-population.js - Functions for populating form fields with data
-// form-population.js - Functions for populating form fields with data
-// UPDATED: Enhanced logging to show both value and label for better debugging
+// UPDATED: Added polymorphic form detection and handling
 import { state } from './state.js';
 import { populateCheckboxList,
          populateRadioButton,
@@ -12,13 +11,254 @@ import { applyConditionalRules } from './conditional-rules.js';
 
 function populateFormWithData(data) {
   console.log('=== Starting data population ===');
-  populateFields(data, []);
+  
+  // NEW: Check if this is a polymorphic form
+  const polymorphicSelector = document.getElementById('polymorphic-type-selector');
+  
+  if (polymorphicSelector) {
+    console.log('🔍 Detected polymorphic form, attempting to match data structure');
+    populatePolymorphicForm(data);
+  } else {
+    // Standard form population
+    populateFields(data, []);
+  }
   
   setTimeout(() => {
     applyConditionalRules();
     showInvalidFieldsSummary();
     console.log('✓ Form populated and rules applied');
   }, 300);
+}
+
+/**
+ * NEW: Populates polymorphic forms by detecting which oneOf/anyOf option matches
+ * @param {Object} data - Data to populate
+ */
+function populatePolymorphicForm(data) {
+  console.log('🎯 Populating polymorphic form with data:', data);
+  console.log('   Data keys:', Object.keys(data));
+  
+  const selector = document.getElementById('polymorphic-type-selector');
+  const schema = state.currentSchema;
+  const options = schema.oneOf || schema.anyOf || [];
+  
+  if (options.length === 0) {
+    console.error('❌ No oneOf/anyOf options in schema');
+    return;
+  }
+  
+  console.log(`📋 Schema has ${options.length} options to check`);
+  
+  // Find which option matches the data structure
+  let matchingIndex = -1;
+  let matchingOption = null;
+  
+  for (let i = 0; i < options.length; i++) {
+    let option = options[i];
+    
+    console.log(`  Checking option ${i}:`, option.title || option.$ref || 'Untitled');
+    
+    // Resolve $ref if present
+    if (option.$ref) {
+      const refPath = option.$ref;
+      option = resolveRef(option.$ref, schema);
+      console.log(`    Resolved $ref ${refPath} to:`, option?.title || 'object');
+    }
+    
+    if (!option) {
+      console.log(`    ⚠️ Could not resolve option ${i}`);
+      continue;
+    }
+    
+    // Check if data structure matches this option
+    const matches = isDataMatchingSchema(data, option);
+    console.log(`    Match result: ${matches}`);
+    
+    if (matches) {
+      matchingIndex = i;
+      matchingOption = option;
+      console.log(`✅ Found matching option at index ${i}:`, option.title || 'Untitled');
+      break;
+    }
+  }
+  
+  if (matchingIndex === -1) {
+    console.error('❌ No matching schema option found for data structure');
+    console.log('Data keys:', Object.keys(data));
+    console.log('Available options:', options.map((o, i) => {
+      const resolved = o.$ref ? resolveRef(o.$ref, schema) : o;
+      return `  ${i}: ${o.title || resolved?.title || o.$ref || 'Untitled'}`;
+    }).join('\n'));
+    return;
+  }
+  
+  // Set the selector to the matching option
+  selector.value = matchingIndex;
+  
+  // Trigger change event to render the form structure
+  const changeEvent = new Event('change', { bubbles: true });
+  selector.dispatchEvent(changeEvent);
+  
+  console.log('⏳ Waiting for polymorphic form to render...');
+  
+  // Wait for form to render, then populate
+  // Increased delay to ensure nested structures have time to render
+  setTimeout(() => {
+    console.log('📝 Form structure rendered, now populating fields');
+    
+    // Additional check: verify form elements are present
+    const polymorphicContent = document.getElementById('polymorphic-content');
+    if (!polymorphicContent || polymorphicContent.children.length === 0) {
+      console.warn('⚠️ Polymorphic content not rendered yet, retrying...');
+      setTimeout(() => populateFields(data, []), 300);
+    } else {
+      console.log(`✓ Found ${polymorphicContent.children.length} child elements in polymorphic content`);
+      
+      // NEW: Check for nested polymorphic selectors
+      const nestedSelectors = polymorphicContent.querySelectorAll('.nested-polymorphic-selector');
+      if (nestedSelectors.length > 0) {
+        console.log(`🔍 Found ${nestedSelectors.length} nested polymorphic selector(s)`);
+        console.log('   This is a nested polymorphic structure (e.g., groupRule with ALL_OF/ANY_OF)');
+        
+        // Handle nested polymorphic selection
+        handleNestedPolymorphicData(data, nestedSelectors);
+      } else {
+        // No nested selectors, proceed with normal population
+        populateFields(data, []);
+      }
+    }
+  }, 500); // Increased from 200ms to 500ms
+}
+
+/**
+ * NEW: Handles data population for nested polymorphic structures
+ * Example: groupRule has oneOf with ALL_OF or ANY_OF options
+ * 
+ * @param {Object} data - Data to populate
+ * @param {NodeList} nestedSelectors - Nested polymorphic selectors found
+ */
+function handleNestedPolymorphicData(data, nestedSelectors) {
+  console.log('🎯 Handling nested polymorphic data structure');
+  console.log('   Data keys:', Object.keys(data));
+  
+  // For each nested selector, find which option matches the data
+  nestedSelectors.forEach((selector, selectorIndex) => {
+    console.log(`📋 Processing nested selector ${selectorIndex}:`, selector.id);
+    
+    const options = Array.from(selector.options).slice(1); // Skip "-- Select --"
+    console.log(`   Options available:`, options.map(o => o.textContent).join(', '));
+    
+    // Find which option key exists in data
+    let matchingIndex = -1;
+    for (let i = 0; i < options.length; i++) {
+      const optionText = options[i].textContent;
+      console.log(`   Checking option "${optionText}" against data keys...`);
+      
+      // Check if this option name matches any data key
+      if (data.hasOwnProperty(optionText)) {
+        matchingIndex = i;
+        console.log(`   ✅ Match found: "${optionText}" exists in data`);
+        break;
+      }
+    }
+    
+    if (matchingIndex !== -1) {
+      const matchingOption = options[matchingIndex];
+      selector.value = matchingOption.value;
+      
+      console.log(`   ✓ Setting nested selector to index ${matchingOption.value}: "${matchingOption.textContent}"`);
+      
+      // Trigger change event to render the nested form
+      selector.dispatchEvent(new Event('change', { bubbles: true }));
+      
+      // Wait for nested form to render, then populate
+      setTimeout(() => {
+        console.log('   📝 Nested form rendered, populating fields...');
+        populateFields(data, []);
+      }, 400);
+    } else {
+      console.error(`   ❌ No matching option found in nested selector`);
+      console.log(`   Data has keys: ${Object.keys(data).join(', ')}`);
+      console.log(`   Selector has options: ${options.map(o => o.textContent).join(', ')}`);
+    }
+  });
+}
+
+/**
+ * NEW: Checks if data structure matches a schema option
+ * @param {Object} data - Data to check
+ * @param {Object} schema - Schema option to match against
+ * @returns {boolean} True if structure matches
+ */
+function isDataMatchingSchema(data, schema) {
+  console.log('      🔍 Matching data against schema...');
+  console.log('        Data keys:', Object.keys(data));
+  console.log('        Schema type:', schema.type);
+  console.log('        Schema has oneOf:', !!schema.oneOf);
+  console.log('        Schema has required:', schema.required);
+  console.log('        Schema has properties:', !!schema.properties);
+  
+  // For groupRule pattern: check if data has ALL_OF or ANY_OF keys
+  if (schema.oneOf) {
+    console.log('        Checking nested oneOf options...');
+    // Schema has nested oneOf (like groupRule with ALL_OF/ANY_OF options)
+    for (let i = 0; i < schema.oneOf.length; i++) {
+      const subOption = schema.oneOf[i];
+      console.log(`          Sub-option ${i}:`, subOption.required);
+      
+      if (subOption.required && subOption.required.length > 0) {
+        const requiredKey = subOption.required[0];
+        if (data.hasOwnProperty(requiredKey)) {
+          console.log(`          ✓ Match: Data has required key "${requiredKey}"`);
+          return true;
+        }
+      }
+      
+      // Check properties
+      if (subOption.properties) {
+        const propKeys = Object.keys(subOption.properties);
+        console.log(`          Sub-option properties:`, propKeys);
+        if (propKeys.some(key => data.hasOwnProperty(key))) {
+          console.log(`          ✓ Match: Data has property key from subOption`);
+          return true;
+        }
+      }
+    }
+  }
+  
+  // For atomicRule pattern: check if data has all required fields
+  if (schema.required && Array.isArray(schema.required)) {
+    console.log('        Checking required fields:', schema.required);
+    const hasAllRequired = schema.required.every(key => {
+      const has = data.hasOwnProperty(key);
+      console.log(`          "${key}": ${has}`);
+      return has;
+    });
+    
+    if (hasAllRequired) {
+      console.log(`        ✓ Match: Data has all required fields`);
+      return true;
+    }
+  }
+  
+  // Check if data keys match schema properties
+  if (schema.properties) {
+    const schemaKeys = Object.keys(schema.properties);
+    const dataKeys = Object.keys(data);
+    
+    console.log('        Schema properties:', schemaKeys);
+    console.log('        Data keys:', dataKeys);
+    
+    // Check if any data key matches a schema property
+    const hasMatchingKey = dataKeys.some(key => schemaKeys.includes(key));
+    if (hasMatchingKey) {
+      console.log(`        ✓ Match: Data keys overlap with schema properties`);
+      return true;
+    }
+  }
+  
+  console.log('        ✗ No match');
+  return false;
 }
 
 function showInvalidFieldsSummary() {
@@ -337,52 +577,138 @@ function populateArrayField(pathStr, values) {
 }
 
 function populateArrayOfObjects(pathStr, items) {
-  console.log(`Populating array of objects: ${pathStr}`, items);
+  console.log(`📋 Populating array of objects: ${pathStr}`, items);
+  console.log(`   Data structure:`, JSON.stringify(items).substring(0, 200));
   
-  const container = document.getElementById('array_' + pathStr);
+  // UPDATED: Try multiple strategies to find the array container
+  const escapedPath = pathStr.replace(/\./g, '_');
+  let container = document.getElementById('array_' + escapedPath);
+  
+  // Strategy 2: Try without 'array_' prefix (for some edge cases)
   if (!container) {
-    console.warn(`Array container not found for ${pathStr}`);
+    container = document.getElementById(escapedPath);
+  }
+  
+  // Strategy 3: Find by data-path attribute
+  if (!container) {
+    container = document.querySelector(`.array-container[data-path="${pathStr}"]`);
+    if (container) {
+      console.log(`✓ Found container by data-path attribute: ${container.id}`);
+    }
+  }
+  
+  // Strategy 4: Wait for container to appear (polymorphic forms may render slowly)
+  if (!container) {
+    console.log(`⏳ Container not found immediately, waiting for render...`);
+    
+    // Available containers for debugging
+    const availableContainers = Array.from(document.querySelectorAll('.array-container'));
+    console.log('Available array containers:', 
+      availableContainers.map(el => `id="${el.id}" path="${el.dataset.path}"`).join(', ')
+    );
+    
+    // Try again after a delay
+    setTimeout(() => {
+      const delayedContainer = document.querySelector(`.array-container[data-path="${pathStr}"]`) ||
+                               document.getElementById('array_' + escapedPath);
+      
+      if (delayedContainer) {
+        console.log(`✓ Found container after delay: ${delayedContainer.id}`);
+        populateArrayOfObjectsDelayed(pathStr, items, delayedContainer);
+      } else {
+        console.error(`❌ Array container still not found for ${pathStr} after delay`);
+        console.log('   This usually means the polymorphic type selector needs more time to render');
+        console.log('   Available containers:', 
+          Array.from(document.querySelectorAll('.array-container')).map(el => 
+            `id="${el.id}" path="${el.dataset.path}"`
+          )
+        );
+      }
+    }, 300);
+    
     return;
   }
+  
+  console.log(`✓ Found array container: ${container.id}`);
+  populateArrayOfObjectsDelayed(pathStr, items, container);
+}
+
+/**
+ * NEW: Separated helper function to populate array items
+ * This allows retry logic with delays
+ */
+function populateArrayOfObjectsDelayed(pathStr, items, container) {
+  console.log(`📝 Starting population of ${items.length} items in ${pathStr}...`);
   
   // Clear existing items
   const existingItems = container.querySelectorAll('.array-item');
   existingItems.forEach(item => item.remove());
+  console.log(`🗑️ Cleared ${existingItems.length} existing items`);
   
-  // Get schema for items
-  const keys = pathStr.split('.');
-  let currentProp = state.currentSchema.properties;
+  // Add items first, then populate them
+  console.log(`➕ Adding ${items.length} array items...`);
   
-  for (let i = 0; i < keys.length; i++) {
-    if (currentProp[keys[i]]) {
-      if (currentProp[keys[i]].$ref) {
-        currentProp = resolveRef(currentProp[keys[i]].$ref, state.currentSchema);
-        if (i < keys.length - 1) {
-          currentProp = currentProp.properties;
-        }
-      } else if (i === keys.length - 1) {
-        currentProp = currentProp[keys[i]];
-      } else {
-        currentProp = currentProp[keys[i]].properties;
-      }
-    }
-  }
-  
-  const itemSchema = currentProp.items;
-  
-  // Add and populate items
   items.forEach((itemData, index) => {
-    window.addArrayItem(pathStr, itemSchema);
-    
-    setTimeout(() => {
-      for (const [subKey, subValue] of Object.entries(itemData)) {
-        const itemPath = `${pathStr}.${index}.${subKey}`;
-        populateSingleField(itemPath, subValue);
-      }
-    }, 50 * (index + 1));
+    // Add the array item using the global function
+    window.addArrayItem(pathStr);
+    console.log(`  ✓ Added item ${index + 1}`);
   });
   
-  console.log(`✓ Populated array ${pathStr} with ${items.length} items`);
+  // Wait for all items to be rendered, then populate
+  setTimeout(() => {
+    console.log('📝 Populating array item fields...');
+    
+    items.forEach((itemData, index) => {
+      console.log(`  📝 Populating item ${index}:`, itemData);
+      
+      // For polymorphic array items, need to detect and set type first
+      const itemContainer = container.querySelectorAll('.array-item')[index];
+      if (itemContainer) {
+        const typeSelector = itemContainer.querySelector('.array-item-type-selector');
+        
+        if (typeSelector) {
+          console.log(`    🔍 Polymorphic array item detected at index ${index}`);
+          
+          // Find matching option for this item's data structure
+          const options = Array.from(typeSelector.options).slice(1); // Skip first "-- Select Type --"
+          let matchingOptionIndex = -1;
+          
+          // Try to match based on data keys
+          for (let i = 0; i < options.length; i++) {
+            const optionValue = options[i].value;
+            // This is a simplified match - in real scenario might need schema lookup
+            // For now, just set to first option if data exists
+            if (Object.keys(itemData).length > 0) {
+              matchingOptionIndex = optionValue;
+              break;
+            }
+          }
+          
+          if (matchingOptionIndex !== -1) {
+            typeSelector.value = matchingOptionIndex;
+            typeSelector.dispatchEvent(new Event('change', { bubbles: true }));
+            console.log(`    ✓ Set type selector to index ${matchingOptionIndex}`);
+            
+            // Wait for type-specific form to render
+            setTimeout(() => {
+              for (const [subKey, subValue] of Object.entries(itemData)) {
+                const itemPath = `${pathStr}.${index}.${subKey}`;
+                populateSingleField(itemPath, subValue);
+              }
+            }, 150);
+          }
+        } else {
+          // Non-polymorphic array item - populate directly
+          for (const [subKey, subValue] of Object.entries(itemData)) {
+            const itemPath = `${pathStr}.${index}.${subKey}`;
+            populateSingleField(itemPath, subValue);
+          }
+        }
+      }
+    });
+    
+    console.log('✅ Array population complete');
+  }, 100 * items.length); // Longer delay for multiple items
 }
 
 // ==================== INVALID DATA HANDLING ====================
@@ -550,8 +876,12 @@ export {
   populateFormWithData,
   populateSingleField,
   addInvalidDataWarning,
-  removeInvalidWarning
+  removeInvalidWarning,
+  handleNestedPolymorphicData
 };
 
 
-// ==== END OF PROGRAM ====/
+// ==== END OF PROGRAM ====//
+
+
+// ==== END OF PROGRAM ====//
