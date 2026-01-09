@@ -672,4 +672,6 @@ function analyzePropertyComplexity(properties, schema) {
 export { analyzeSchemaStructure,
          detectSchemaPattern,
          normalizeSchema
-        };
+};
+
+// ==== END OF FILE ====/

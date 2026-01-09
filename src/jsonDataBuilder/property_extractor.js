@@ -178,3 +178,5 @@ console.log(`\nTotal: ${extractedProps.length} properties`);
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = { extractNonObjectProperties, formatProperties };
 }
+
+// ==== END OF FILE ====/

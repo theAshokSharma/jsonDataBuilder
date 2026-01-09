@@ -442,4 +442,5 @@ export {
   showConfigModal,
   updateValidationStatus
 };
-// ==== END OF PROGRAM ====/
+
+// ==== END OF FILE ====/

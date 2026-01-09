@@ -1,23 +1,5 @@
 // state.js : Manage all global variables
 
-// export const state = {
-//   currentSchema: null,
-//   formData: {},
-//   definitions: {},
-//   customOptions: {},
-//   conditionalRules: {},
-//   triggersToAffected: {},
-//   exclusiveOptionsMap: {},
-//   currentTab: null,
-//   tabContents: {},
-//   dataFilename: null,
-//   dataFilePath: '',
-//   selectedSchemaFile: null,
-//   selectedOptionsFile: null,
-//   dataTooltip: null,
-//   configTooltip: null
-// };
-
 const initialState = {
   currentSchema: null,
   formData: {},
