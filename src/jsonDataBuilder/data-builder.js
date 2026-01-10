@@ -4,6 +4,7 @@ import { showConfigModal, loadDataFromFile } from './file-operations.js';
 import { saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm } from './utils.js';
 import { renderAllTabs } from './form-renderer.js';
 import { updateMultiSelectDisplay} from './input-control.js'
+import { validateAndShowSummary, clearAllValidationErrors } from './input-validation.js';
 
 // Initialize on page load
 console.log('JSON Data Builder Loaded - Version 3.0');
@@ -26,67 +27,112 @@ const hamburgerBtn = document.getElementById('hamburgerBtn');
 const headerNav = document.querySelector('.header-nav');
 
 
+// UPDATED: Save button with validation
 document.getElementById('saveBtn').addEventListener('click', async () => {
   try {
-    renderAllTabs();    // ensure all tabs are rendered before collecting data
-    // Check for invalid fields before saving
+    renderAllTabs(); // Ensure all tabs are rendered before collecting data
+    
+    // Clear previous validation errors
+    clearAllValidationErrors();
+    
+    // Collect data
+    const data = collectFormData();
+    
+    // NEW: Validate against schema
+    const isValid = await validateAndShowSummary(data, state.currentSchema);
+    
+    if (!isValid) {
+      const confirmSave = await ashConfirm(
+        '⚠️ Warning: Form contains validation errors.\n\n' +
+        'Fields with errors are highlighted. Saving will export the form with these values.\n\n' +
+        'Do you want to save anyway?'
+      );
+      
+      if (!confirmSave) {
+        return;
+      }
+    }
+    
+    // Check for invalid fields from data loading (separate from validation)
     const invalidFields = document.querySelectorAll('.invalid-data');
     if (invalidFields.length > 0) {
-      const confirmSave = ashConfirm(
-        `⚠️ Warning: ${invalidFields.length} field(s) contain invalid values.\n\n` +
-        `These fields are highlighted in red. Saving now will export the form with empty values for these fields.\n\n` +
+      const confirmSave = await ashConfirm(
+        `⚠️ Warning: ${invalidFields.length} field(s) contain invalid values from loaded data.\n\n` +
+        `These fields are highlighted. Saving will export with empty values for these fields.\n\n` +
         `Do you want to save anyway?`
       );
       
       if (!confirmSave) {
-        // Scroll to first invalid field
         invalidFields[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
         invalidFields[0].focus();
         return;
       }
     }
     
-    const data = collectFormData();
-    // saveJsonToFile(data);
-    await saveJsonWithDialog(data, state.dataFilename, state.dataFilePath);    
+    await saveJsonWithDialog(data, state.dataFilename, state.dataFilePath);
+    console.log('✅ Data saved successfully');
+    
   } catch (error) {
     console.error('Error saving data:', error);
     await ashAlert('Error saving data: ' + error.message);
   }
 });
 
-document.getElementById('exportBtn').addEventListener('click', () => {
+// UPDATED: Export button with validation
+document.getElementById('exportBtn').addEventListener('click', async () => {
   try {
-    renderAllTabs();  // ensure all tabs are rendered before collecting data
-    // Check for invalid fields before exporting
+    renderAllTabs(); // Ensure all tabs are rendered before collecting data
+    
+    // Clear previous validation errors
+    clearAllValidationErrors();
+    
+    // Collect data
+    const data = collectFormData();
+    
+    // NEW: Validate against schema
+    const isValid = await validateAndShowSummary(data, state.currentSchema);
+    
+    if (!isValid) {
+      const confirmExport = await ashConfirm(
+        '⚠️ Warning: Form contains validation errors.\n\n' +
+        'Fields with errors are highlighted. Exporting will copy the form with these values.\n\n' +
+        'Do you want to export anyway?'
+      );
+      
+      if (!confirmExport) {
+        return;
+      }
+    }
+    
+    // Check for invalid fields from data loading (separate from validation)
     const invalidFields = document.querySelectorAll('.invalid-data');
     if (invalidFields.length > 0) {
-      const confirmExport = ashConfirm(
-        `⚠️ Warning: ${invalidFields.length} field(s) contain invalid values.\n\n` +
-        `These fields are highlighted in red. Exporting now will copy the form with empty values for these fields.\n\n` +
+      const confirmExport = await ashConfirm(
+        `⚠️ Warning: ${invalidFields.length} field(s) contain invalid values from loaded data.\n\n` +
+        `These fields are highlighted. Exporting will copy with empty values for these fields.\n\n` +
         `Do you want to export anyway?`
       );
       
       if (!confirmExport) {
-        // Scroll to first invalid field
         invalidFields[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
         invalidFields[0].focus();
         return;
       }
     }
     
-    const data = collectFormData();
     exportJsonToClipboard(data);
+    console.log('✅ Data exported successfully');
+    
   } catch (error) {
     console.error('Error exporting data:', error);
     ashAlert('Error exporting data: ' + error.message);
   }
 });
 
+
 document.getElementById('appIcon').addEventListener('click', () => {
   showAboutModal();
 });
-
 
 hamburgerBtn.addEventListener('click', () => {
   headerNav.classList.toggle('active');
@@ -282,4 +328,5 @@ export {
   setNestedValue,
   showAboutModal
 };
+
 //==== END OF FILE ====//

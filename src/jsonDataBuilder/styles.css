@@ -1316,4 +1316,113 @@ select:focus,
   animation: slideIn 0.2s ease-out;
 }
 
+/* ============================================
+   VALIDATION STYLES - Add to end of styles.css
+   ============================================ */
+
+/* Validation error state for inputs */
+input.validation-error,
+select.validation-error,
+textarea.validation-error {
+  border: 2px solid #ff4444 !important;
+  background-color: rgba(255, 68, 68, 0.05);
+  animation: shake 0.3s ease-in-out;
+}
+
+input.validation-error:focus,
+select.validation-error:focus,
+textarea.validation-error:focus {
+  outline: none;
+  border-color: #ff4444 !important;
+  box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.2);
+}
+
+/* Validation error message */
+.validation-error-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background-color: rgba(255, 68, 68, 0.1);
+  border-left: 3px solid #ff4444;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #d32f2f;
+  animation: slideDownValidation 0.2s ease-out;
+}
+
+.validation-error-message .error-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.validation-error-message .error-text {
+  line-height: 1.4;
+  flex: 1;
+}
+
+/* Shake animation for validation errors */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+/* Slide down animation for validation messages */
+@keyframes slideDownValidation {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Multi-select, checkbox, radio validation error */
+.multi-select-container.validation-error,
+.checkbox-container.validation-error,
+.radio-container.validation-error,
+.slider-container.validation-error {
+  border: 2px solid #ff4444;
+  border-radius: 6px;
+  background-color: rgba(255, 68, 68, 0.05);
+}
+
+.multi-select-container.validation-error .multi-select-trigger {
+  border-color: transparent;
+}
+
+/* Validation success state (optional) */
+input.validation-success,
+select.validation-success,
+textarea.validation-success {
+  border-color: #4caf50;
+}
+
+/* Field character counter with validation */
+.field-character-count {
+  font-size: 12px;
+  color: #666;
+  text-align: right;
+  margin-top: 4px;
+}
+
+.field-character-count.over-limit {
+  color: #ff4444;
+  font-weight: bold;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .validation-error-message {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+}
+
+/* ==== END OF VALIDATION STYLES ==== */
 /* ==== END OF FILE ==== */

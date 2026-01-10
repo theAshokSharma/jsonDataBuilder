@@ -6,6 +6,7 @@ import { createInputControl, createDefaultInput } from './input-control.js';
 import { resolveRef } from './file-validation.js';
 import { analyzeSchemaStructure, normalizeSchema, detectSchemaPattern } from './schema-manager.js';
 import { attachEventListeners, initializeDependentFields, initializePendingDependentFields } from './conditional-rules.js'
+import { attachRealtimeValidation } from './input-validation.js';
 
 console.log('📋 Form Renderer Module Loaded');
 
@@ -94,12 +95,17 @@ function renderForm(schema) {
       renderSingleForm(normalizedSchema, analysis);
   }
   
-    // Step 6: Attach event listeners
+    // Step 7: Attach event listeners
     setTimeout(() => {
       attachEventListeners();
       
-      // NEW: Initialize dependent fields with default values
+      // NEW: Attach real-time validation
+      attachRealtimeValidation(normalizedSchema);      
+      
+      // Initialize dependent fields with default values
       initializeDependentFields();
+
+      console.log('✅ Form rendered, listeners attached, validation enabled');
       
     }, 100);
 }
