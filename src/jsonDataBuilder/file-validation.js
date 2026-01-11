@@ -355,3 +355,4 @@ export { validateOptionsAgainstSchema,
          resolveRef
 };
 
+// === END OF FILE ===

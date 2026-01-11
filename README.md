@@ -63,7 +63,7 @@ Introducing **JSON Data Builder** - a groundbreaking web application that bridge
     - Mobile Friendly: Responsive design for tablets and phones
 
 Transform your JSON schemas into beautiful, functional forms in minutes. Experience the power of automated form generation!
-
+  
 <details>
   <summary>For Developers and Contributors</summary>
   ### Quick Start
@@ -104,7 +104,7 @@ Transform your JSON schemas into beautiful, functional forms in minutes. Experie
   ./stop.sh
   ```
 </details>
-
+  
 <details>
   <summary>Schema and Options</summary>
     ### Example of Options.json 
@@ -169,4 +169,23 @@ Transform your JSON schemas into beautiful, functional forms in minutes. Experie
     - "1950-2024" → [1950, 1951, 1952, ..., 2023, 2024] (75 values)
     - "2000-2025" → [2000, 2001, 2002, ..., 2024, 2025] (26 values)
 
+</details>
+  
+<details>
+  <summary>JsonDataBuilder (Program Structure)</summary>
+
+
+  ```
+    JsonDataBuilder
+    ├── state.js
+    ├── utils.js
+    ├── file-validation.js
+    ├── schema-manager.js
+    ├── input-control.js
+    ├── file-operations.js
+    ├── form-renderer.js
+    ├── form-population.js
+    ├── conditional-rules.js
+    └── data-builder.js
+  ```
 </details>
