@@ -1050,6 +1050,8 @@ select:focus,
   padding: 6px 8px;
   border-radius: 3px;
   transition: background-color 0.2s;
+  flex-wrap: nowrap;
+  width: 100%;
 }
 
 .checkbox-option:hover {
@@ -1060,6 +1062,7 @@ select:focus,
   border-top: 1px solid var(--vscode-input-border);
   margin-top: 8px;
   padding-top: 14px;
+  flex-shrink: 0;
 }
 
 .checkbox-option input[type="checkbox"] {
@@ -1074,6 +1077,10 @@ select:focus,
   flex: 1;
   margin: 0;
   user-select: none;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  display: inline-block;
+  line-height: 1.4;
 }
 
 .checkbox-container.invalid-data {
@@ -1099,6 +1106,8 @@ select:focus,
   padding: 6px 8px;
   border-radius: 3px;
   transition: background-color 0.2s;
+  flex-wrap: nowrap;
+  width: 100%;
 }
 
 .radio-option:hover {
@@ -1116,6 +1125,7 @@ select:focus,
   width: 16px;
   height: 16px;
   margin: 0;
+  flex-shrink: 0;
 }
 
 .radio-option label {
@@ -1123,6 +1133,9 @@ select:focus,
   flex: 1;
   margin: 0;
   user-select: none;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.4;
 }
 
 /* ==================== SLIDER STYLES ==================== */
