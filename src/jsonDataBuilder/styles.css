@@ -1050,8 +1050,6 @@ select:focus,
   padding: 6px 8px;
   border-radius: 3px;
   transition: background-color 0.2s;
-  flex-wrap: nowrap;
-  width: 100%;
 }
 
 .checkbox-option:hover {
@@ -1069,18 +1067,21 @@ select:focus,
   cursor: pointer;
   width: 16px;
   height: 16px;
-  margin: 0;
+  min-width: 16px;
+  margin: 2px 0 0 0;
+  flex-shrink: 0;
 }
 
 .checkbox-option label {
   cursor: pointer;
-  flex: 1;
   margin: 0;
+  padding: 0;
   user-select: none;
   word-wrap: break-word;
   overflow-wrap: break-word;
-  display: inline-block;
   line-height: 1.4;
+  flex: 1;
+  min-width: 0;
 }
 
 .checkbox-container.invalid-data {
@@ -1106,8 +1107,6 @@ select:focus,
   padding: 6px 8px;
   border-radius: 3px;
   transition: background-color 0.2s;
-  flex-wrap: nowrap;
-  width: 100%;
 }
 
 .radio-option:hover {
@@ -1124,6 +1123,7 @@ select:focus,
   cursor: pointer;
   width: 16px;
   height: 16px;
+  min-width: 16px;
   margin: 0;
   flex-shrink: 0;
 }
@@ -1136,6 +1136,8 @@ select:focus,
   word-wrap: break-word;
   overflow-wrap: break-word;
   line-height: 1.4;
+  flex: 1;
+  min-width: 0;
 }
 
 /* ==================== SLIDER STYLES ==================== */
