@@ -175,14 +175,14 @@ function createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, d
   if (!isDependent) {
     enumValues.forEach((item, idx) => {
       html += `
-        <div class="checkbox-option">
-          <input type="checkbox" id="${pathStr}_cb_${idx}" value="${item.value}" 
-                 data-path="${pathStr}" data-container="${containerId}"
-                 data-label="${item.label}"
-                 class="checkbox-input"
-                 onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
-          <label for="${pathStr}_cb_${idx}">${item.label}</label>
-        </div>`;
+      <label class="checkbox-option" for="${pathStr}_cb_${idx}">
+        <input type="checkbox" id="${pathStr}_cb_${idx}" value="${item.value}" 
+              data-path="${pathStr}" data-container="${containerId}"
+              data-label="${item.label}"
+              class="checkbox-input"
+              onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
+        <span>${item.label}</span>
+      </label>`;        
     });
     
     if (hasNAOption) {
