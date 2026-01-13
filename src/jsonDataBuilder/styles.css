@@ -1036,31 +1036,32 @@ select:focus,
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  border: 1px solid var(--vscode-input-border);
+  border: 1px solid #ccc;
   border-radius: 4px;
-  background: var(--vscode-input-background);
+  background: white;
   max-height: 300px;
   overflow-y: auto;
 }
 
 .checkbox-option {
-  display: flex;
+  display: inline-flex;
+  flex-direction: row;
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
   border-radius: 3px;
   transition: background-color 0.2s;
+  width: 100%;
 }
 
 .checkbox-option:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: #f0f0f0;
 }
 
 .checkbox-option.na-option {
-  border-top: 1px solid var(--vscode-input-border);
+  border-top: 1px solid #ddd;
   margin-top: 8px;
   padding-top: 14px;
-  flex-shrink: 0;
 }
 
 .checkbox-option input[type="checkbox"] {
@@ -1068,8 +1069,10 @@ select:focus,
   width: 16px;
   height: 16px;
   min-width: 16px;
-  margin: 2px 0 0 0;
-  flex-shrink: 0;
+  max-width: 16px;
+  margin: 0;
+  flex: 0 0 16px;
+  vertical-align: middle;
 }
 
 .checkbox-option label {
@@ -1077,44 +1080,45 @@ select:focus,
   margin: 0;
   padding: 0;
   user-select: none;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
   line-height: 1.4;
-  flex: 1;
-  min-width: 0;
+  display: inline;
+  vertical-align: middle;
 }
 
 .checkbox-container.invalid-data {
-  border-color: var(--vscode-errorForeground);
+  border-color: #dc3545;
   background: rgba(255, 0, 0, 0.05);
 }
 
 /* ==================== RADIO BUTTON STYLES ==================== */
+
 .radio-container {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 10px;
-  border: 1px solid var(--vscode-input-border);
+  border: 1px solid #ccc;
   border-radius: 4px;
-  background: var(--vscode-input-background);
+  background: white;
 }
 
 .radio-option {
-  display: flex;
+  display: inline-flex;
+  flex-direction: row;
   align-items: center;
   gap: 8px;
   padding: 6px 8px;
   border-radius: 3px;
   transition: background-color 0.2s;
+  width: 100%;
 }
 
 .radio-option:hover {
-  background: var(--vscode-list-hoverBackground);
+  background: #f0f0f0;
 }
 
 .radio-option.na-option {
-  border-top: 1px solid var(--vscode-input-border);
+  border-top: 1px solid #ddd;
   margin-top: 8px;
   padding-top: 14px;
 }
@@ -1124,20 +1128,20 @@ select:focus,
   width: 16px;
   height: 16px;
   min-width: 16px;
+  max-width: 16px;
   margin: 0;
-  flex-shrink: 0;
+  flex: 0 0 16px;
+  vertical-align: middle;
 }
 
 .radio-option label {
   cursor: pointer;
-  flex: 1;
   margin: 0;
+  padding: 0;
   user-select: none;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
   line-height: 1.4;
-  flex: 1;
-  min-width: 0;
+  display: inline;
+  vertical-align: middle;
 }
 
 /* ==================== SLIDER STYLES ==================== */
