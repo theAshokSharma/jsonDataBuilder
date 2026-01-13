@@ -87,7 +87,6 @@ function createMultiSelectDropdown(pathStr, enumValues, isDependent, depField, h
   
   if (!isDependent) {
     enumValues.forEach((item, idx) => {
-      // item is now {value, label}
       const value = item.value;
       const label = item.label;
       
@@ -103,7 +102,6 @@ function createMultiSelectDropdown(pathStr, enumValues, isDependent, depField, h
     });
     
     if (hasNAOption) {
-      // naValue can be string or {value, label} object
       const naVal = typeof naValue === 'object' ? naValue.value : naValue;
       const naLabel = typeof naValue === 'object' ? naValue.label : naValue;
       
@@ -133,7 +131,6 @@ function createSingleSelectDropdown(pathStr, enumValues, isDependent, depField, 
     <option value="">-- Select --</option>`;
   
   if (!isDependent) {
-    // enumValues is now array of {value, label} objects
     html += enumValues.map(item => 
       `<option value="${item.value}">${item.label}</option>`
     ).join('');
@@ -151,15 +148,14 @@ function createSingleSelectDropdown(pathStr, enumValues, isDependent, depField, 
 
 // ==================== CHECKBOX CONTROL ====================
 /**
- * Creates checkbox list control
+ * FIXED: Creates checkbox list control with proper HTML structure
  * NOTE: response_type is IGNORED for checkbox control
  */
 function createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, depField, hasNAOption, naValue) {
   let rawValues = isDependent ? [] : (choiceConfig?.values || []);
-  let enumValues = expandRangeValues(rawValues); // Returns [{value, label}, ...]
+  let enumValues = expandRangeValues(rawValues);
   
   const exclusiveValues = choiceConfig?.exclusive_values || [];
-  // Store exclusive values (these are actual values, not labels)
   updateState({
     exclusiveOptionsMap: {
       ...state.exclusiveOptionsMap,
@@ -175,14 +171,14 @@ function createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, d
   if (!isDependent) {
     enumValues.forEach((item, idx) => {
       html += `
-      <label class="checkbox-option" for="${pathStr}_cb_${idx}">
-        <input type="checkbox" id="${pathStr}_cb_${idx}" value="${item.value}" 
-              data-path="${pathStr}" data-container="${containerId}"
-              data-label="${item.label}"
-              class="checkbox-input"
-              onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
-        <span>${item.label}</span>
-      </label>`;        
+        <label class="checkbox-option" for="${pathStr}_cb_${idx}">
+          <input type="checkbox" id="${pathStr}_cb_${idx}" value="${item.value}" 
+                 data-path="${pathStr}" data-container="${containerId}"
+                 data-label="${item.label}"
+                 class="checkbox-input"
+                 onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
+          <span>${item.label}</span>
+        </label>`;
     });
     
     if (hasNAOption) {
@@ -190,14 +186,14 @@ function createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, d
       const naLabel = typeof naValue === 'object' ? naValue.label : naValue;
       
       html += `
-        <div class="checkbox-option na-option">
+        <label class="checkbox-option na-option" for="${pathStr}_cb_na">
           <input type="checkbox" id="${pathStr}_cb_na" value="${naVal}" 
                  data-path="${pathStr}" data-container="${containerId}"
                  data-label="${naLabel}"
                  class="na-checkbox-input"
                  onchange="handleCheckboxNAChange('${pathStr}', '${containerId}')">
-          <label for="${pathStr}_cb_na">${naLabel} (exclusive)</label>
-        </div>`;
+          <span>${naLabel} (exclusive)</span>
+        </label>`;
     }
   }
   
@@ -207,12 +203,12 @@ function createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, d
 
 // ==================== RADIO BUTTON CONTROL ====================
 /**
- * Creates radio button control
+ * FIXED: Creates radio button control with proper HTML structure
  * NOTE: response_type is IGNORED for radio-button control
  */
 function createRadioButtonControl(pathStr, choiceConfig, isRequired, isDependent, depField, hasNAOption, naValue) {
   let rawValues = isDependent ? [] : (choiceConfig?.values || []);
-  let enumValues = expandRangeValues(rawValues); // Returns [{value, label}, ...]
+  let enumValues = expandRangeValues(rawValues);
   
   const containerId = 'radio_' + pathStr.replace(/\./g, '_');
   
@@ -222,14 +218,14 @@ function createRadioButtonControl(pathStr, choiceConfig, isRequired, isDependent
   if (!isDependent) {
     enumValues.forEach((item, idx) => {
       html += `
-        <div class="radio-option">
+        <label class="radio-option" for="${pathStr}_rb_${idx}">
           <input type="radio" id="${pathStr}_rb_${idx}" name="${pathStr}" value="${item.value}" 
                  data-path="${pathStr}" 
                  data-label="${item.label}"
                  class="radio-input"
                  onchange="handleRadioChange(event, '${pathStr}')">
-          <label for="${pathStr}_rb_${idx}">${item.label}</label>
-        </div>`;
+          <span>${item.label}</span>
+        </label>`;
     });
     
     if (hasNAOption) {
@@ -237,14 +233,14 @@ function createRadioButtonControl(pathStr, choiceConfig, isRequired, isDependent
       const naLabel = typeof naValue === 'object' ? naValue.label : naValue;
       
       html += `
-        <div class="radio-option na-option">
+        <label class="radio-option na-option" for="${pathStr}_rb_na">
           <input type="radio" id="${pathStr}_rb_na" name="${pathStr}" value="${naVal}" 
                  data-path="${pathStr}" 
                  data-label="${naLabel}"
                  class="radio-input"
                  onchange="handleRadioChange(event, '${pathStr}')">
-          <label for="${pathStr}_rb_na">${naLabel}</label>
-        </div>`;
+          <span>${naLabel}</span>
+        </label>`;
     }
   }
   
@@ -283,7 +279,7 @@ function createSliderControl(pathStr, choiceConfig, isRequired) {
   let min = 0, max = 100, step = 1;
   
   if (enumValues.length > 0) {
-    const numericValues = enumValues.map(v => Number(v)).filter(v => !isNaN(v));
+    const numericValues = enumValues.map(v => Number(v.value)).filter(v => !isNaN(v));
     if (numericValues.length > 0) {
       min = Math.min(...numericValues);
       max = Math.max(...numericValues);
@@ -419,7 +415,6 @@ function populateCheckboxList(pathStr, values) {
   const allCheckboxes = container.querySelectorAll('[data-path]');
   const naCheckbox = document.getElementById(`${pathStr}_cb_na`);
   
-  // Uncheck all
   allCheckboxes.forEach(cb => cb.checked = false);
   if (naCheckbox) naCheckbox.checked = false;
   
@@ -430,14 +425,12 @@ function populateCheckboxList(pathStr, values) {
   valuesToCheck.forEach(val => {
     const stringValue = String(val);
     
-    // Check NA by value
     if (naCheckbox && naCheckbox.value === stringValue) {
       naCheckbox.checked = true;
       console.log(`✓ Checked NA for ${pathStr} (label: ${naCheckbox.dataset.label || stringValue})`);
       return;
     }
     
-    // Find checkbox by value (not label)
     const matchingCheckbox = Array.from(allCheckboxes).find(cb => String(cb.value) === stringValue);
     if (matchingCheckbox) {
       matchingCheckbox.checked = true;
@@ -469,7 +462,6 @@ function populateCheckboxList(pathStr, values) {
 /**
  * Populate radio button with value
  * UPDATED: populateRadioButton to match by value
- * When loading data, we receive values, need to find matching radio by value
  */
 function populateRadioButton(pathStr, value) {
   const escapedPath = pathStr.replace(/\./g, '_');
@@ -481,7 +473,6 @@ function populateRadioButton(pathStr, value) {
   }
   
   const stringValue = String(value);
-  // Find radio button by value (not by label)
   const radioButton = radioContainer.querySelector(`input[type="radio"][value="${stringValue}"]`);
   
   if (radioButton) {
@@ -519,28 +510,17 @@ function populateSlider(pathStr, value) {
 
 /**
  * Enhanced expandRangeValues to support value/label pairs
- * 
- * Supports three formats:
- * 1. Legacy string array: ["Option1", "Option2"]
- * 2. Value/label objects: [{value: "opt1", label: "Option 1"}, {value: "opt2", label: "Option 2"}]
- * 3. Value-only objects: [{value: "opt1"}, {value: "opt2"}] - uses value as label
- * 4. Range notation: ["1-50"] expands to [{value: "1", label: "1"}, ..., {value: "50", label: "50"}]
- * 
- * @param {Array} rawValues - Array of strings or objects
- * @returns {Array} Array of {value, label} objects
  */
 function expandRangeValues(rawValues) {
   const expanded = [];
   
   rawValues.forEach(val => {
-    // Case 1: Already an object with value/label
     if (typeof val === 'object' && val !== null && 'value' in val) {
       expanded.push({
         value: String(val.value),
-        label: val.label || String(val.value) // Use value as label if label missing
+        label: val.label || String(val.value)
       });
     }
-    // Case 2: String with range notation (e.g., "1-50")
     else if (typeof val === 'string' && val.includes('-')) {
       const rangeMatch = val.match(/^(\d+)-(\d+)$/);
       if (rangeMatch) {
@@ -555,21 +535,18 @@ function expandRangeValues(rawValues) {
             });
           }
         } else {
-          // Invalid range, treat as regular string
           expanded.push({
             value: val,
             label: val
           });
         }
       } else {
-        // Has dash but not a valid range (e.g., "opt-1")
         expanded.push({
           value: val,
           label: val
         });
       }
     }
-    // Case 3: Simple string (legacy format)
     else {
       const strValue = String(val);
       expanded.push({
@@ -584,13 +561,10 @@ function expandRangeValues(rawValues) {
 
 /**
  * Update options for single-select dropdown
- * UPDATED: updateSelectOptions with value/label support
- * Used when dependent field values change
  */
 function updateSelectOptions(selectElement, enumValues, naValue, hasNAOption, pathStr) {
   selectElement.innerHTML = '<option value="">-- Select --</option>';
   
-  // enumValues is now array of {value, label} objects
   enumValues.forEach(item => {
     const opt = document.createElement('option');
     opt.value = item.value;
@@ -608,10 +582,8 @@ function updateSelectOptions(selectElement, enumValues, naValue, hasNAOption, pa
   }
 }
 
-
 /**
  * Update options for multi-select dropdown
-* UPDATED: updateMultiSelectOptions with value/label support
  */
 function updateMultiSelectOptions(container, enumValues, naValue, hasNAOption, pathStr) {
   const dropdown = container.querySelector('.multi-select-dropdown');
@@ -619,7 +591,6 @@ function updateMultiSelectOptions(container, enumValues, naValue, hasNAOption, p
   
   dropdown.innerHTML = '';
   
-  // enumValues is now array of {value, label} objects
   enumValues.forEach((item, idx) => {
     const optionDiv = document.createElement('div');
     optionDiv.className = 'multi-select-option';
@@ -660,20 +631,18 @@ function updateMultiSelectOptions(container, enumValues, naValue, hasNAOption, p
   updateMultiSelectDisplay(container.id, pathStr);
 }
 
-
 /**
- * Update options for checkbox list
- * UPDATED: updateCheckboxOptions with value/label support
+ * FIXED: Update options for checkbox list
  */
 function updateCheckboxOptions(container, enumValues, naValue, hasNAOption, pathStr) {
   container.innerHTML = '';
   const containerId = container.id;
   
-  // enumValues is now array of {value, label} objects
   enumValues.forEach((item, idx) => {
-    const optionDiv = document.createElement('div');
-    optionDiv.className = 'checkbox-option';
-    optionDiv.innerHTML = `
+    const label = document.createElement('label');
+    label.className = 'checkbox-option';
+    label.htmlFor = `${pathStr}_cb_${idx}`;
+    label.innerHTML = `
       <input type="checkbox" 
              id="${pathStr}_cb_${idx}" 
              value="${item.value}" 
@@ -682,18 +651,19 @@ function updateCheckboxOptions(container, enumValues, naValue, hasNAOption, path
              data-label="${item.label}"
              class="checkbox-input"
              onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
-      <label for="${pathStr}_cb_${idx}">${item.label}</label>
+      <span>${item.label}</span>
     `;
-    container.appendChild(optionDiv);
+    container.appendChild(label);
   });
   
   if (hasNAOption) {
-    const naDiv = document.createElement('div');
-    naDiv.className = 'checkbox-option na-option';
     const naVal = typeof naValue === 'object' ? naValue.value : naValue;
     const naLabel = typeof naValue === 'object' ? naValue.label : naValue;
     
-    naDiv.innerHTML = `
+    const label = document.createElement('label');
+    label.className = 'checkbox-option na-option';
+    label.htmlFor = `${pathStr}_cb_na`;
+    label.innerHTML = `
       <input type="checkbox" 
              id="${pathStr}_cb_na" 
              value="${naVal}" 
@@ -702,24 +672,23 @@ function updateCheckboxOptions(container, enumValues, naValue, hasNAOption, path
              data-label="${naLabel}"
              class="na-checkbox-input"
              onchange="handleCheckboxNAChange('${pathStr}', '${containerId}')">
-      <label for="${pathStr}_cb_na">${naLabel} (exclusive)</label>
+      <span>${naLabel} (exclusive)</span>
     `;
-    container.appendChild(naDiv);
+    container.appendChild(label);
   }
 }
 
 /**
- * Update options for radio button list
- * UPDATED: updateRadioOptions with value/label support
+ * FIXED: Update options for radio button list
  */
 function updateRadioOptions(container, enumValues, naValue, hasNAOption, pathStr) {
   container.innerHTML = '';
   
-  // enumValues is now array of {value, label} objects
   enumValues.forEach((item, idx) => {
-    const optionDiv = document.createElement('div');
-    optionDiv.className = 'radio-option';
-    optionDiv.innerHTML = `
+    const label = document.createElement('label');
+    label.className = 'radio-option';
+    label.htmlFor = `${pathStr}_rb_${idx}`;
+    label.innerHTML = `
       <input type="radio" 
              id="${pathStr}_rb_${idx}" 
              name="${pathStr}" 
@@ -728,18 +697,19 @@ function updateRadioOptions(container, enumValues, naValue, hasNAOption, pathStr
              data-label="${item.label}"
              class="radio-input"
              onchange="handleRadioChange(event, '${pathStr}')">
-      <label for="${pathStr}_rb_${idx}">${item.label}</label>
+      <span>${item.label}</span>
     `;
-    container.appendChild(optionDiv);
+    container.appendChild(label);
   });
   
   if (hasNAOption) {
-    const naDiv = document.createElement('div');
-    naDiv.className = 'radio-option na-option';
     const naVal = typeof naValue === 'object' ? naValue.value : naValue;
     const naLabel = typeof naValue === 'object' ? naValue.label : naValue;
     
-    naDiv.innerHTML = `
+    const label = document.createElement('label');
+    label.className = 'radio-option na-option';
+    label.htmlFor = `${pathStr}_rb_na`;
+    label.innerHTML = `
       <input type="radio" 
              id="${pathStr}_rb_na" 
              name="${pathStr}" 
@@ -748,15 +718,14 @@ function updateRadioOptions(container, enumValues, naValue, hasNAOption, pathStr
              data-label="${naLabel}"
              class="radio-input"
              onchange="handleRadioChange(event, '${pathStr}')">
-      <label for="${pathStr}_rb_na">${naLabel}</label>
+      <span>${naLabel}</span>
     `;
-    container.appendChild(naDiv);
+    container.appendChild(label);
   }
 }
 
 /**
  * Update multi-select display
-* Reads labels from data-label attributes
  */
 function updateMultiSelectDisplay(dropdownId, path) {
   const selectedContainer = document.getElementById(dropdownId + '_selected');
@@ -770,14 +739,12 @@ function updateMultiSelectDisplay(dropdownId, path) {
   if (naCheckbox && naCheckbox.checked) {
     const tag = document.createElement('span');
     tag.className = 'multi-select-tag';
-    // Display label, not value
     tag.textContent = naCheckbox.dataset.label || naCheckbox.value;
     selectedContainer.appendChild(tag);
   } else if (selectedCheckboxes.length > 0) {
     selectedCheckboxes.forEach(cb => {
       const tag = document.createElement('span');
       tag.className = 'multi-select-tag';
-      // Display label, not value
       tag.textContent = cb.dataset.label || cb.value;
       selectedContainer.appendChild(tag);
     });
