@@ -62,9 +62,11 @@ function loadOptionsFromFile() {
       const text = await file.text();
       const options = JSON.parse(text);
 
+      
+      const resolvedOptions = resolveReferences(options, options);
       // Validate options file ie the corect file for the loaded schema
       if (state.currentSchema) {
-        const validationResults = validateOptionsAgainstSchema(options, state.currentSchema);
+        const validationResults = validateOptionsAgainstSchema(resolvedOptions, state.currentSchema);
         
         if (!displayValidationResults(validationResults)) {
           // Validation failed - ask user if they want to proceed anyway
@@ -79,8 +81,8 @@ function loadOptionsFromFile() {
       }        
 
       updateState({
-        customOptions: options,
-        conditionalRules: options.conditional_rules || {},
+        customOptions: resolvedOptions,
+        conditionalRules: resolvedOptions.conditional_rules || {},
         triggersToAffected: {}
       });
 
@@ -275,8 +277,10 @@ function showConfigModal() {
         const optionsText = await state.selectedOptionsFile.text();
         const options = JSON.parse(optionsText);
         
+        const resolvedOptions = resolveReferences(options, options);
+
         // Validate options against schema
-        const validationResults = validateOptionsAgainstSchema(options, state.currentSchema);
+        const validationResults = validateOptionsAgainstSchema(resolvedOptions, state.currentSchema);
         
         if (!validationResults.isValid) {
           // Show validation errors in a custom dialog with scrollable list
@@ -311,8 +315,8 @@ function showConfigModal() {
           
           // User chose to proceed despite validation errors
           updateState({
-            customOptions: options,
-            conditionalRules: options.conditional_rules || {},
+            customOptions: resolvedOptions,
+            conditionalRules: resolvedOptions.conditional_rules || {},
             triggersToAffected: {}
           });
 
@@ -433,6 +437,33 @@ function updateValidationStatus() {
       <div class="status-text">Awaiting files...</div>
     `;
   }
+}
+
+// Resolve JSON references in option file
+function resolveReferences(obj, root) {
+  if (typeof obj !== 'object' || obj === null) return obj;
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => resolveReferences(item, root));
+  }
+  
+  if ('$ref' in obj) {
+    const refPath = obj.$ref.replace(/^#\//, '').split('/');
+    let refValue = root;
+    for (const key of refPath) {
+      refValue = refValue[key];
+    }
+    const result = { ...obj };
+    delete result.$ref;
+    result.values = refValue;
+    return result;
+  }
+  
+  const resolved = {};
+  for (const [key, value] of Object.entries(obj)) {
+    resolved[key] = resolveReferences(value, root);
+  }
+  return resolved;
 }
 
 export {

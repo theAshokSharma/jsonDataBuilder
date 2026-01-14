@@ -19,6 +19,9 @@ function extractAllReferencedKeys(options) {
     if (!obj || typeof obj !== 'object') return;
 
     for (const key in obj) {
+      // Skip keys starting with underscore (reserved for shared/internal data)
+      if (key.startsWith('_')) continue;      
+      
       const value = obj[key];
 
       // Only consider it a field if it has "values" (array or object)
@@ -78,10 +81,11 @@ function validateOptionsAgainstSchema(options, schema) {
     const normalized = key.trim();
 
     // Check if this key exists in schema paths
-    const found = validSchemaPaths.has(normalized) ||
-                  validSchemaPaths.has(`demographic.${normalized}`) || // fallback for short names
-                  validSchemaPaths.has(`lifestyle.${normalized}`) ||
-                  validSchemaPaths.has(`medical_history.${normalized}`);
+    const found = validSchemaPaths.has(normalized);
+    // ||
+    //               validSchemaPaths.has(`demographic.${normalized}`) || // fallback for short names
+    //               validSchemaPaths.has(`lifestyle.${normalized}`) ||
+    //               validSchemaPaths.has(`medical_history.${normalized}`);
 
     if (!found) {
       missingKeys.push(key);
