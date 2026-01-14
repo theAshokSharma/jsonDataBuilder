@@ -255,8 +255,27 @@ function collectFormData() {
   inputs.forEach(input => {
     const path = input.dataset.path;
     if (!path || processedPaths.has(path)) return;
-    
-    if (input.classList && input.classList.contains('na-checkbox')) {
+  
+      // Handle checkbox lists that use checkbox_ container pattern
+    if (input.classList && input.classList.contains('checkbox-input')) {
+      if (!processedPaths.has(path)) {
+        const checkboxes = document.querySelectorAll(`[data-path="${path}"].checkbox-input:checked`);
+        const naCheckbox = document.querySelector(`[data-path="${path}"].na-checkbox-input:checked`);
+        
+        if (naCheckbox) {
+          // If N/A is checked, use its value
+          setNestedValue(data, path, naCheckbox.value);
+        } else if (checkboxes.length > 0) {
+          // Collect checked checkbox values
+          setNestedValue(data, path, Array.from(checkboxes).map(cb => cb.value));
+        } else {
+          // No checkboxes checked
+          setNestedValue(data, path, []);
+        }
+        processedPaths.add(path);
+      }
+    }
+    else if (input.classList && input.classList.contains('na-checkbox')) {
       const naCheckbox = document.getElementById(path + '_na');
       if (naCheckbox && naCheckbox.checked) {
         setNestedValue(data, path, naCheckbox.value);
@@ -278,6 +297,32 @@ function collectFormData() {
         }
         processedPaths.add(path);
       }
+    }
+    // ===== RADIO BUTTON HANDLING (NEW - WAS MISSING) =====
+    else if (input.classList && input.classList.contains('radio-input')) {
+      if (!processedPaths.has(path)) {
+        const selectedRadio = document.querySelector(`[data-path="${path}"].radio-input:checked`);
+        const naRadio = document.querySelector(`[data-path="${path}"].na-radio-input:checked`);
+        
+        if (naRadio) {
+          // If N/A is checked, use its value
+          setNestedValue(data, path, naRadio.value);
+        } else if (selectedRadio) {
+          // Use the selected radio button value
+          setNestedValue(data, path, selectedRadio.value);
+        } else {
+          // No radio selected
+          setNestedValue(data, path, null);
+        }
+        processedPaths.add(path);
+      }
+    }
+    // ===== SLIDER/RANGE HANDLING (NEW - WAS MISSING) =====
+    else if (input.type === 'range') {
+      // Get the slider value
+      const sliderValue = input.value ? Number(input.value) : null;
+      setNestedValue(data, path, sliderValue);
+      processedPaths.add(path);
     }
     else if (input.type === 'checkbox' && !input.classList.contains('na-checkbox') && !input.classList.contains('multi-select-checkbox')) {
       setNestedValue(data, path, input.checked);
