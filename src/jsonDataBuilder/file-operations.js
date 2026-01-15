@@ -344,8 +344,8 @@ function showConfigModal() {
         } else {
           // Validation successful
           updateState({
-            customOptions: options,
-            conditionalRules: options.conditional_rules || {},
+            customOptions: resolvedOptions,
+            conditionalRules: resolvedOptions.conditional_rules || {},
             triggersToAffected: {}
           });
 
