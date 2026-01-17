@@ -53,7 +53,8 @@ function renderForm(schema) {
   document.getElementById('config-modal').style.display = 'none';
   
   // Step 5: Show form UI
-  document.getElementById('configBtn').textContent = '⚙️ Config';
+  document.getElementById('configBtn').textContent = '⚙️ Config'; 
+  document.getElementById('viewBtn').style.display = 'inline-block';  
   document.getElementById('saveBtn').style.display = 'inline-block';
   document.getElementById('loadDataBtn').style.display = 'inline-block';
   document.getElementById('exportBtn').style.display = 'inline-block';

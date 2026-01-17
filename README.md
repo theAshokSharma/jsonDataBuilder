@@ -23,9 +23,9 @@ Introducing **JSON Data Builder** - a groundbreaking web application that bridge
 - **🔄 Complete Data Lifecycle**
     - Load Schema: Upload your JSON schema file
     - Load Options (Optional): Add dropdown options for better UX
-    - Load Data (Optional): Pre-fill with existing JSON data
+    - Load (Optional): Pre-fill with existing JSON data
     - Fill Form: Users interact with the generated interface
-    - Export: Save results as JSON or copy to clipboard
+    - Export: Save results as JSON or Clipboard
   
 - **🔒 Privacy-First Design**
     - 100% Client-Side: Your data never leaves your browser

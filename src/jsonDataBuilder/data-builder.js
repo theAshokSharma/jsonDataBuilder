@@ -17,11 +17,15 @@ state.configTooltip = addTooltip(configBtn, 'Configure the data builder.');
 
 const loadDataBtn = document.getElementById('loadDataBtn');
 loadDataBtn.addEventListener('click', loadDataFromFile);
-state.dataTooltip = addTooltip(loadDataBtn, 'Load data file in JSON format.');
+state.dataTooltip = addTooltip(loadDataBtn, 'Load file in JSON format.');
 
 const aboutBtn = document.getElementById('aboutBtn');
 aboutBtn.addEventListener('click', showAboutModal);
 addTooltip(aboutBtn, 'Learn more about this application.');
+
+const viewBtn = document.getElementById('viewBtn');
+viewBtn.addEventListener('click', showViewModal);
+addTooltip(viewBtn, 'View current form data.');
 
 const hamburgerBtn = document.getElementById('hamburgerBtn');
 const headerNav = document.querySelector('.header-nav');
@@ -78,7 +82,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   }
 });
 
-// UPDATED: Export button with validation
+// UPDATED: Copy to Clipboard button with validation
 document.getElementById('exportBtn').addEventListener('click', async () => {
   try {
     renderAllTabs(); // Ensure all tabs are rendered before collecting data
@@ -366,6 +370,91 @@ function showAboutModal() {
       aboutModal.style.display = 'none';
     }
   };
+}
+
+// ==================== VIEW DATA MODAL =======================
+function showViewModal() {
+  try {
+    renderAllTabs(); // Ensure all tabs are rendered before collecting data
+    
+    // Clear previous validation errors
+    clearAllValidationErrors();
+    
+    // Collect data
+    const data = collectFormData();
+    
+    // NEW: Validate against schema
+    const isValid = validateAndShowSummary(data, state.currentSchema);
+    
+    if (!isValid) {
+      const confirmView = ashConfirm(
+        '⚠️ Warning: Form contains validation errors.\n\n' +
+        'Fields with errors are highlighted. \n\n' +
+        'Do you want to view it anyway?'
+      );
+      
+      if (!confirmView) {
+        return;
+      }
+    }
+    
+    // Check for invalid fields from data loading (separate from validation)
+    const invalidFields = document.querySelectorAll('.invalid-data');
+    if (invalidFields.length > 0) {
+      const confirmView = ashConfirm(
+        `⚠️ Warning: ${invalidFields.length} field(s) contain invalid values from loaded data.\n\n` +
+        `These fields are highlighted. \n\n` +
+        `Do you want to view anyway?`
+      );
+      
+      if (!confirmView) {
+        invalidFields[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        invalidFields[0].focus();
+        return;
+      }
+    }
+       // new process
+    const viewModal = document.getElementById('view-modal');
+    const viewContent = document.getElementById('view-data-content');    
+      // Format the data as HTML with orange properties and blue values
+    viewContent.innerHTML = formatDataAsHTML(data);
+    viewModal.style.display = 'flex';
+
+    // Close button handler
+    document.getElementById('closeViewBtn').onclick = () => {
+      viewModal.style.display = 'none';
+    };
+
+    // Close on outside click
+    viewModal.onclick = (e) => {
+      if (e.target === viewModal) {
+        viewModal.style.display = 'none';
+      }
+    };
+  } catch (error) {
+    console.error('Error viewing data:', error);
+    ashAlert('Error viewing data: ' + error.message);
+  }
+}
+
+function formatDataAsHTML(data) {
+  // Use JSON.stringify with 2-space indentation, just like exportJsonToClipboard
+  const jsonString = JSON.stringify(data, null, 2);
+  
+  // Apply color coding: properties in orange, values in blue
+  const coloredJson = jsonString.replace(
+    /"([^"]+)":\s*("(?:[^"\\]|\\.)*"|[^,\n}\]]+)/g,
+    (match, property, value) => {
+      const coloredProperty = `<span style="color: #FF9800; font-weight: 600;">"${property}"</span>`;
+      const coloredValue = `<span style="color: #2196F3; font-weight: 500;">${value}</span>`;
+      return `${coloredProperty}: ${coloredValue}`;
+    }
+  );
+  
+  // Preserve formatting by replacing spaces and newlines
+  return coloredJson
+    .replace(/ /g, '&nbsp;')
+    .replace(/\n/g, '<br>');
 }
 
 export {
