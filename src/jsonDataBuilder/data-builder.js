@@ -442,25 +442,34 @@ function formatDataAsHTML(data) {
   const jsonString = JSON.stringify(data, null, 2);
   
   // Apply color coding: properties in orange, values in blue
-  const coloredJson = jsonString.replace(
+  let coloredJson = jsonString.replace(
     /"([^"]+)":\s*("(?:[^"\\]|\\.)*"|[^,\n}\]]+)/g,
     (match, property, value) => {
-      const coloredProperty = `<span style="color: #FF9800; font-weight: 600;">"${property}"</span>`;
-      const coloredValue = `<span style="color: #2196F3; font-weight: 500;">${value}</span>`;
+      let coloredProperty = `<span style="color:#fa8136;font-weight: 600;">"${property}"</span>`;
+      const coloredValue = `<span style="color:#51acf6;font-weight: 500;">${value}</span>`;
       return `${coloredProperty}: ${coloredValue}`;
     }
   );
-  
+
+    // Color curly braces 51acf6
+  coloredJson = coloredJson.replace(/{/g, '<span style="color:#51acf6;font-weight: 500;">{</span>');
+  coloredJson = coloredJson.replace(/}/g, '<span style="color:#51acf6;font-weight: 500;">}</span>');
+
+  // Color square brackets blue
+  coloredJson = coloredJson.replace(/\[/g, '<span style="color:#2196F3;font-weight: 500;">[</span>');
+  coloredJson = coloredJson.replace(/]/g, '<span style="color:#2196F3;font-weight: 500;">]</span>');
+
   // Preserve formatting by replacing spaces and newlines
-  return coloredJson
-    .replace(/ /g, '&nbsp;')
-    .replace(/\n/g, '<br>');
+  return coloredJson;
+    // .replace(/ /g, '&nbsp;')
+    // .replace(/\n/g, '<br>');
 }
 
 export {
   collectFormData,
   setNestedValue,
-  showAboutModal
+  showAboutModal,
+  showViewModal
 };
 
 //==== END OF FILE ====//

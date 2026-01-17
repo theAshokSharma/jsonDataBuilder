@@ -141,6 +141,22 @@
       </div>
     </div>
     
+       <!-- File Status Display -->
+    <div id="file-status" class="file-status" style="display: none;">
+      <div class="file-status-item">
+        <span class="file-status-label">Schema:</span>
+        <span id="schema-file-display" class="file-status-value">No schema file</span>
+      </div>
+      <div class="file-status-item">
+        <span class="file-status-label">Options:</span>
+        <span id="options-file-display" class="file-status-value">No option file</span>
+      </div>
+      <div class="file-status-item">
+        <span class="file-status-label">Data:</span>
+        <span id="data-file-display" class="file-status-value">No data file</span>
+      </div>
+    </div>
+     
     <!-- Tabs container -->
     <div id="tabs-container" class="tabs-container" style="display: none;">
       <div class="tabs" id="form-tabs"></div>
@@ -157,7 +173,7 @@
           <button id="closeViewBtn" class="close-btn">&times;</button>
         </div>
         <div class="modal-body" style="overflow-y: auto; flex: 1;">
-          <pre id="view-data-content" style="background-color: #f5f5f5; padding: 20px; border-radius: 4px; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.6; margin: 0;"></pre>
+          <pre id="view-data-content" style="background-color: #cdcdcd; padding: 20px; border-radius: 4px; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.6; margin: 0;"></pre>
         </div>
       </div>
     </div>
