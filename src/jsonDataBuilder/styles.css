@@ -930,7 +930,23 @@ select:focus,
   align-items: center;
 }
 
+#closeViewBtn {
+  background-color: #f44336;  /* Red background */
+  color: white;               /* White text */
+  border: none;
+  font-size: 28px;
+  font-weight: normal;
+  cursor: pointer;
+  padding: 0;
+  width: 35px;
+  height: 35px;
+  border-radius: 4px;
+  line-height: 1;
+}
 
+#closeViewBtn:hover {
+  background-color: #d32f2f;  /* Darker red on hover */
+}
 /* Validation Status */
 .validation-status {
   display: flex;
@@ -1462,5 +1478,73 @@ textarea.validation-success {
   }
 }
 
-/* ==== END OF VALIDATION STYLES ==== */
+/* ============================================
+   FILE STATUS DISPLAY
+   ============================================ */
+.file-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.file-status-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: white;
+  border-radius: 6px;
+  border-left: 4px solid var(--secondary-color);
+  flex: 1;
+  min-width: 200px;
+}
+
+.file-status-label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  min-width: 60px;
+}
+
+.file-status-value {
+  color: #212529;
+  font-size: 14px;
+  font-family: 'Courier New', monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.file-status-value.loaded {
+  color: #28a745;
+  font-weight: 500;
+}
+
+.file-status-value.not-loaded {
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* Responsive design for file status */
+@media (max-width: 768px) {
+  .file-status {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .file-status-item {
+    min-width: unset;
+  }
+}
+
+
 /* ==== END OF FILE ==== */

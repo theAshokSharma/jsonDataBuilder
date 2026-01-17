@@ -4,7 +4,7 @@
 import { state, updateState } from './state.js';
 import { validateOptionsAgainstSchema, showValidationErrorsDialog } from './file-validation.js';
 import { ashAlert, ashConfirm} from './utils.js'
-import { renderForm, renderAllTabs } from './form-renderer.js';
+import { renderForm, renderAllTabs, updateFileStatusDisplay } from './form-renderer.js';
 import { revalidateAndSetInvalid } from './conditional-rules.js'
 import { populateFormWithData } from './form-population.js'
 
@@ -173,6 +173,9 @@ function loadDataFromFile() {
         document.getElementById('loadDataBtn').style.backgroundColor = '#99ff00ff';
         loadDataBtn.textContent = 'File loaded';           
         state.dataTooltip.innerText = state.dataFilename + ' loaded.'
+
+        // Update file status display
+        updateFileStatusDisplay();
 
         console.log('✓ Data loaded successfully');
       }, 100);

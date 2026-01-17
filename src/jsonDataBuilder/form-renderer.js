@@ -52,7 +52,10 @@ function renderForm(schema) {
   // Step 4: Hide config modal
   document.getElementById('config-modal').style.display = 'none';
   
-  // Step 5: Show form UI
+  // Step 5: Show file status display
+  updateFileStatusDisplay();
+
+  // Step 6: Show form UI
   document.getElementById('configBtn').textContent = '⚙️ Config'; 
   document.getElementById('viewBtn').style.display = 'inline-block';  
   document.getElementById('saveBtn').style.display = 'inline-block';
@@ -1228,10 +1231,51 @@ window.removeArrayItem = function(btn) {
   console.log('✅ Array item removed and indices updated');
 };
 
+/**
+ * NEW: Updates the file status display with current file names
+ */
+function updateFileStatusDisplay() {
+  const fileStatusDiv = document.getElementById('file-status');
+  const schemaDisplay = document.getElementById('schema-file-display');
+  const optionsDisplay = document.getElementById('options-file-display');
+  const dataDisplay = document.getElementById('data-file-display');
+  
+  // Show the file status section
+  fileStatusDiv.style.display = 'flex';
+  
+  // Update schema file
+  if (state.selectedSchemaFile) {
+    schemaDisplay.textContent = state.selectedSchemaFile.name;
+    schemaDisplay.className = 'file-status-value loaded';
+  } else {
+    schemaDisplay.textContent = 'No schema file';
+    schemaDisplay.className = 'file-status-value not-loaded';
+  }
+  
+  // Update options file
+  if (state.selectedOptionsFile) {
+    optionsDisplay.textContent = state.selectedOptionsFile.name;
+    optionsDisplay.className = 'file-status-value loaded';
+  } else {
+    optionsDisplay.textContent = 'No option file';
+    optionsDisplay.className = 'file-status-value not-loaded';
+  }
+  
+  // Update data file
+  if (state.dataFilename) {
+    dataDisplay.textContent = state.dataFilename;
+    dataDisplay.className = 'file-status-value loaded';
+  } else {
+    dataDisplay.textContent = 'No data file';
+    dataDisplay.className = 'file-status-value not-loaded';
+  }
+}
+
 export {
     renderForm,
     renderAllTabs,
     createField,
-    switchTab
+    switchTab,
+    updateFileStatusDisplay
 };
 // ==== END OF FILE ====/
