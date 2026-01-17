@@ -243,13 +243,13 @@ function showConfigModal() {
       return;
     }
     
-  // Reset Load Data button to original state when confirming new configuration
+  // Reset Load button to original state when confirming new configuration
   const loadDataBtn = document.getElementById('loadDataBtn');
   if (loadDataBtn) {
-    loadDataBtn.textContent = 'Load Data';
+    loadDataBtn.textContent = 'Load';
     loadDataBtn.style.color = '';
     loadDataBtn.style.backgroundColor = '';
-    state.dataTooltip.innerText = 'Load data file in JSON format.';
+    state.dataTooltip.innerText = 'Load file in JSON format.';
   }
       
     // Show loading state
