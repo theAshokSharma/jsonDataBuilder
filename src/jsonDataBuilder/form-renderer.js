@@ -1255,7 +1255,11 @@ function updateFileStatusDisplay() {
   // Update options file
   if (state.selectedOptionsFile) {
     optionsDisplay.textContent = state.selectedOptionsFile.name;
-    optionsDisplay.className = 'file-status-value loaded';
+    if (state.optionsFileStatus === 'loaded-warning') {
+      optionsDisplay.className = 'file-status-value loaded-warning';
+    } else {
+      optionsDisplay.className = 'file-status-value loaded';
+    }
   } else {
     optionsDisplay.textContent = 'No option file';
     optionsDisplay.className = 'file-status-value not-loaded';

@@ -382,7 +382,9 @@ window.handleCheckboxNAChange = function(path, containerId) {
  */
 window.handleRadioChange = function(event, path) {
   if (typeof collectFormData === 'function') {
-    formData = collectFormData();
+    updateState({
+      formData: collectFormData()
+    });
   }
 };
 
