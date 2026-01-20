@@ -1,10 +1,11 @@
 // data-builder.js - JSON data builder
-import { state } from './state.js';
-import { showConfigModal, loadDataFromFile } from './file-operations.js';
+import { state, updateState } from './state.js';
+import { showConfigModal, loadDataFromFile, resolveReferences } from './file-operations.js';
 import { saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm } from './utils.js';
-import { renderAllTabs } from './form-renderer.js';
+import { renderForm, renderAllTabs } from './form-renderer.js';
 import { updateMultiSelectDisplay} from './input-control.js'
 import { validateAndShowSummary, clearAllValidationErrors } from './input-validation.js';
+import { getLastSchemaFile, getLastOptionsFile, createFileFromData } from './storage-manager.js';
 
 // Initialize on page load
 console.log('JSON Data Builder Loaded - Version 3.0');
@@ -464,6 +465,74 @@ function formatDataAsHTML(data) {
     // .replace(/ /g, '&nbsp;')
     // .replace(/\n/g, '<br>');
 }
+
+// Auto-load last used files on startup
+window.addEventListener('DOMContentLoaded', async () => {
+  console.log('🚀 Checking for last used files...');
+  
+  const lastSchema = getLastSchemaFile();
+  const lastOptions = getLastOptionsFile();
+  
+  if (lastSchema) {
+    console.log('📂 Auto-loading last schema:', lastSchema.filename);
+    
+    try {
+      // Create virtual file objects
+      const schemaFile = createFileFromData(lastSchema.filename, lastSchema.data);
+      updateState({ 
+        selectedSchemaFile: schemaFile,
+        currentSchema: lastSchema.data,
+        definitions: lastSchema.data.definitions || lastSchema.data.$defs || {}
+      });
+      
+      // Load options if available
+      if (lastOptions) {
+        console.log('📂 Auto-loading last options:', lastOptions.filename);
+        const optionsFile = createFileFromData(lastOptions.filename, lastOptions.data);
+        updateState({ selectedOptionsFile: optionsFile });
+        
+        const resolvedOptions = resolveReferences(lastOptions.data, lastOptions.data);
+        updateState({
+          customOptions: resolvedOptions,
+          conditionalRules: resolvedOptions.conditional_rules || {},
+          triggersToAffected: {}
+        });
+        
+        // Build triggers map
+        Object.entries(state.customOptions).forEach(([field, config]) => {
+          if (config.dependent_values) {
+            const depField = Object.keys(config.dependent_values)[0];
+            if (depField) {
+              state.triggersToAffected[depField] = state.triggersToAffected[depField] || [];
+              state.triggersToAffected[depField].push({
+                affected: field,
+                optionsMap: config.dependent_values[depField],
+                defaultValues: config.values || [],
+                responseType: config.response_type,
+                na: config.na
+              });
+            }
+          }
+        });
+      }
+      
+      // Render the form
+      renderForm(state.currentSchema);
+      
+      console.log('✅ Auto-loaded last used files successfully');
+      
+      // Update UI indicators
+      document.getElementById('configBtn').textContent = '⚙️ Config (files loaded)';
+      // document.getElementById('configBtn').style.backgroundColor = '#e8f5e9';
+      
+    } catch (error) {
+      console.error('❌ Error auto-loading files:', error);
+      console.log('ℹ️ User will need to manually select files');
+    }
+  } else {
+    console.log('ℹ️ No last used files found - showing config on first use');
+  }
+});
 
 export {
   collectFormData,
