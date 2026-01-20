@@ -100,6 +100,21 @@ export function clearStoredFiles() {
   }
 }
 
+
+/**
+ * Clears the last used options file from localStorage
+ * Call this when loading a schema without options
+ */
+export function clearLastOptionsFile() {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.LAST_OPTIONS_NAME);
+    localStorage.removeItem(STORAGE_KEYS.LAST_OPTIONS_DATA);
+    console.log('🗑️ Cleared last options file from storage');
+  } catch (error) {
+    console.error('Error clearing options from localStorage:', error);
+  }
+}
+
 /**
  * Derives options filename from schema filename
  * Example: "test-schema.json" -> "test-options.json"
@@ -127,4 +142,39 @@ export function createFileFromData(filename, data) {
   const jsonString = JSON.stringify(data);
   const blob = new Blob([jsonString], { type: 'application/json' });
   return new File([blob], filename, { type: 'application/json' });
+}
+
+/**
+ * Validates if options filename matches schema filename
+ * @param {string} schemaFilename - Schema filename
+ * @param {string} optionsFilename - Options filename
+ * @returns {boolean} - True if they match
+ */
+export function validateOptionsMatchesSchema(schemaFilename, optionsFilename) {
+  const expectedOptionsName = deriveOptionsFilename(schemaFilename);
+  return optionsFilename === expectedOptionsName;
+}
+
+/**
+ * Clears options file from storage if it doesn't match current schema
+ * @param {string} schemaFilename - Current schema filename
+ */
+export function clearMismatchedOptions(schemaFilename) {
+  try {
+    const lastOptions = getLastOptionsFile();
+    if (lastOptions) {
+      const expectedOptionsName = deriveOptionsFilename(schemaFilename);
+      if (lastOptions.filename !== expectedOptionsName) {
+        console.log('🗑️ Clearing mismatched options file from storage');
+        console.log('   Schema:', schemaFilename);
+        console.log('   Stored options:', lastOptions.filename);
+        console.log('   Expected:', expectedOptionsName);
+        
+        localStorage.removeItem(STORAGE_KEYS.LAST_OPTIONS_NAME);
+        localStorage.removeItem(STORAGE_KEYS.LAST_OPTIONS_DATA);
+      }
+    }
+  } catch (error) {
+    console.error('Error clearing mismatched options:', error);
+  }
 }

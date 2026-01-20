@@ -13,7 +13,9 @@ import {
   getLastSchemaFile, 
   getLastOptionsFile,
   deriveOptionsFilename,
-  createFileFromData 
+  createFileFromData,
+  clearMismatchedOptions,
+  clearLastOptionsFile 
 } from './storage-manager.js';
 
 function loadSchemaFromFile() {
@@ -542,7 +544,7 @@ async function showConfigModal() {
     }
   };
   
-  // Confirm button handler - UPDATED to save to localStorage
+  // Confirm button handler - UPDATED to clear options when not present
   confirmBtn.onclick = async () => {
     if (!state.selectedSchemaFile) {
       await ashAlert('Please select a schema file.');
@@ -575,18 +577,27 @@ async function showConfigModal() {
         definitions: schema.definitions || schema.$defs || {}
       });
       
-      // NEW: Save schema to localStorage
+      // Save schema to localStorage
       saveLastSchemaFile(state.selectedSchemaFile.name, schema);
+
+      // NEW: Clear any previously stored options that don't match this schema
+      clearMismatchedOptions(state.selectedSchemaFile.name);
 
       // Load and process options if provided
       if (state.selectedOptionsFile) {
+        console.log('📦 Processing options file...');
         await processOptionsFile(schema);
       } else {
-        // No options file
+        // CRITICAL FIX: No options file - clear from localStorage
+        console.log('ℹ️ No options file selected - clearing stored options');
+        clearLastOptionsFile();
+        
+        // Clear options from state
         updateState({
           customOptions: {},
           conditionalRules: {},
-          triggersToAffected: {}
+          triggersToAffected: {},
+          exclusiveOptionsMap: {}
         });
 
         validationStatus.className = 'validation-status validation-success';
@@ -613,6 +624,7 @@ async function showConfigModal() {
       console.error('Config load error:', error);
     }
   };
+
   
   // Cancel and close handlers (unchanged)
   document.getElementById('cancelConfigBtn').onclick = () => {
