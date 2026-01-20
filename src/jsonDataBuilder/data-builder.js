@@ -17,7 +17,7 @@ state.configTooltip = addTooltip(configBtn, 'Configure the data builder.');
 
 const loadDataBtn = document.getElementById('loadDataBtn');
 loadDataBtn.addEventListener('click', loadDataFromFile);
-state.dataTooltip = addTooltip(loadDataBtn, 'Load file in JSON format.');
+state.dataTooltip = addTooltip(loadDataBtn, 'Load data file in JSON format.');
 
 const aboutBtn = document.getElementById('aboutBtn');
 aboutBtn.addEventListener('click', showAboutModal);

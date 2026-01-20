@@ -7,6 +7,14 @@ import { ashAlert, ashConfirm} from './utils.js'
 import { renderForm, renderAllTabs, updateFileStatusDisplay } from './form-renderer.js';
 import { revalidateAndSetInvalid } from './conditional-rules.js'
 import { populateFormWithData } from './form-population.js'
+import { 
+  saveLastSchemaFile, 
+  saveLastOptionsFile, 
+  getLastSchemaFile, 
+  getLastOptionsFile,
+  deriveOptionsFilename,
+  createFileFromData 
+} from './storage-manager.js';
 
 function loadSchemaFromFile() {
   const input = document.createElement('input');
@@ -252,7 +260,7 @@ function showConfigModal() {
     loadDataBtn.textContent = 'Load';
     loadDataBtn.style.color = '';
     loadDataBtn.style.backgroundColor = '';
-    state.dataTooltip.innerText = 'Load file in JSON format.';
+    state.dataTooltip.innerText = 'Load data file in JSON format.';
   }
       
     // Show loading state
@@ -285,6 +293,10 @@ function showConfigModal() {
         // Validate options against schema
         const validationResults = validateOptionsAgainstSchema(resolvedOptions, state.currentSchema);
         
+        updateState({
+          optionsFileStatus: 'loaded-warning'  // Track warning state
+        });
+
         if (!validationResults.isValid) {
           // Show validation errors in a custom dialog with scrollable list
           const shouldProceed = await showValidationErrorsDialog(validationResults.missingKeys);
