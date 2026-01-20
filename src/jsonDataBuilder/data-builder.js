@@ -2,13 +2,13 @@
 import { state, updateState } from './state.js';
 import { showConfigModal, loadDataFromFile, resolveReferences } from './file-operations.js';
 import { saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm } from './utils.js';
-import { renderForm, renderAllTabs } from './form-renderer.js';
+import { renderForm, renderAllTabs, updateFileStatusDisplay } from './form-renderer.js';
 import { updateMultiSelectDisplay} from './input-control.js'
 import { validateAndShowSummary, clearAllValidationErrors } from './input-validation.js';
 import { getLastSchemaFile, getLastOptionsFile, createFileFromData } from './storage-manager.js';
 
 // Initialize on page load
-console.log('JSON Data Builder Loaded - Version 3.0');
+console.log('JSON Data Builder Loaded - Version 3.0`');
 
 
 // Button event listeners
@@ -466,7 +466,7 @@ function formatDataAsHTML(data) {
     // .replace(/\n/g, '<br>');
 }
 
-// Auto-load last used files on startup
+// NEW: Auto-load last used files on startup
 window.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 Checking for last used files...');
   
@@ -516,6 +516,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         });
       }
       
+      // CRITICAL: Update file status display BEFORE rendering form
+      updateFileStatusDisplay();
+      
       // Render the form
       renderForm(state.currentSchema);
       
@@ -523,7 +526,7 @@ window.addEventListener('DOMContentLoaded', async () => {
       
       // Update UI indicators
       document.getElementById('configBtn').textContent = '⚙️ Config (files loaded)';
-      // document.getElementById('configBtn').style.backgroundColor = '#e8f5e9';
+      document.getElementById('configBtn').style.backgroundColor = '#e8f5e9';
       
     } catch (error) {
       console.error('❌ Error auto-loading files:', error);
@@ -531,6 +534,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
   } else {
     console.log('ℹ️ No last used files found - showing config on first use');
+    // ADDED: Show file status even when empty
+    updateFileStatusDisplay();
   }
 });
 

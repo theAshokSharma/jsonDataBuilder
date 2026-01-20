@@ -223,7 +223,7 @@ button:hover {
 }
 
 .add-array-item-btn:hover {
-  background: var(-button-hoverBackground);
+  background: var(--button-hoverBackground);
 }
 
 .btn-primary,
@@ -1185,9 +1185,9 @@ select:focus,
   flex-direction: column;
   gap: 10px;
   padding: 10px;
-  border: 1px solid var(--vscode-input-border);
+  border: 1px solid #ccc;  /* ✅ Changed from var(--vscode-input-border) */
   border-radius: 4px;
-  background: var(--vscode-input-background);
+  background: white;  /* ✅ Changed from var(--vscode-input-background) */
 }
 
 .slider-input {
@@ -1197,7 +1197,7 @@ select:focus,
   outline: none;
   -webkit-appearance: none;
   appearance: none;
-  background: var(--vscode-input-border);
+  background: #e0e0e0;  /* ✅ Changed from var(--vscode-input-border) */
   cursor: pointer;
 }
 
@@ -1207,14 +1207,14 @@ select:focus,
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--vscode-button-background);
+  background: var(--secondary-color);  /* ✅ Changed from var(--vscode-button-background) */
   cursor: pointer;
-  border: 2px solid var(--vscode-button-foreground);
+  border: 2px solid white;  /* ✅ Changed from var(--vscode-button-foreground) */
   transition: all 0.2s;
 }
 
 .slider-input::-webkit-slider-thumb:hover {
-  background: var(--vscode-button-hoverBackground);
+  background: var(--primary-color);  /* ✅ Changed from var(--vscode-button-hoverBackground) */
   transform: scale(1.1);
 }
 
@@ -1222,14 +1222,14 @@ select:focus,
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--vscode-button-background);
+  background: var(--secondary-color);
   cursor: pointer;
-  border: 2px solid var(--vscode-button-foreground);
+  border: 2px solid white;
   transition: all 0.2s;
 }
 
 .slider-input::-moz-range-thumb:hover {
-  background: var(--vscode-button-hoverBackground);
+  background: var(--primary-color);
   transform: scale(1.1);
 }
 
@@ -1238,11 +1238,11 @@ select:focus,
   justify-content: center;
   align-items: center;
   padding: 8px;
-  background: var(--vscode-editor-background);
+  background: #f5f5f5;  /* ✅ Changed from var(--vscode-editor-background) */
   border-radius: 4px;
   font-weight: 600;
   font-size: 16px;
-  color: var(--vscode-foreground);
+  color: #333;  /* ✅ Changed from var(--vscode-foreground) */
   min-width: 60px;
 }
 
@@ -1250,24 +1250,25 @@ select:focus,
 .datetime-input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid var(--vscode-input-border);
+  border: 1px solid #ccc;  /* ✅ Changed from var(--vscode-input-border) */
   border-radius: 4px;
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
+  background: white;  /* ✅ Changed from var(--vscode-input-background) */
+  color: #333;  /* ✅ Changed from var(--vscode-input-foreground) */
   font-size: 14px;
-  font-family: var(--vscode-font-family);
+  font-family: inherit;  /* ✅ Changed from var(--vscode-font-family) */
   cursor: pointer;
 }
 
 .datetime-input:focus {
   outline: none;
-  border-color: var(--vscode-focusBorder);
+  border-color: #0066cc;  /* ✅ Changed from var(--vscode-focusBorder) */
   box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
 }
 
 .datetime-input:hover {
-  border-color: var(--vscode-inputOption-activeBorder);
+  border-color: #0066cc;  /* ✅ Changed from var(--vscode-inputOption-activeBorder) */
 }
+
 
 /* Calendar icon styling for date inputs */
 .datetime-input::-webkit-calendar-picker-indicator {
@@ -1285,24 +1286,25 @@ select:focus,
 }
 
 .checkbox-container::-webkit-scrollbar-track {
-  background: var(--vscode-editor-background);
+  background: #f5f5f5;  /* ✅ Changed from var(--vscode-editor-background) */
   border-radius: 4px;
 }
 
 .checkbox-container::-webkit-scrollbar-thumb {
-  background: var(--vscode-scrollbarSlider-background);
+  background: #ccc;  /* ✅ Changed from var(--vscode-scrollbarSlider-background) */
   border-radius: 4px;
 }
 
 .checkbox-container::-webkit-scrollbar-thumb:hover {
-  background: var(--vscode-scrollbarSlider-hoverBackground);
+  background: #999;  /* ✅ Changed from var(--vscode-scrollbarSlider-hoverBackground) */
 }
+
 
 /* ==================== INVALID STATE STYLING ==================== */
 .radio-container.invalid-data,
 .slider-container.invalid-data,
 .datetime-input.invalid-data {
-  border-color: var(--vscode-errorForeground);
+  border-color: #d32f2f;
   background: rgba(255, 0, 0, 0.05);
 }
 
@@ -1325,7 +1327,7 @@ select:focus,
 .slider-container.disabled {
   opacity: 0.5;
   pointer-events: none;
-  background: var(--vscode-input-background);
+  background: #f5f5f5;
 }
 
 .checkbox-container.disabled .checkbox-option,
@@ -1342,13 +1344,13 @@ select:focus,
 /* ==================== FOCUS STATES ==================== */
 .checkbox-option:has(input:focus),
 .radio-option:has(input:focus) {
-  outline: 2px solid var(--vscode-focusBorder);
+  outline: 2px solid #0066cc; 
   outline-offset: 2px;
   border-radius: 3px;
 }
 
 .slider-input:focus {
-  outline: 2px solid var(--vscode-focusBorder);
+  outline: 2px solid #0066cc; 
   outline-offset: 4px;
 }
 
@@ -1502,7 +1504,7 @@ textarea.validation-success {
   border-radius: 6px;
   border-left: 4px solid var(--secondary-color);
   flex: 1;
-  min-width: px;
+  min-width: 200px;
 }
 
 .file-status-label {

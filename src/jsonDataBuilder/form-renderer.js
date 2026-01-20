@@ -1236,20 +1236,41 @@ window.removeArrayItem = function(btn) {
  */
 function updateFileStatusDisplay() {
   const fileStatusDiv = document.getElementById('file-status');
+  
+  // DEBUG: Check if element exists
+  if (!fileStatusDiv) {
+    console.error('❌ file-status div not found in DOM!');
+    return;
+  }
+  
+  console.log('📊 Updating file status display...');
+  
   const schemaDisplay = document.getElementById('schema-file-display');
   const optionsDisplay = document.getElementById('options-file-display');
   const dataDisplay = document.getElementById('data-file-display');
   
+  // DEBUG: Check if child elements exist
+  if (!schemaDisplay || !optionsDisplay || !dataDisplay) {
+    console.error('❌ File status child elements not found!');
+    console.log('Schema display:', schemaDisplay);
+    console.log('Options display:', optionsDisplay);
+    console.log('Data display:', dataDisplay);
+    return;
+  }
+  
   // Show the file status section
   fileStatusDiv.style.display = 'flex';
+  console.log('✅ File status display set to flex');
   
   // Update schema file
   if (state.selectedSchemaFile) {
     schemaDisplay.textContent = state.selectedSchemaFile.name;
     schemaDisplay.className = 'file-status-value loaded';
+    console.log('📋 Schema:', state.selectedSchemaFile.name);
   } else {
     schemaDisplay.textContent = 'No schema file';
     schemaDisplay.className = 'file-status-value not-loaded';
+    console.log('📋 Schema: Not loaded');
   }
   
   // Update options file
@@ -1260,19 +1281,25 @@ function updateFileStatusDisplay() {
     } else {
       optionsDisplay.className = 'file-status-value loaded';
     }
+    console.log('⚙️ Options:', state.selectedOptionsFile.name);
   } else {
     optionsDisplay.textContent = 'No option file';
     optionsDisplay.className = 'file-status-value not-loaded';
+    console.log('⚙️ Options: Not loaded');
   }
   
   // Update data file
   if (state.dataFilename) {
     dataDisplay.textContent = state.dataFilename;
     dataDisplay.className = 'file-status-value loaded';
+    console.log('💾 Data:', state.dataFilename);
   } else {
     dataDisplay.textContent = 'No data file';
     dataDisplay.className = 'file-status-value not-loaded';
+    console.log('💾 Data: Not loaded');
   }
+  
+  console.log('✅ File status display updated successfully');
 }
 
 export {
