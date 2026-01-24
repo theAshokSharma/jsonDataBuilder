@@ -8,7 +8,7 @@ import { validateAndShowSummary, clearAllValidationErrors } from './input-valida
 import { getLastSchemaFile, getLastOptionsFile, createFileFromData } from './storage-manager.js';
 
 // Initialize on page load
-console.log('JSON Data Builder Loaded - Version 3.0`');
+console.log('JSON Data Builder Loaded - Version 3.5`');
 
 
 // Button event listeners
@@ -418,18 +418,20 @@ function showViewModal() {
     const viewModal = document.getElementById('view-modal');
     const viewContent = document.getElementById('view-data-content');    
       // Format the data as HTML with orange properties and blue values
-    viewContent.innerHTML = formatDataAsHTML(data);
+    viewContent.innerHTML = formatJsonToHtml(data);
     viewModal.style.display = 'flex';
 
     // Close button handler
     document.getElementById('closeViewBtn').onclick = () => {
       viewModal.style.display = 'none';
+      clearAllValidationErrors();   // ASHOK      
     };
 
     // Close on outside click
     viewModal.onclick = (e) => {
       if (e.target === viewModal) {
         viewModal.style.display = 'none';
+        clearAllValidationErrors();   // ASHOK
       }
     };
   } catch (error) {
@@ -438,34 +440,55 @@ function showViewModal() {
   }
 }
 
-function formatDataAsHTML(data) {
-  // Use JSON.stringify with 2-space indentation, just like exportJsonToClipboard
-  const jsonString = JSON.stringify(data, null, 2);
-  
-  // Apply color coding: properties in orange, values in blue
-  let coloredJson = jsonString.replace(
-    /"([^"]+)":\s*("(?:[^"\\]|\\.)*"|[^,\n}\]]+)/g,
-    (match, property, value) => {
-      let coloredProperty = `<span style="color:#fa8136;font-weight: 600;">"${property}"</span>`;
-      const coloredValue = `<span style="color:#51acf6;font-weight: 500;">${value}</span>`;
-      return `${coloredProperty}: ${coloredValue}`;
+function formatJsonToHtml(obj, indent = 0) {
+    let html = '';
+    const indentStr = '  '.repeat(indent);
+    
+    if (Array.isArray(obj)) {
+        html += `<span class="json-bracket">[</span>\n`;
+        for (let i = 0; i < obj.length; i++) {
+            html += indentStr + '  ';
+            html += `<span class="json-value">"${obj[i]}"</span>`;
+            if (i < obj.length - 1) {
+                html += `<span class="json-comma">,</span>`;
+            }
+            html += '\n';
+        }
+        html += indentStr + `<span class="json-bracket">]</span>`;
+    } else if (typeof obj === 'object' && obj !== null) {
+        html += `<span class="json-bracket">{</span>\n`;
+        const keys = Object.keys(obj);
+        
+        for (let i = 0; i < keys.length; i++) {
+            const key = keys[i];
+            const value = obj[key];
+            
+            html += indentStr + '  ';
+            html += `<span class="json-property">"${key}"</span>`;
+            html += `<span class="json-colon">: </span>`;
+            
+            if (typeof value === 'object') {
+                html += formatJsonToHtml(value, indent + 1);
+            } else if (typeof value === 'string') {
+                html += `<span class="json-value">"${value}"</span>`;
+            } else if (typeof value === 'number') {
+                html += `<span class="json-value">${value}</span>`;
+            } else if (typeof value === 'boolean') {
+                html += `<span class="json-value">${value}</span>`;
+            } else {
+                html += `<span class="json-value">"${value}"</span>`;
+            }
+            
+            if (i < keys.length - 1) {
+                html += `<span class="json-comma">,</span>`;
+            }
+            html += '\n';
+        }
+        html += indentStr + `<span class="json-bracket">}</span>`;
     }
-  );
-
-    // Color curly braces 51acf6
-  coloredJson = coloredJson.replace(/{/g, '<span style="color:#51acf6;font-weight: 500;">{</span>');
-  coloredJson = coloredJson.replace(/}/g, '<span style="color:#51acf6;font-weight: 500;">}</span>');
-
-  // Color square brackets blue
-  coloredJson = coloredJson.replace(/\[/g, '<span style="color:#2196F3;font-weight: 500;">[</span>');
-  coloredJson = coloredJson.replace(/]/g, '<span style="color:#2196F3;font-weight: 500;">]</span>');
-
-  // Preserve formatting by replacing spaces and newlines
-  return coloredJson;
-    // .replace(/ /g, '&nbsp;')
-    // .replace(/\n/g, '<br>');
+    
+    return html;
 }
-
 // NEW: Auto-load last used files on startup
 window.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 Checking for last used files...');

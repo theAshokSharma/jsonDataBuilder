@@ -5,7 +5,7 @@ import { state } from './state.js';
 import { resolveRef } from './file-validation.js';
 import { ashAlert, ashConfirm } from './utils.js';
 
-console.log('📋 Input Validation Module Loaded - Version 1.0');
+console.log('📋 Input Validation Module Loaded - Version 3.5');
 
 /**
  * Validates a single field value against its schema definition

@@ -1516,15 +1516,6 @@ textarea.validation-success {
   min-width: 60px;
 }
 
-/* .file-status-value {
-  color: #212529;
-  font-size: 14px;
-  font-family: 'Courier New', monospace;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-} */
 .file-status-value {
   padding: 8px 12px;
   /*border-left: 4px solid #ccc;*/ /* Default gray */
@@ -1575,5 +1566,29 @@ textarea.validation-success {
   }
 }
 
-
+/* === JSON View container  */
+.json-container {
+    background-color: #2d2d2d;
+    color: #f8f8f2;
+    padding: 20px;
+    border-radius: 8px;
+    font-family: 'Courier New', monospace;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+.json-property {
+    color: #fa8841; /* Orange */
+}
+.json-value {
+    color: #51acf6; /* Light Blue */
+}
+.json-bracket {
+    color: #f8f8f2;
+}
+.json-colon {
+    color: #f8f8f2;
+}
+.json-comma {
+    color: #f8f8f2;
+}
 /* ==== END OF FILE ==== */

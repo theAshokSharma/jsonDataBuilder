@@ -8,7 +8,9 @@ import { updateSelectOptions,
          updateCheckboxOptions,
          updateRadioOptions,
          expandRangeValues,
-         updateMultiSelectDisplay} from './input-control.js'
+         updateMultiSelectDisplay,
+         detectCurrentControlType,
+         rebuildControlWithType} from './input-control.js'
 import { collectFormData } from './data-builder.js';
 
 function applyConditionalRules() {
@@ -184,8 +186,8 @@ function setDisabledFieldValue(fieldPath, fieldGroup) {
 }
 
 /**
- * UPDATED: Update options for a dependent field
- * Now properly handles value/label pairs from expandRangeValues()
+ * ENHANCED: Update options for a dependent field with input_control override support
+ * Now supports overriding both input_control and response_type per dependency value
  * 
  * @param {string} pathStr - Field path
  * @param {string} depValue - Current value of dependency field
@@ -194,52 +196,93 @@ function setDisabledFieldValue(fieldPath, fieldGroup) {
  * @param {Array} explicitValues - Optional explicit values to use (for initialization)
  */
 function updateFieldOptions(pathStr, depValue, element, rule, explicitValues = null) {
-  // Get raw values (can be strings, objects, or mixed)
-  const rawValues = explicitValues || 
-                    (depValue && rule.optionsMap[depValue]) || 
-                    rule.defaultValues;
+  console.log(`🔄 Updating ${pathStr} based on dependency value: "${depValue}"`);
   
-  // UPDATED: expandRangeValues now returns [{value, label}, ...]
+  // ✅ PHASE 2: Extract configuration with potential overrides
+  let rawValues, inputControl, responseType;
+  
+  if (explicitValues !== null) {
+    // Explicit values provided (initialization case)
+    rawValues = explicitValues;
+    inputControl = rule.inputControl || 'drop-down';
+    responseType = rule.responseType || 'single-select';
+  } else if (depValue && rule.optionsMap[depValue]) {
+    const depConfig = rule.optionsMap[depValue];
+    
+    // ✅ Check if depConfig is an object with overrides or just an array
+    if (typeof depConfig === 'object' && !Array.isArray(depConfig) && depConfig.values) {
+      // Object format with overrides
+      rawValues = depConfig.values;
+      inputControl = depConfig.input_control || rule.inputControl || 'drop-down';
+      responseType = depConfig.response_type || rule.responseType || 'single-select';
+      
+      console.log(`  ✅ Using overrides from dependent value config:`, {
+        inputControl,
+        responseType,
+        valueCount: rawValues.length
+      });
+    } else {
+      // Simple array format (backward compatible)
+      rawValues = Array.isArray(depConfig) ? depConfig : [depConfig];
+      inputControl = rule.inputControl || 'drop-down';
+      responseType = rule.responseType || 'single-select';
+      
+      console.log(`  ℹ️ Using default control types (backward compatible)`);
+    }
+  } else {
+    // Use defaults
+    rawValues = rule.defaultValues || [];
+    inputControl = rule.inputControl || 'drop-down';
+    responseType = rule.responseType || 'single-select';
+    
+    console.log(`  ℹ️ Using default values (dependency not matched)`);
+  }
+  
+  // Expand range values
   const enumValues = expandRangeValues(rawValues);
-  
   const naValue = rule.na || null;
   const hasNAOption = naValue !== null;
-  const responseType = rule.responseType;
   
-  console.log(`🔄 Updating ${pathStr}:`, {
-    depValue,
-    rawValueCount: rawValues.length,
-    expandedCount: enumValues.length,
-    hasNA: hasNAOption,
-    responseType
+  console.log(`  📊 Configuration:`, {
+    inputControl,
+    responseType,
+    expandedValueCount: enumValues.length,
+    hasNA: hasNAOption
   });
   
-  // UPDATED: Log sample of value/label pairs for debugging
-  if (enumValues.length > 0) {
-    const sample = enumValues.slice(0, 3).map(item => 
-      `"${item.value}" → "${item.label}"`
-    ).join(', ');
-    console.log(`  📋 Sample options: ${sample}${enumValues.length > 3 ? '...' : ''}`);
-  }
-
-  // Handle different input control types
-  // All update functions now receive [{value, label}, ...] arrays
-  if (element.tagName === 'SELECT') {
-    updateSelectOptions(element, enumValues, naValue, hasNAOption, pathStr);
-    console.log(`  ✓ Updated select dropdown with ${enumValues.length} options`);
-  } else if (element.classList.contains('multi-select-container')) {
-    updateMultiSelectOptions(element, enumValues, naValue, hasNAOption, pathStr);
-    console.log(`  ✓ Updated multi-select with ${enumValues.length} options`);
-  } else if (element.classList.contains('checkbox-container')) {
-    updateCheckboxOptions(element, enumValues, naValue, hasNAOption, pathStr);
-    console.log(`  ✓ Updated checkbox list with ${enumValues.length} options`);
-  } else if (element.classList.contains('radio-container')) {
-    updateRadioOptions(element, enumValues, naValue, hasNAOption, pathStr);
-    console.log(`  ✓ Updated radio buttons with ${enumValues.length} options`);
+  // ✅ PHASE 2: Check if we need to rebuild the control type
+  const currentControlType = detectCurrentControlType(element);
+  const needsRebuild = currentControlType !== inputControl;
+  
+  if (needsRebuild) {
+    console.log(`  🔨 Control type change detected: ${currentControlType} → ${inputControl}`);
+    element = rebuildControlWithType(pathStr, element, inputControl, responseType, enumValues, naValue, hasNAOption);
+    
+    if (!element) {
+      console.error(`  ❌ Failed to rebuild control for ${pathStr}`);
+      return;
+    }
+    console.log(`  ✅ Control rebuilt successfully`);
   } else {
-    console.warn(`  ⚠️ Unknown element type for ${pathStr}`);
+    // Just update options (existing logic)
+    console.log(`  ↻ Updating options (same control type: ${inputControl})`);
+    
+    if (element.tagName === 'SELECT') {
+      updateSelectOptions(element, enumValues, naValue, hasNAOption, pathStr);
+    } else if (element.classList.contains('multi-select-container')) {
+      updateMultiSelectOptions(element, enumValues, naValue, hasNAOption, pathStr);
+    } else if (element.classList.contains('checkbox-container')) {
+      updateCheckboxOptions(element, enumValues, naValue, hasNAOption, pathStr);
+    } else if (element.classList.contains('radio-container')) {
+      updateRadioOptions(element, enumValues, naValue, hasNAOption, pathStr);
+    } else {
+      console.warn(`  ⚠️ Unknown element type for ${pathStr}`);
+    }
   }
+  
+  console.log(`  ✅ Update complete for ${pathStr}`);
 }
+
 
 /**
  * Reset a field's value to initial (empty)
@@ -361,30 +404,39 @@ function initializeDependentFields() {
  * NEW: Initialize a single dependent field
  * Extracted for reuse when tabs are switched
  * UPDATED: Properly handles value/label pairs
+ * ENHANCED: Initialize a single dependent field with inputControl support
  */
 function initializeSingleDependentField(fieldPath, depField, depFieldValue, config, element) {
   let valuesToUse;
   
   // Get values based on current dependency value
   if (depFieldValue && config.dependent_values[depFieldValue]) {
-    valuesToUse = config.dependent_values[depFieldValue];
-    console.log(`    ✓ Using values for dependency value: "${depFieldValue}"`);
+    const depConfig = config.dependent_values[depFieldValue];
+    
+    // ✅ Handle both object and array formats
+    if (typeof depConfig === 'object' && !Array.isArray(depConfig) && depConfig.values) {
+      valuesToUse = depConfig.values;
+      console.log(`    ✅ Using values with overrides for: "${depFieldValue}"`);
+    } else {
+      valuesToUse = Array.isArray(depConfig) ? depConfig : [depConfig];
+      console.log(`    ✅ Using values for dependency value: "${depFieldValue}"`);
+    }
   } else {
     valuesToUse = config.values || [];
     console.log(`    ℹ️ Using default values (dependency value not matched or empty)`);
   }
   
-  // Create rule object (same structure as in triggersToAffected)
+  // Create rule object with inputControl
   const rule = {
     affected: fieldPath,
     optionsMap: config.dependent_values,
     defaultValues: config.values || [],
     responseType: config.response_type || 'single-select',
+    inputControl: config.input_control || 'drop-down', // ✅ ADD THIS LINE
     na: config.na
   };
   
-  // UPDATED: updateFieldOptions will call expandRangeValues internally
-  // Pass valuesToUse as explicitValues parameter
+  // Update field options (will handle overrides automatically)
   updateFieldOptions(fieldPath, depFieldValue || null, element, rule, valuesToUse);
 }
 

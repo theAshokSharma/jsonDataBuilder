@@ -49,7 +49,7 @@ function populatePolymorphicForm(data) {
   
   console.log(`📋 Schema has ${options.length} options to check`);
   
-  // Find which option matches the data structure
+  // Find matching option...
   let matchingIndex = -1;
   let matchingOption = null;
   
@@ -58,7 +58,6 @@ function populatePolymorphicForm(data) {
     
     console.log(`  Checking option ${i}:`, option.title || option.$ref || 'Untitled');
     
-    // Resolve $ref if present
     if (option.$ref) {
       const refPath = option.$ref;
       option = resolveRef(option.$ref, schema);
@@ -70,7 +69,6 @@ function populatePolymorphicForm(data) {
       continue;
     }
     
-    // Check if data structure matches this option
     const matches = isDataMatchingSchema(data, option);
     console.log(`    Match result: ${matches}`);
     
@@ -84,11 +82,6 @@ function populatePolymorphicForm(data) {
   
   if (matchingIndex === -1) {
     console.error('❌ No matching schema option found for data structure');
-    console.log('Data keys:', Object.keys(data));
-    console.log('Available options:', options.map((o, i) => {
-      const resolved = o.$ref ? resolveRef(o.$ref, schema) : o;
-      return `  ${i}: ${o.title || resolved?.title || o.$ref || 'Untitled'}`;
-    }).join('\n'));
     return;
   }
   
@@ -101,33 +94,37 @@ function populatePolymorphicForm(data) {
   
   console.log('⏳ Waiting for polymorphic form to render...');
   
-  // Wait for form to render, then populate
-  // Increased delay to ensure nested structures have time to render
+  // 🔧 FIX: Wait for form to render, then initialize options BEFORE populating
   setTimeout(() => {
-    console.log('📝 Form structure rendered, now populating fields');
+    console.log('🔍 Form structure rendered, initializing options...');
     
-    // Additional check: verify form elements are present
     const polymorphicContent = document.getElementById('polymorphic-content');
     if (!polymorphicContent || polymorphicContent.children.length === 0) {
       console.warn('⚠️ Polymorphic content not rendered yet, retrying...');
-      setTimeout(() => populateFields(data, []), 300);
+      setTimeout(() => {
+        initializeDependentFields(); // 🔧 Initialize options first
+        setTimeout(() => populateFields(data, []), 200); // Then populate values
+      }, 300);
     } else {
-      console.log(`✓ Found ${polymorphicContent.children.length} child elements in polymorphic content`);
+      console.log(`✓ Found ${polymorphicContent.children.length} child elements`);
       
-      // NEW: Check for nested polymorphic selectors
       const nestedSelectors = polymorphicContent.querySelectorAll('.nested-polymorphic-selector');
       if (nestedSelectors.length > 0) {
         console.log(`🔍 Found ${nestedSelectors.length} nested polymorphic selector(s)`);
-        console.log('   This is a nested polymorphic structure (e.g., groupRule with ALL_OF/ANY_OF)');
-        
-        // Handle nested polymorphic selection
         handleNestedPolymorphicData(data, nestedSelectors);
       } else {
-        // No nested selectors, proceed with normal population
-        populateFields(data, []);
+        // 🔧 KEY FIX: Initialize dependent field options FIRST
+        console.log('🔧 Initializing dependent field options before populating values...');
+        initializeDependentFields();
+        
+        // Wait for options to populate, then populate values
+        setTimeout(() => {
+          console.log('🔍 Now populating field values...');
+          populateFields(data, []);
+        }, 200); // Give time for options to render
       }
     }
-  }, 500); // Increased from 200ms to 500ms
+  }, 500);
 }
 
 /**
@@ -141,20 +138,17 @@ function handleNestedPolymorphicData(data, nestedSelectors) {
   console.log('🎯 Handling nested polymorphic data structure');
   console.log('   Data keys:', Object.keys(data));
   
-  // For each nested selector, find which option matches the data
   nestedSelectors.forEach((selector, selectorIndex) => {
     console.log(`📋 Processing nested selector ${selectorIndex}:`, selector.id);
     
-    const options = Array.from(selector.options).slice(1); // Skip "-- Select --"
+    const options = Array.from(selector.options).slice(1);
     console.log(`   Options available:`, options.map(o => o.textContent).join(', '));
     
-    // Find which option key exists in data
     let matchingIndex = -1;
     for (let i = 0; i < options.length; i++) {
       const optionText = options[i].textContent;
       console.log(`   Checking option "${optionText}" against data keys...`);
       
-      // Check if this option name matches any data key
       if (data.hasOwnProperty(optionText)) {
         matchingIndex = i;
         console.log(`   ✅ Match found: "${optionText}" exists in data`);
@@ -166,20 +160,21 @@ function handleNestedPolymorphicData(data, nestedSelectors) {
       const matchingOption = options[matchingIndex];
       selector.value = matchingOption.value;
       
-      console.log(`   ✓ Setting nested selector to index ${matchingOption.value}: "${matchingOption.textContent}"`);
-      
-      // Trigger change event to render the nested form
+      console.log(`   ✓ Setting nested selector to index ${matchingOption.value}`);
       selector.dispatchEvent(new Event('change', { bubbles: true }));
       
-      // Wait for nested form to render, then populate
+      // 🔧 FIX: Initialize options before populating
       setTimeout(() => {
-        console.log('   📝 Nested form rendered, populating fields...');
-        populateFields(data, []);
+        console.log('   🔧 Initializing nested dependent fields...');
+        initializeDependentFields();
+        
+        setTimeout(() => {
+          console.log('   🔍 Nested form rendered, populating fields...');
+          populateFields(data, []);
+        }, 200);
       }, 400);
     } else {
       console.error(`   ❌ No matching option found in nested selector`);
-      console.log(`   Data has keys: ${Object.keys(data).join(', ')}`);
-      console.log(`   Selector has options: ${options.map(o => o.textContent).join(', ')}`);
     }
   });
 }

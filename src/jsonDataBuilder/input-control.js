@@ -758,6 +758,370 @@ function updateMultiSelectDisplay(dropdownId, path) {
   }
 }
 
+// New Helper Function
+/**
+ * ✅ NEW: Detects the current control type of an element
+ * 
+ * @param {HTMLElement} element - The control element
+ * @returns {string} Control type identifier
+ */
+function detectCurrentControlType(element) {
+  if (element.tagName === 'SELECT') {
+    return 'drop-down';
+  } else if (element.classList.contains('multi-select-container')) {
+    return 'drop-down'; // Multi-select dropdown
+  } else if (element.classList.contains('checkbox-container')) {
+    return 'check-box';
+  } else if (element.classList.contains('radio-container')) {
+    return 'radio-button';
+  } else if (element.classList.contains('slider-container')) {
+    return 'slider';
+  } else if (element.classList.contains('datetime-input')) {
+    return 'date-time-picker';
+  }
+  
+  return 'text'; // Default fallback
+}
+
+/**
+ * ✅ NEW: Rebuilds a control with a different input type
+ * 
+ * @param {string} pathStr - Field path
+ * @param {HTMLElement} oldElement - Current element to replace
+ * @param {string} inputControl - New input control type
+ * @param {string} responseType - Response type (single-select/multi-select)
+ * @param {Array} enumValues - Values as [{value, label}, ...]
+ * @param {*} naValue - N/A value if applicable
+ * @param {boolean} hasNAOption - Whether N/A option exists
+ * @returns {HTMLElement|null} New element or null if failed
+ */
+function rebuildControlWithType(pathStr, oldElement, inputControl, responseType, enumValues, naValue, hasNAOption) {
+  console.log(`  🔨 Rebuilding control for ${pathStr}:`, {
+    oldType: detectCurrentControlType(oldElement),
+    newType: inputControl,
+    responseType
+  });
+  
+  // Find the parent form-group
+  const formGroup = oldElement.closest('.form-group');
+  if (!formGroup) {
+    console.error(`  ❌ Cannot find form-group for ${pathStr}`);
+    return null;
+  }
+  
+  // Store current value before rebuilding
+  const currentValue = getCurrentControlValue(oldElement, pathStr);
+  console.log(`  💾 Stored current value:`, currentValue);
+  
+  // Create new control HTML
+  const newControlHTML = createControlHTML(pathStr, inputControl, responseType, enumValues, naValue, hasNAOption);
+  
+  // Replace old element
+  const tempDiv = document.createElement('div');
+  tempDiv.innerHTML = newControlHTML;
+  const newElement = tempDiv.firstElementChild;
+  
+  oldElement.parentNode.replaceChild(newElement, oldElement);
+  console.log(`  ✅ Element replaced in DOM`);
+  
+  // Restore value if possible
+  setTimeout(() => {
+    restoreControlValue(newElement, pathStr, currentValue, inputControl);
+    
+    // Reattach event listeners
+    attachEventListeners();
+  }, 50);
+  
+  // Return reference to new element
+  if (inputControl === 'drop-down') {
+    if (responseType === 'multi-select') {
+      return document.getElementById(`multiselect_${pathStr.replace(/\./g, '_')}`);
+    } else {
+      return document.querySelector(`select[data-path="${pathStr}"]`);
+    }
+  } else if (inputControl === 'check-box') {
+    return document.getElementById(`checkbox_${pathStr.replace(/\./g, '_')}`);
+  } else if (inputControl === 'radio-button') {
+    return document.getElementById(`radio_${pathStr.replace(/\./g, '_')}`);
+  } else if (inputControl === 'slider') {
+    return document.getElementById(`slider_${pathStr.replace(/\./g, '_')}`);
+  }
+  
+  return newElement;
+}
+
+/**
+ * ✅ NEW: Creates HTML for a control with given specifications
+ * 
+ * @param {string} pathStr - Field path
+ * @param {string} inputControl - Control type
+ * @param {string} responseType - Response type
+ * @param {Array} enumValues - Values as [{value, label}, ...]
+ * @param {*} naValue - N/A value
+ * @param {boolean} hasNAOption - Has N/A option
+ * @returns {string} HTML string
+ */
+function createControlHTML(pathStr, inputControl, responseType, enumValues, naValue, hasNAOption) {
+  const escapedPath = pathStr.replace(/\./g, '_');
+  
+  switch (inputControl) {
+    case 'drop-down':
+      if (responseType === 'multi-select') {
+        return createMultiSelectHTML(pathStr, escapedPath, enumValues, naValue, hasNAOption);
+      } else {
+        return createSingleSelectHTML(pathStr, enumValues, naValue, hasNAOption);
+      }
+    
+    case 'check-box':
+      return createCheckboxHTML(pathStr, escapedPath, enumValues, naValue, hasNAOption);
+    
+    case 'radio-button':
+      return createRadioHTML(pathStr, escapedPath, enumValues, naValue, hasNAOption);
+    
+    case 'slider':
+      return createSliderHTML(pathStr, escapedPath, enumValues);
+    
+    default:
+      console.warn(`Unknown input control: ${inputControl}, using text input`);
+      return `<input type="text" data-path="${pathStr}" id="${pathStr}" class="text-input">`;
+  }
+}
+
+/**
+ * ✅ NEW: Get current value from any control type
+ */
+function getCurrentControlValue(element, pathStr) {
+  if (element.tagName === 'SELECT') {
+    return element.value;
+  } else if (element.classList.contains('multi-select-container')) {
+    const checked = element.querySelectorAll('.multi-select-checkbox:checked');
+    return Array.from(checked).map(cb => cb.value);
+  } else if (element.classList.contains('checkbox-container')) {
+    const checked = element.querySelectorAll('.checkbox-input:checked');
+    return Array.from(checked).map(cb => cb.value);
+  } else if (element.classList.contains('radio-container')) {
+    const selected = element.querySelector('.radio-input:checked');
+    return selected ? selected.value : null;
+  } else if (element.classList.contains('slider-container')) {
+    const input = element.querySelector('input[type="range"]');
+    return input ? input.value : null;
+  }
+  
+  return null;
+}
+
+/**
+ * ✅ NEW: Restore value to a control after rebuilding
+ */
+function restoreControlValue(element, pathStr, value, inputControl) {
+  if (!value) return;
+  
+  console.log(`  🔄 Restoring value to ${inputControl}:`, value);
+  
+  if (inputControl === 'drop-down') {
+    if (Array.isArray(value)) {
+      // Multi-select
+      value.forEach(val => {
+        const cb = element.querySelector(`input[value="${val}"]`);
+        if (cb) cb.checked = true;
+      });
+      
+      const dropdownId = element.id;
+      if (dropdownId) {
+        updateMultiSelectDisplay(dropdownId, pathStr);
+      }
+    } else {
+      // Single select
+      const select = element.tagName === 'SELECT' ? element : element.querySelector('select');
+      if (select) select.value = value;
+    }
+  } else if (inputControl === 'check-box') {
+    const valuesToCheck = Array.isArray(value) ? value : [value];
+    valuesToCheck.forEach(val => {
+      const cb = element.querySelector(`input[value="${val}"]`);
+      if (cb) cb.checked = true;
+    });
+  } else if (inputControl === 'radio-button') {
+    const radio = element.querySelector(`input[value="${value}"]`);
+    if (radio) radio.checked = true;
+  } else if (inputControl === 'slider') {
+    const input = element.querySelector('input[type="range"]');
+    if (input) {
+      input.value = value;
+      const sliderId = element.id;
+      if (sliderId) {
+        updateSliderValue(pathStr, sliderId);
+      }
+    }
+  }
+  
+  console.log(`  ✅ Value restored`);
+}
+
+/**
+ * ✅ NEW: Helper functions to create HTML for each control type
+ */
+function createMultiSelectHTML(pathStr, escapedPath, enumValues, naValue, hasNAOption) {
+  const dropdownId = `multiselect_${escapedPath}`;
+  
+  let html = `
+    <div class="multi-select-container" id="${dropdownId}" data-dependent="true">
+      <div class="multi-select-trigger" onclick="toggleMultiSelectDropdown('${dropdownId}')" tabindex="0">
+        <div class="multi-select-selected" id="${dropdownId}_selected">
+          <span class="multi-select-placeholder">-- Select --</span>
+        </div>
+      </div>
+      <div class="multi-select-dropdown" id="${dropdownId}_dropdown">`;
+  
+  enumValues.forEach((item, idx) => {
+    html += `
+      <div class="multi-select-option">
+        <input type="checkbox" id="${pathStr}_${idx}" value="${item.value}" 
+               data-path="${pathStr}" data-dropdown="${dropdownId}"
+               data-label="${item.label}"
+               class="multi-select-checkbox"
+               onchange="handleMultiSelectChange(event, '${pathStr}', '${dropdownId}')">
+        <label for="${pathStr}_${idx}">${item.label}</label>
+      </div>`;
+  });
+  
+  if (hasNAOption) {
+    const naVal = typeof naValue === 'object' ? naValue.value : naValue;
+    const naLabel = typeof naValue === 'object' ? naValue.label : naValue;
+    
+    html += `
+      <div class="multi-select-option na-option">
+        <input type="checkbox" id="${pathStr}_na" value="${naVal}" 
+               data-path="${pathStr}" data-dropdown="${dropdownId}"
+               data-label="${naLabel}"
+               class="na-checkbox"
+               onchange="handleNAChange('${pathStr}', '${dropdownId}')">
+        <label for="${pathStr}_na">${naLabel} (exclusive)</label>
+      </div>`;
+  }
+  
+  html += `</div></div>`;
+  return html;
+}
+
+function createSingleSelectHTML(pathStr, enumValues, naValue, hasNAOption) {
+  let html = `<select data-path="${pathStr}" id="${pathStr}" data-dependent="true">
+    <option value="">-- Select --</option>`;
+  
+  enumValues.forEach(item => {
+    html += `<option value="${item.value}">${item.label}</option>`;
+  });
+  
+  if (hasNAOption) {
+    const naVal = typeof naValue === 'object' ? naValue.value : naValue;
+    const naLabel = typeof naValue === 'object' ? naValue.label : naValue;
+    html += `<option value="${naVal}">${naLabel}</option>`;
+  }
+  
+  html += `</select>`;
+  return html;
+}
+
+function createCheckboxHTML(pathStr, escapedPath, enumValues, naValue, hasNAOption) {
+  const containerId = `checkbox_${escapedPath}`;
+  
+  let html = `<div class="checkbox-container" id="${containerId}" data-path="${pathStr}" data-dependent="true">`;
+  
+  enumValues.forEach((item, idx) => {
+    html += `
+      <label class="checkbox-option" for="${pathStr}_cb_${idx}">
+        <input type="checkbox" id="${pathStr}_cb_${idx}" value="${item.value}" 
+               data-path="${pathStr}" data-container="${containerId}"
+               data-label="${item.label}"
+               class="checkbox-input"
+               onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
+        <span>${item.label}</span>
+      </label>`;
+  });
+  
+  if (hasNAOption) {
+    const naVal = typeof naValue === 'object' ? naValue.value : naValue;
+    const naLabel = typeof naValue === 'object' ? naValue.label : naValue;
+    
+    html += `
+      <label class="checkbox-option na-option" for="${pathStr}_cb_na">
+        <input type="checkbox" id="${pathStr}_cb_na" value="${naVal}" 
+               data-path="${pathStr}" data-container="${containerId}"
+               data-label="${naLabel}"
+               class="na-checkbox-input"
+               onchange="handleCheckboxNAChange('${pathStr}', '${containerId}')">
+        <span>${naLabel} (exclusive)</span>
+      </label>`;
+  }
+  
+  html += `</div>`;
+  return html;
+}
+
+function createRadioHTML(pathStr, escapedPath, enumValues, naValue, hasNAOption) {
+  const containerId = `radio_${escapedPath}`;
+  
+  let html = `<div class="radio-container" id="${containerId}" data-path="${pathStr}" data-dependent="true">`;
+  
+  enumValues.forEach((item, idx) => {
+    html += `
+      <label class="radio-option" for="${pathStr}_rb_${idx}">
+        <input type="radio" id="${pathStr}_rb_${idx}" name="${pathStr}" value="${item.value}" 
+               data-path="${pathStr}" 
+               data-label="${item.label}"
+               class="radio-input"
+               onchange="handleRadioChange(event, '${pathStr}')">
+        <span>${item.label}</span>
+      </label>`;
+  });
+  
+  if (hasNAOption) {
+    const naVal = typeof naValue === 'object' ? naValue.value : naValue;
+    const naLabel = typeof naValue === 'object' ? naValue.label : naValue;
+    
+    html += `
+      <label class="radio-option na-option" for="${pathStr}_rb_na">
+        <input type="radio" id="${pathStr}_rb_na" name="${pathStr}" value="${naVal}" 
+               data-path="${pathStr}" 
+               data-label="${naLabel}"
+               class="radio-input"
+               onchange="handleRadioChange(event, '${pathStr}')">
+        <span>${naLabel}</span>
+      </label>`;
+  }
+  
+  html += `</div>`;
+  return html;
+}
+
+function createSliderHTML(pathStr, escapedPath, enumValues) {
+  let min = 0, max = 100, step = 1;
+  
+  if (enumValues.length > 0) {
+    const numericValues = enumValues.map(v => Number(v.value)).filter(v => !isNaN(v));
+    if (numericValues.length > 0) {
+      min = Math.min(...numericValues);
+      max = Math.max(...numericValues);
+      if (numericValues.length > 1) {
+        const sortedValues = numericValues.sort((a, b) => a - b);
+        step = sortedValues[1] - sortedValues[0] || 1;
+      }
+    }
+  }
+  
+  const sliderId = `slider_${escapedPath}`;
+  
+  return `
+    <div class="slider-container" id="${sliderId}" data-dependent="true">
+      <input type="range" name="${pathStr}" id="${pathStr}" data-path="${pathStr}" 
+             class="slider-input" min="${min}" max="${max}" step="${step}" value="${min}"
+             oninput="updateSliderValue('${pathStr}', '${sliderId}')">
+      <div class="slider-value-display">
+        <span id="${sliderId}_value">${min}</span>
+      </div>
+    </div>`;
+}
+
 // ==================== EXPORT FOR MODULE USAGE (OPTIONAL) ====================
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = {
@@ -775,7 +1139,11 @@ if (typeof module !== 'undefined' && module.exports) {
     updateMultiSelectOptions,
     updateCheckboxOptions,
     updateRadioOptions ,
-    updateMultiSelectDisplay  
+    updateMultiSelectDisplay,
+    detectCurrentControlType,      // ✅ NEW
+    rebuildControlWithType,        // ✅ NEW
+    getCurrentControlValue,        // ✅ NEW
+    restoreControlValue            // ✅ NEW    
   };
 }
 
@@ -790,7 +1158,11 @@ export {
     updateMultiSelectOptions,
     updateCheckboxOptions,
     updateRadioOptions,
-    updateMultiSelectDisplay
+    updateMultiSelectDisplay,
+    detectCurrentControlType,      // ✅ NEW
+    rebuildControlWithType,        // ✅ NEW
+    getCurrentControlValue,        // ✅ NEW
+    restoreControlValue            // ✅ NEW    
 };
 
 // ==== END OF FILE ====/
