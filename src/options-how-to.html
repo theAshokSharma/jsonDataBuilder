@@ -361,13 +361,38 @@
                     <button class="copy-btn" onclick="copyCode(this)">Copy</button>
                     <pre>{
   "field.path.name": {
+    "values": ["default1", "default2"],
     "input_control": "drop-down",
     "response_type": "single-select",
-    "values": ["Option 1", "Option 2"],
-    "na": "N/A"
+    "dependent_values": {
+      "trigger_field": {
+        "value1": ["opt1", "opt2"],
+        "value2": {                    
+          "values": ["opt3", "opt4"],
+          "input_control": "radio-button",
+          "response_type": "single-select"
+        }
+      }
+    }
   },
   "conditional_rules": {
-    // Conditional logic here
+      "field.path.name": [
+          {
+              "value": "some value",
+              "disable_fields": [
+                  "field1.path.name",
+                  "field2.path.name",
+                  "field3.path.name"
+              ]
+          },
+          {
+              "value": "some other value",
+              "disable_fields": [
+                  "field5.path.name",
+                  "field6.path.name"
+              ]
+          }
+        ]
   }
 }</pre>
                 </div>
