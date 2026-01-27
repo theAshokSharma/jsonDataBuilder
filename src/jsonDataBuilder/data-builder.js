@@ -10,7 +10,7 @@ import { validateAndShowSummary, clearAllValidationErrors } from './input-valida
 import { getLastSchemaFile, getLastOptionsFile, createFileFromData } from './storage-manager.js';
 
 // Initialize on page load
-console.log('JSON Data Builder Loaded - Version 3.5`');
+console.log('JSON Data Builder Loaded - Version 3.6`');
 
 
 // Button event listeners
