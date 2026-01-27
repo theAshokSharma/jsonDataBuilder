@@ -1,5 +1,5 @@
 // util.js - Utility functions
-
+// @ts-check
 /**
  * Saves JSON data with a save file dialog if available, using stored filename/path.
  * If user cancels, does not save and stays on current screen.
@@ -233,25 +233,6 @@ function ashAlert(message) {
   });
 }
 
-// // Usage example with async/await
-// async function showMessage() {
-//   await ashAlert('This is a custom alert message!');
-//   console.log('Alert dismissed');
-// }
-
-// // Or synchronous usage
-// customAlert('Hello, world!').then(() => {
-//   console.log('Alert closed');
-// });
-
-// // Usage with async/await
-// async function handleSave() {
-//   const confirmed = await ashConfirm('Do you want to save anyway?');
-//   if (confirmed) {
-//     // Proceed with save
-//   }
-// }
-
 /*
  * AddToolTip
  * Usage example for the buttons (add this after the buttons are defined or in DOMContentLoaded)
@@ -299,11 +280,27 @@ function addTooltip(element, initialMessage) {
   return tooltip;
 }
 
+/**
+ * Helper function to escape HTML characters in JSON values
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string
+ */
+function escapeHtml(str) {
+    const htmlEscapes = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+    };
+    return String(str).replace(/[&<>"']/g, char => htmlEscapes[char]);
+}
 export { saveJsonWithDialog, 
          exportJsonToClipboard,
          addTooltip,
          ashAlert, 
-         ashConfirm 
+         ashConfirm,
+         escapeHtml
 };
 
 //==== END OF FILE ====//

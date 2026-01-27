@@ -1,6 +1,7 @@
 // conditional-rules.js: Conditional rules implementation
 // Handle conditional field logic and dependencies
 // UPDATED: Enhanced to work with value/label pairs from options
+// @ts-check
 import { state, updateState } from './state.js';
 import { resolveRef } from './file-validation.js';
 import { updateSelectOptions,
@@ -584,7 +585,8 @@ export {
   attachEventListeners,
   initializeDependentFields,
   initializePendingDependentFields,
-  revalidateAndSetInvalid
+  revalidateAndSetInvalid,
+  updateFieldOptions
 };
 
 //==== END OF FILE ====//

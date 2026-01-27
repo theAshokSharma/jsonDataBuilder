@@ -1,11 +1,11 @@
 // file-operations.js - File loading and saving operations
-
 // Import necessary modules
+// @ts-check
 import { state, updateState } from './state.js';
-import { validateOptionsAgainstSchema, showValidationErrorsDialog } from './file-validation.js';
+import { validateOptionsAgainstSchema, showValidationErrorsDialog, displayValidationResults } from './file-validation.js';
 import { ashAlert, ashConfirm} from './utils.js'
 import { renderForm, renderAllTabs, updateFileStatusDisplay } from './form-renderer.js';
-import { revalidateAndSetInvalid } from './conditional-rules.js'
+import { revalidateAndSetInvalid, getFieldValue, updateFieldOptions } from './conditional-rules.js'
 import { populateFormWithData } from './form-population.js'
 import { 
   saveLastSchemaFile, 
@@ -45,8 +45,6 @@ function loadSchemaFromFile() {
 
       document.getElementById('loadSchemaBtn').style.color = '#000000ff';
       document.getElementById('loadSchemaBtn').style.backgroundColor = '#99ff00ff';
-
-      schemaTooltip.innerText = schemaFilename + ' loaded.'
 
     } catch (error) {
       ashAlert('Invalid JSON schema file: ' + error.message);
@@ -120,7 +118,7 @@ function loadOptionsFromFile() {
       document.getElementById('loadOptionsBtn').style.color = '#000000ff';
       document.getElementById('loadOptionsBtn').style.backgroundColor = '#99ff00ff';
 
-      optionsTooltip.innerText = optionsFilename + ' loaded.'
+      // state.optionsTooltip.innerText = optionsFilename + ' loaded.'
           
       console.log('✓ Options loaded with', Object.keys(state.customOptions).length, 'entries');
     } catch (error) {
@@ -182,7 +180,7 @@ function loadDataFromFile() {
 
         document.getElementById('loadDataBtn').style.color = '#000000ff';
         document.getElementById('loadDataBtn').style.backgroundColor = '#99ff00ff';
-        loadDataBtn.textContent = 'File loaded';           
+        document.getElementById('loadDataBtn').textContent = 'File loaded';           
         state.dataTooltip.innerText = state.dataFilename + ' loaded.'
 
         // Update file status display

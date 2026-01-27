@@ -1,7 +1,9 @@
 // data-builder.js - JSON data builder
+// @ts-check
+
 import { state, updateState } from './state.js';
 import { showConfigModal, loadDataFromFile, resolveReferences } from './file-operations.js';
-import { saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm } from './utils.js';
+import { saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm, escapeHtml } from './utils.js';
 import { renderForm, renderAllTabs, updateFileStatusDisplay } from './form-renderer.js';
 import { updateMultiSelectDisplay} from './input-control.js'
 import { validateAndShowSummary, clearAllValidationErrors } from './input-validation.js';
@@ -261,20 +263,17 @@ function collectFormData() {
     const path = input.dataset.path;
     if (!path || processedPaths.has(path)) return;
   
-      // Handle checkbox lists that use checkbox_ container pattern
+    // Handle checkbox lists that use checkbox_ container pattern
     if (input.classList && input.classList.contains('checkbox-input')) {
       if (!processedPaths.has(path)) {
         const checkboxes = document.querySelectorAll(`[data-path="${path}"].checkbox-input:checked`);
         const naCheckbox = document.querySelector(`[data-path="${path}"].na-checkbox-input:checked`);
         
         if (naCheckbox) {
-          // If N/A is checked, use its value
           setNestedValue(data, path, naCheckbox.value);
         } else if (checkboxes.length > 0) {
-          // Collect checked checkbox values
           setNestedValue(data, path, Array.from(checkboxes).map(cb => cb.value));
         } else {
-          // No checkboxes checked
           setNestedValue(data, path, []);
         }
         processedPaths.add(path);
@@ -303,28 +302,22 @@ function collectFormData() {
         processedPaths.add(path);
       }
     }
-    // ===== RADIO BUTTON HANDLING (NEW - WAS MISSING) =====
     else if (input.classList && input.classList.contains('radio-input')) {
       if (!processedPaths.has(path)) {
         const selectedRadio = document.querySelector(`[data-path="${path}"].radio-input:checked`);
         const naRadio = document.querySelector(`[data-path="${path}"].na-radio-input:checked`);
         
         if (naRadio) {
-          // If N/A is checked, use its value
           setNestedValue(data, path, naRadio.value);
         } else if (selectedRadio) {
-          // Use the selected radio button value
           setNestedValue(data, path, selectedRadio.value);
         } else {
-          // No radio selected
           setNestedValue(data, path, null);
         }
         processedPaths.add(path);
       }
     }
-    // ===== SLIDER/RANGE HANDLING (NEW - WAS MISSING) =====
     else if (input.type === 'range') {
-      // Get the slider value
       const sliderValue = input.value ? Number(input.value) : null;
       setNestedValue(data, path, sliderValue);
       processedPaths.add(path);
@@ -352,8 +345,12 @@ function collectFormData() {
     }
   });
   
+  // ✅ NEW: Handle polymorphic array items (nested structures)
+  collectPolymorphicArrayData(data);
+  
   return data;
 }
+
 
 // ==================== ABOUT MODAL =======================
 function showAboutModal() {
@@ -374,109 +371,163 @@ function showAboutModal() {
 }
 
 // ==================== VIEW DATA MODAL =======================
-function showViewModal() {
+async function showViewModal() {
   try {
-    renderAllTabs(); // Ensure all tabs are rendered before collecting data
-    
-    // Clear previous validation errors
-    clearAllValidationErrors();
-    
-    // Collect data
-    const data = collectFormData();
-    
-    // NEW: Validate against schema
-    const isValid = validateAndShowSummary(data, state.currentSchema);
-    
-    if (!isValid) {
-      const confirmView = ashConfirm(
-        '⚠️ Warning: Form contains validation errors.\n\n' +
-        'Fields with errors are highlighted. \n\n' +
-        'Do you want to view it anyway?'
-      );
-      
-      if (!confirmView) {
-        return;
-      }
-    }
-    
-    // Check for invalid fields from data loading (separate from validation)
-    const invalidFields = document.querySelectorAll('.invalid-data');
-    if (invalidFields.length > 0) {
-      const confirmView = ashConfirm(
-        `⚠️ Warning: ${invalidFields.length} field(s) contain invalid values from loaded data.\n\n` +
-        `These fields are highlighted. \n\n` +
-        `Do you want to view anyway?`
-      );
-      
-      if (!confirmView) {
-        invalidFields[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        invalidFields[0].focus();
-        return;
-      }
-    }
-       // new process
-    const viewModal = document.getElementById('view-modal');
-    const viewContent = document.getElementById('view-data-content');    
-      // Format the data as HTML with orange properties and blue values
-    viewContent.innerHTML = formatJsonToHtml(data);
-    viewModal.style.display = 'flex';
+        renderAllTabs(); // Ensure all tabs are rendered before collecting data
+        
+        // Clear previous validation errors
+        clearAllValidationErrors();
+        
+        // Collect data
+        const data = collectFormData();
+        
+        console.log('📊 Collected data for view:', data);
+        
+        // NEW: Validate against schema
+        const isValid = await validateAndShowSummary(data, state.currentSchema);
+        
+        if (!isValid) {
+          const confirmView = await ashConfirm(
+            '⚠️ Warning: Form contains validation errors.\n\n' +
+            'Fields with errors are highlighted. \n\n' +
+            'Do you want to view it anyway?'
+          );
+          
+          if (!confirmView) {
+            return;
+          }
+        }
+        
+        // Check for invalid fields from data loading (separate from validation)
+        const invalidFields = document.querySelectorAll('.invalid-data');
+        if (invalidFields.length > 0) {
+          const confirmView = await ashConfirm(
+            `⚠️ Warning: ${invalidFields.length} field(s) contain invalid values from loaded data.\n\n` +
+            `These fields are highlighted. \n\n` +
+            `Do you want to view anyway?`
+          );
+          
+          if (!confirmView) {
+            invalidFields[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            invalidFields[0].focus();
+            return;
+          }
+        }
+        
+        // Show the modal
+        const viewModal = document.getElementById('view-modal');
+        const viewContent = document.getElementById('view-data-content');    
+        
+        // Format the data as HTML with orange properties and blue values
+        viewContent.innerHTML = formatJsonToHtml(data);
+        viewModal.style.display = 'flex';
 
-    // Close button handler
-    document.getElementById('closeViewBtn').onclick = () => {
-      viewModal.style.display = 'none';
-      clearAllValidationErrors();   // ASHOK      
-    };
-
-    // Close on outside click
-    viewModal.onclick = (e) => {
-      if (e.target === viewModal) {
+        // Close button handler
+        document.getElementById('closeViewBtn').onclick = () => {
         viewModal.style.display = 'none';
-        clearAllValidationErrors();   // ASHOK
-      }
-    };
+        clearAllValidationErrors();
+      };
+
+      // Close on outside click
+      viewModal.onclick = (e) => {
+        if (e.target === viewModal) {
+          viewModal.style.display = 'none';
+          clearAllValidationErrors();
+        }
+      };
+      
+      console.log('✅ View modal displayed successfully');
+    
   } catch (error) {
     console.error('Error viewing data:', error);
-    ashAlert('Error viewing data: ' + error.message);
+    await ashAlert('Error viewing data: ' + error.message);
   }
 }
 
+/**
+ * Enhanced JSON to HTML formatter with proper color coding
+ * - Properties: Orange
+ * - Values (strings, numbers, booleans): Light Blue
+ * - Structural characters ({}, [], :, ,): White
+ * 
+ * @param {*} obj - The JSON object/array/value to format
+ * @param {number} indent - Current indentation level
+ * @returns {string} HTML formatted string
+ */
 function formatJsonToHtml(obj, indent = 0) {
     let html = '';
     const indentStr = '  '.repeat(indent);
     
+    // Handle null
+    if (obj === null) {
+        return `<span class="json-value">null</span>`;
+    }
+    
+    // Handle arrays
     if (Array.isArray(obj)) {
+        if (obj.length === 0) {
+            return `<span class="json-bracket">[]</span>`;
+        }
+        
         html += `<span class="json-bracket">[</span>\n`;
+        
         for (let i = 0; i < obj.length; i++) {
             html += indentStr + '  ';
-            html += `<span class="json-value">"${obj[i]}"</span>`;
+            
+            const item = obj[i];
+            
+            // Check if item is object or array (needs recursion)
+            if (typeof item === 'object' && item !== null) {
+                html += formatJsonToHtml(item, indent + 1);
+            } else if (typeof item === 'string') {
+                html += `<span class="json-value">"${escapeHtml(item)}"</span>`;
+            } else if (typeof item === 'number' || typeof item === 'boolean') {
+                html += `<span class="json-value">${item}</span>`;
+            } else {
+                html += `<span class="json-value">null</span>`;
+            }
+            
             if (i < obj.length - 1) {
                 html += `<span class="json-comma">,</span>`;
             }
             html += '\n';
         }
+        
         html += indentStr + `<span class="json-bracket">]</span>`;
-    } else if (typeof obj === 'object' && obj !== null) {
-        html += `<span class="json-bracket">{</span>\n`;
+        return html;
+    }
+    
+    // Handle objects
+    if (typeof obj === 'object') {
         const keys = Object.keys(obj);
+        
+        if (keys.length === 0) {
+            return `<span class="json-bracket">{}</span>`;
+        }
+        
+        html += `<span class="json-bracket">{</span>\n`;
         
         for (let i = 0; i < keys.length; i++) {
             const key = keys[i];
             const value = obj[key];
             
             html += indentStr + '  ';
-            html += `<span class="json-property">"${key}"</span>`;
+            html += `<span class="json-property">"${escapeHtml(key)}"</span>`;
             html += `<span class="json-colon">: </span>`;
             
-            if (typeof value === 'object') {
+            // Handle different value types
+            if (value === null) {
+                html += `<span class="json-value">null</span>`;
+            } else if (Array.isArray(value)) {
+                html += formatJsonToHtml(value, indent + 1);
+            } else if (typeof value === 'object') {
                 html += formatJsonToHtml(value, indent + 1);
             } else if (typeof value === 'string') {
-                html += `<span class="json-value">"${value}"</span>`;
-            } else if (typeof value === 'number') {
-                html += `<span class="json-value">${value}</span>`;
-            } else if (typeof value === 'boolean') {
+                html += `<span class="json-value">"${escapeHtml(value)}"</span>`;
+            } else if (typeof value === 'number' || typeof value === 'boolean') {
                 html += `<span class="json-value">${value}</span>`;
             } else {
-                html += `<span class="json-value">"${value}"</span>`;
+                html += `<span class="json-value">"${escapeHtml(String(value))}"</span>`;
             }
             
             if (i < keys.length - 1) {
@@ -484,11 +535,211 @@ function formatJsonToHtml(obj, indent = 0) {
             }
             html += '\n';
         }
+        
         html += indentStr + `<span class="json-bracket">}</span>`;
+        return html;
     }
     
-    return html;
+    // Handle primitive values (shouldn't normally reach here in recursive calls)
+    if (typeof obj === 'string') {
+        return `<span class="json-value">"${escapeHtml(obj)}"</span>`;
+    }
+    if (typeof obj === 'number' || typeof obj === 'boolean') {
+        return `<span class="json-value">${obj}</span>`;
+    }
+    
+    return `<span class="json-value">null</span>`;
 }
+
+/**
+ * ✅ NEW: Collects data from polymorphic array items
+ * Handles deeply nested structures like ANY_OF > ALL_OF > atomic rules
+ */
+function collectPolymorphicArrayData(data) {
+  console.log('🔍 Collecting polymorphic array data...');
+  
+  // Find all array containers
+  const arrayContainers = document.querySelectorAll('.array-container');
+  
+  arrayContainers.forEach(container => {
+    const arrayPath = container.dataset.path;
+    if (!arrayPath) return;
+    
+    console.log(`  📋 Processing array: ${arrayPath}`);
+    
+    // Find all array items in this container
+    const arrayItems = container.querySelectorAll('.array-item');
+    
+    if (arrayItems.length === 0) {
+      console.log(`    ℹ️ No items in array`);
+      return;
+    }
+    
+    const itemsData = [];
+    
+    arrayItems.forEach((itemElement, itemIndex) => {
+      console.log(`    📦 Processing item ${itemIndex}`);
+      
+      // Check if this item has a type selector (polymorphic)
+      const typeSelector = itemElement.querySelector('.array-item-type-selector');
+      
+      if (typeSelector && typeSelector.value) {
+        console.log(`      🎯 Polymorphic item with type: ${typeSelector.value}`);
+        
+        // Get the dynamic content area
+        const dynamicContent = itemElement.querySelector('.array-item-dynamic-content');
+        
+        if (dynamicContent) {
+          const itemData = collectDynamicContent(dynamicContent, itemIndex);
+          
+          if (itemData && Object.keys(itemData).length > 0) {
+            itemsData.push(itemData);
+            console.log(`      ✅ Collected data:`, itemData);
+          }
+        }
+      } else {
+        // Non-polymorphic item - collect normally
+        const itemData = {};
+        const itemInputs = itemElement.querySelectorAll('[data-path]');
+        
+        itemInputs.forEach(input => {
+          const path = input.dataset.path;
+          if (path && path.startsWith(`${arrayPath}.${itemIndex}.`)) {
+            const fieldKey = path.substring(`${arrayPath}.${itemIndex}.`.length);
+            
+            let value = input.value;
+            if (input.type === 'number') {
+              value = value ? Number(value) : null;
+            } else if (input.type === 'checkbox') {
+              value = input.checked;
+            }
+            
+            itemData[fieldKey] = value;
+          }
+        });
+        
+        if (Object.keys(itemData).length > 0) {
+          itemsData.push(itemData);
+        }
+      }
+    });
+    
+    // Set the array data
+    if (itemsData.length > 0) {
+      setNestedValue(data, arrayPath, itemsData);
+      console.log(`  ✅ Set array data for ${arrayPath}:`, itemsData);
+    }
+  });
+}
+
+/**
+ * ✅ NEW: Collects data from dynamic polymorphic content
+ * Handles nested polymorphic structures (e.g., groupRule with ALL_OF/ANY_OF)
+ */
+function collectDynamicContent(contentElement, itemIndex) {
+  console.log(`        🔍 Collecting dynamic content for item ${itemIndex}`);
+  
+  const itemData = {};
+  
+  // Check for nested polymorphic selector (e.g., ALL_OF vs ANY_OF choice)
+  const nestedSelector = contentElement.querySelector('.nested-polymorphic-selector');
+  
+  if (nestedSelector && nestedSelector.value !== '') {
+    console.log(`          🎯 Found nested selector with value: ${nestedSelector.value}`);
+    
+    // Get the selected option's text (e.g., "ALL_OF" or "ANY_OF")
+    const selectedOption = nestedSelector.options[nestedSelector.selectedIndex];
+    const groupType = selectedOption.textContent.trim();
+    
+    console.log(`          📌 Group type: ${groupType}`);
+    
+    // Find the nested content area
+    const nestedContent = contentElement.querySelector('.nested-polymorphic-content');
+    
+    if (nestedContent) {
+      // Find the array container inside nested content
+      const nestedArrayContainer = nestedContent.querySelector('.array-container');
+      
+      if (nestedArrayContainer) {
+        const nestedItems = nestedArrayContainer.querySelectorAll('.array-item');
+        const nestedItemsData = [];
+        
+        console.log(`          📦 Found ${nestedItems.length} nested items`);
+        
+        nestedItems.forEach((nestedItem, nestedIndex) => {
+          console.log(`            🔸 Processing nested item ${nestedIndex}`);
+          
+          const nestedItemData = {};
+          const nestedInputs = nestedItem.querySelectorAll('[data-path]');
+          
+          nestedInputs.forEach(input => {
+            const path = input.dataset.path;
+            
+            // Extract the field name (last part of path)
+            const pathParts = path.split('.');
+            const fieldKey = pathParts[pathParts.length - 1];
+            
+            let value = input.value;
+            
+            if (input.type === 'number') {
+              value = value ? Number(value) : null;
+            } else if (input.type === 'checkbox') {
+              value = input.checked;
+            } else if (input.tagName === 'SELECT') {
+              value = input.value;
+            }
+            
+            if (value !== null && value !== '') {
+              nestedItemData[fieldKey] = value;
+            }
+          });
+          
+          if (Object.keys(nestedItemData).length > 0) {
+            nestedItemsData.push(nestedItemData);
+            console.log(`            ✅ Nested item data:`, nestedItemData);
+          }
+        });
+        
+        if (nestedItemsData.length > 0) {
+          itemData[groupType] = nestedItemsData;
+          console.log(`          ✅ Set ${groupType} data:`, nestedItemsData);
+        }
+      }
+    }
+  } else {
+    // No nested selector - collect inputs directly (atomic rule case)
+    console.log(`          📝 Collecting atomic rule data`);
+    
+    const inputs = contentElement.querySelectorAll('[data-path]');
+    
+    inputs.forEach(input => {
+      const path = input.dataset.path;
+      
+      // Extract field name from path
+      const pathParts = path.split('.');
+      const fieldKey = pathParts[pathParts.length - 1];
+      
+      let value = input.value;
+      
+      if (input.type === 'number') {
+        value = value ? Number(value) : null;
+      } else if (input.type === 'checkbox') {
+        value = input.checked;
+      } else if (input.tagName === 'SELECT') {
+        value = input.value;
+      }
+      
+      if (value !== null && value !== '') {
+        itemData[fieldKey] = value;
+        console.log(`          ✅ Field: ${fieldKey} = ${value}`);
+      }
+    });
+  }
+  
+  return itemData;
+}
+
+
 // NEW: Auto-load last used files on startup
 window.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 Checking for last used files...');

@@ -1,5 +1,5 @@
 // schema-manager: manage schema validation and structure analysis
-
+// @ts-check
 import {resolveRef} from './file-validation.js'
 
 /**

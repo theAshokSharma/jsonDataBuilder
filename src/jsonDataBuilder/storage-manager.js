@@ -1,5 +1,5 @@
 // storage-manager.js - Local storage management for file persistence
-
+// @ts-check
 /**
  * Storage keys
  */
