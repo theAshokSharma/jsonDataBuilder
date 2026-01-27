@@ -4,7 +4,7 @@
 import { state, updateState, getState } from './state.js';
 import { attachEventListeners } from './conditional-rules.js';
 import { collectFormData } from './data-builder.js';
-import {addInvalidMultiSelectWarning, removeInvalidWarning} from ./form-populateRadioButton.js;
+import {addInvalidMultiSelectWarning, removeInvalidWarning} from './form-population.js';
 
 // ==================== INPUT CONTROL FACTORY ====================
 /**
