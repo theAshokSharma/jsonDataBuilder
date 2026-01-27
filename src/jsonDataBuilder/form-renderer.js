@@ -1,6 +1,6 @@
 // form-renderer.js - Form Rendering Module
 // Handles all form generation, tabs, fields, arrays, and polymorphic structures
-
+// @ts-check
 import { state, updateState } from './state.js';
 import { createInputControl, createDefaultInput } from './input-control.js';
 import { resolveRef } from './file-validation.js';

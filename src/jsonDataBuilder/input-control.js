@@ -1,7 +1,10 @@
 // input-control.js - New Input Control Functions
 // Import this file in your HTML: <script src="input-control.js"></script>
-
+// @ts-check
 import { state, updateState, getState } from './state.js';
+import { attachEventListeners } from './conditional-rules.js';
+import { collectFormData } from './data-builder.js';
+import {addInvalidMultiSelectWarning, removeInvalidWarning} from ./form-populateRadioButton.js;
 
 // ==================== INPUT CONTROL FACTORY ====================
 /**
@@ -387,6 +390,18 @@ window.handleRadioChange = function(event, path) {
     });
   }
 };
+
+
+/**
+ * Update slider value display (FIXED: Added proper function declaration)
+ */
+function updateSliderValue(path, sliderId) {
+  const slider = document.getElementById(path);
+  const valueDisplay = document.getElementById(sliderId + '_value');
+  if (slider && valueDisplay) {
+    valueDisplay.textContent = slider.value;
+  }
+}
 
 /**
  * Update slider value display
@@ -1138,7 +1153,8 @@ if (typeof module !== 'undefined' && module.exports) {
     updateSelectOptions,
     updateMultiSelectOptions,
     updateCheckboxOptions,
-    updateRadioOptions ,
+    updateRadioOptions,
+    updateSliderValue,
     updateMultiSelectDisplay,
     detectCurrentControlType,      // ✅ NEW
     rebuildControlWithType,        // ✅ NEW

@@ -1,33 +1,41 @@
 // form-population.js - Functions for populating form fields with data
 // UPDATED: Added polymorphic form detection and handling
+// @ts-check
 import { state } from './state.js';
 import { populateCheckboxList,
          populateRadioButton,
          populateSlider,
          updateMultiSelectDisplay} from './input-control.js'
 import { resolveRef} from './file-validation.js'
-import { applyConditionalRules } from './conditional-rules.js';
+import { applyConditionalRules, updateFieldOptions } from './conditional-rules.js';
 
 
 function populateFormWithData(data) {
   console.log('=== Starting data population ===');
   
-  // NEW: Check if this is a polymorphic form
+  // Check if this is a polymorphic form
   const polymorphicSelector = document.getElementById('polymorphic-type-selector');
   
   if (polymorphicSelector) {
     console.log('🔍 Detected polymorphic form, attempting to match data structure');
     populatePolymorphicForm(data);
   } else {
-    // Standard form population
-    populateFields(data, []);
+    // ⭐ CRITICAL FIX: Initialize dependent field options BEFORE populating values
+    console.log('🔧 Pre-initializing dependent field options...');
+    preInitializeDependentFields(data);
+    
+    // Wait for options to populate, then populate field values
+    setTimeout(() => {
+      console.log('📝 Now populating field values...');
+      populateFields(data, []);
+      
+      setTimeout(() => {
+        applyConditionalRules();
+        showInvalidFieldsSummary();
+        console.log('✓ Form populated and rules applied');
+      }, 300);
+    }, 500); // Give time for dependent options to render
   }
-  
-  setTimeout(() => {
-    applyConditionalRules();
-    showInvalidFieldsSummary();
-    console.log('✓ Form populated and rules applied');
-  }, 300);
 }
 
 /**
@@ -102,7 +110,7 @@ function populatePolymorphicForm(data) {
     if (!polymorphicContent || polymorphicContent.children.length === 0) {
       console.warn('⚠️ Polymorphic content not rendered yet, retrying...');
       setTimeout(() => {
-        initializeDependentFields(); // 🔧 Initialize options first
+        preInitializeDependentFields(); // 🔧 Initialize options first
         setTimeout(() => populateFields(data, []), 200); // Then populate values
       }, 300);
     } else {
@@ -115,7 +123,7 @@ function populatePolymorphicForm(data) {
       } else {
         // 🔧 KEY FIX: Initialize dependent field options FIRST
         console.log('🔧 Initializing dependent field options before populating values...');
-        initializeDependentFields();
+        preInitializeDependentFields();
         
         // Wait for options to populate, then populate values
         setTimeout(() => {
@@ -166,7 +174,7 @@ function handleNestedPolymorphicData(data, nestedSelectors) {
       // 🔧 FIX: Initialize options before populating
       setTimeout(() => {
         console.log('   🔧 Initializing nested dependent fields...');
-        initializeDependentFields();
+        preInitializeDependentFields();
         
         setTimeout(() => {
           console.log('   🔍 Nested form rendered, populating fields...');
@@ -867,12 +875,73 @@ function enforceValidMultiSelection(container, fieldPath) {
   });
 }
 
+/**
+ * ⭐ NEW: Pre-initializes dependent field options based on loaded data
+ * This ensures dependent fields have the correct options BEFORE we try to populate values
+ * 
+ * @param {Object} data - The loaded data
+ */
+function preInitializeDependentFields(data) {
+  if (!state.triggersToAffected || Object.keys(state.triggersToAffected).length === 0) {
+    console.log('  ℹ️ No dependent fields configured');
+    return;
+  }
+  
+  console.log('  🔗 Processing dependent field triggers...');
+  
+  // Find all trigger fields that have values in the data
+  Object.entries(state.triggersToAffected).forEach(([triggerField, rules]) => {
+    const triggerValue = data[triggerField];
+    
+    if (triggerValue !== undefined && triggerValue !== null && triggerValue !== '') {
+      console.log(`  ✓ Trigger field "${triggerField}" has value: "${triggerValue}"`);
+      
+      // Update all affected fields for this trigger
+      rules.forEach(rule => {
+        const affectedField = rule.affected;
+        const affectedElement = findDependentFieldElement(affectedField);
+        
+        if (affectedElement) {
+          console.log(`    → Initializing dependent field: ${affectedField}`);
+          updateFieldOptions(affectedField, triggerValue, affectedElement, rule, null);
+        } else {
+          console.log(`    ⚠️ Element not found for: ${affectedField}`);
+        }
+      });
+    }
+  });
+  
+  console.log('  ✅ Dependent fields pre-initialized');
+}
+
+/**
+ * Helper: Finds the DOM element for a dependent field
+ * (This function already exists in conditional-rules.js, but we need it here too)
+ */
+function findDependentFieldElement(fieldPath) {
+  let element = document.querySelector(`select[data-path="${fieldPath}"][data-dependent="true"]`);
+  if (element) return element;
+  
+  const escapedPath = fieldPath.replace(/\./g, '_');
+  element = document.querySelector(`.multi-select-container[data-dependent="true"][id^="multiselect_${escapedPath}"]`);
+  if (element) return element;
+  
+  element = document.querySelector(`.checkbox-container[data-dependent="true"][id^="checkbox_${escapedPath}"]`);
+  if (element) return element;
+  
+  element = document.querySelector(`.radio-container[data-dependent="true"][id^="radio_${escapedPath}"]`);
+  if (element) return element;
+  
+  return null;
+}
+
 export {
   populateFormWithData,
   populateSingleField,
   addInvalidDataWarning,
   removeInvalidWarning,
-  handleNestedPolymorphicData
+  handleNestedPolymorphicData,
+  addInvalidMultiSelectWarning
 };
 
 // ==== END OF FILE ====//

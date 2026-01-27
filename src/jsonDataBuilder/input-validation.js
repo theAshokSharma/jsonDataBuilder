@@ -1,6 +1,6 @@
 // input-validation.js - Input validation against JSON schema
 // Integrates with existing data-builder modular architecture
-
+// @ts-check
 import { state } from './state.js';
 import { resolveRef } from './file-validation.js';
 import { ashAlert, ashConfirm } from './utils.js';

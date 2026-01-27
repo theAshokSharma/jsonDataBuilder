@@ -1,3 +1,4 @@
+// @ts-check
 import {ashAlert, ashConfirm} from './utils.js'
 
 /**
@@ -356,7 +357,8 @@ async function showValidationErrorsDialog(missingKeys) {
 
 export { validateOptionsAgainstSchema, 
          showValidationErrorsDialog,
-         resolveRef
+         resolveRef,
+         displayValidationResults
 };
 
 // === END OF FILE ===
