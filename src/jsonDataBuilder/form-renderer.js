@@ -507,6 +507,9 @@ function renderMultiSectionForm(schema, analysis) {
     const firstTab = Object.keys(properties)[0];
     switchTab(firstTab);
   }
+
+  // Initialize tab navigation buttons
+  initializeTabNavigation();
   
   console.log('✅ Multi-section form with tabs rendered');
 }
@@ -584,6 +587,10 @@ function switchTab(tabKey) {
     updateState({
       currentTab: tabKey
     });
+
+
+    // Update navigation button states
+    updateTabNavigationButtons();
   }
 }
 
@@ -1054,6 +1061,13 @@ function resetFormUI() {
   // Reset tab containers
   const tabsContainer = document.getElementById('form-tabs');
   const tabContentsContainer = document.getElementById('tab-contents');
+  const tabNavigation = document.getElementById('tab-navigation');
+
+  // Hide tab navigation
+
+  if (tabNavigation) {
+    tabNavigation.style.display = 'none';
+  }
   
   if (tabsContainer) {
     tabsContainer.innerHTML = '';
@@ -1300,6 +1314,84 @@ function updateFileStatusDisplay() {
   }
   
   console.log('✅ File status display updated successfully');
+}
+
+function navigateToNextTab() {
+  const tabKeys = Object.keys(state.tabContents);
+  if (tabKeys.length === 0) return;
+  
+  const currentIndex = tabKeys.indexOf(state.currentTab);
+  if (currentIndex < 0 || currentIndex >= tabKeys.length - 1) return;
+  
+  const nextTabKey = tabKeys[currentIndex + 1];
+  switchTab(nextTabKey);
+}
+
+function navigateToPreviousTab() {
+  const tabKeys = Object.keys(state.tabContents);
+  if (tabKeys.length === 0) return;
+  
+  const currentIndex = tabKeys.indexOf(state.currentTab);
+  if (currentIndex <= 0) return;
+  
+  const prevTabKey = tabKeys[currentIndex - 1];
+  switchTab(prevTabKey);
+}
+
+function updateTabNavigationButtons() {
+  const tabKeys = Object.keys(state.tabContents);
+  const prevBtn = document.getElementById('prevTabBtn');
+  const nextBtn = document.getElementById('nextTabBtn');
+  
+  if (!prevBtn || !nextBtn || tabKeys.length === 0) return;
+  
+  const currentIndex = tabKeys.indexOf(state.currentTab);
+  
+  // Update Previous button
+  if (currentIndex <= 0) {
+    prevBtn.disabled = true;
+  } else {
+    prevBtn.disabled = false;
+  }
+  
+  // Update Next button
+  if (currentIndex >= tabKeys.length - 1) {
+    nextBtn.disabled = true;
+  } else {
+    nextBtn.disabled = false;
+  }
+}
+function initializeTabNavigation() {
+  const tabKeys = Object.keys(state.tabContents);
+  const navigationContainer = document.getElementById('tab-navigation');
+  const prevBtn = document.getElementById('prevTabBtn');
+  const nextBtn = document.getElementById('nextTabBtn');
+  
+  if (!navigationContainer || !prevBtn || !nextBtn) {
+    console.warn('Tab navigation elements not found');
+    return;
+  }
+  
+  // Only show navigation if there are 2 or more tabs
+  if (tabKeys.length >= 2) {
+    navigationContainer.style.display = 'flex';
+    
+    // Attach event listeners
+    prevBtn.replaceWith(prevBtn.cloneNode(true));
+    nextBtn.replaceWith(nextBtn.cloneNode(true));
+    
+    const newPrevBtn = document.getElementById('prevTabBtn');
+    const newNextBtn = document.getElementById('nextTabBtn');
+    
+    newPrevBtn.addEventListener('click', navigateToPreviousTab);
+    newNextBtn.addEventListener('click', navigateToNextTab);
+    
+    updateTabNavigationButtons();
+    
+    console.log('✅ Tab navigation initialized');
+  } else {
+    navigationContainer.style.display = 'none';
+  }
 }
 
 export {
