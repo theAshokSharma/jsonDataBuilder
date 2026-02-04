@@ -155,21 +155,25 @@ function displayValidationResults(results) {
 }
 
 function resolveRef(ref, schema) {
-  if (!ref || !ref.startsWith('#/')) return null;
-  const path = ref.substring(2).split('/');
-  let result = schema;
-  
-  for (const key of path) {
-    if (key === 'definitions' && !result[key] && result.$defs) {
-      result = result.$defs;
-    } else {
-      result = result[key];
+    if (!ref || !ref.startsWith('#/')) return null;
+    
+    const path = ref.substring(2).split('/');
+    let result = rootSchema;
+    
+    for (const key of path) {
+      if (key === 'definitions' && !result[key] && result.$defs) {
+        result = result.$defs;
+      } else if (key === '$defs' && !result[key] && result.definitions) {
+        result = result.definitions;
+      } else {
+        result = result[key];
+      }
+      if (!result) return null;
     }
-    if (!result) return null;
+    
+    return result;
   }
-  return result;
-}
-
+  
 /**
  * Shows a dialog with scrollable list of validation errors (missing keys)
  * @param {Array} missingKeys - Array of missing key strings

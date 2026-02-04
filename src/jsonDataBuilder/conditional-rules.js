@@ -130,8 +130,8 @@ function setDisabledFieldValue(fieldPath, fieldGroup) {
   const fieldType = getFieldTypeFromSchema(fieldPath);
   let defaultValue;
   
-  if (fieldType === 'integer' || fieldType === 'number') {
-    defaultValue = -9999;
+  if (fieldType === 'integer' || fieldType === 'number' || fieldType === 'boolean')  {
+    defaultValue = null;
   } else if (fieldType === 'date') {
     defaultValue = '1900-01-01';
   } else {
