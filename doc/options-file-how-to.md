@@ -736,6 +736,6 @@ The options file provides powerful customization for schema-based forms:
 
 By following this documentation, you can create sophisticated, user-friendly forms that adapt to user input and enforce business logic automatically.
 
-Version: 3.6
+Version: 3.7
 Last Updated: 2025
 For Questions: Refer to your schema documentation or contact your development team.
