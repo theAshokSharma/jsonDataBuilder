@@ -10,7 +10,7 @@ import { validateAndShowSummary, clearAllValidationErrors } from './input-valida
 import { getLastSchemaFile, getLastOptionsFile, createFileFromData } from './storage-manager.js';
 
 // Initialize on page load
-console.log('JSON Data Builder Loaded - Version 3.6`');
+console.log('JSON Data Builder Loaded - Version 3.7`');
 
 
 // Button event listeners
@@ -51,7 +51,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     if (!isValid) {
       const confirmSave = await ashConfirm(
         '⚠️ Warning: Form contains validation errors.\n\n' +
-        'Fields with errors are highlighted. Saving will export the form with these values.\n\n' +
+        'There are fields with validation errors. Saving will export the form with these values.\n\n' +
         'Do you want to save anyway?'
       );
       
@@ -102,7 +102,7 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
     if (!isValid) {
       const confirmExport = await ashConfirm(
         '⚠️ Warning: Form contains validation errors.\n\n' +
-        'Fields with errors are highlighted. Exporting will copy the form with these values.\n\n' +
+        'Exporting will copy the form with these values.\n\n' +
         'Do you want to export anyway?'
       );
       
@@ -254,6 +254,12 @@ document.addEventListener('click', function(event) {
   }
 });
 
+/**
+ * Collects all form data with intelligent type conversion
+ * Handles all input types: text, number, select, checkbox, radio, multi-select, etc.
+ * Converts values to correct types based on JSON schema
+ * @returns {Object} - Collected form data as JavaScript object
+ */
 function collectFormData() {
   const data = {};
   const inputs = document.querySelectorAll('[data-path]');
@@ -270,9 +276,10 @@ function collectFormData() {
         const naCheckbox = document.querySelector(`[data-path="${path}"].na-checkbox-input:checked`);
         
         if (naCheckbox) {
-          setNestedValue(data, path, naCheckbox.value);
+          setNestedValue(data, path, convertToSchemaType(path, naCheckbox.value, true));
         } else if (checkboxes.length > 0) {
-          setNestedValue(data, path, Array.from(checkboxes).map(cb => cb.value));
+          const values = Array.from(checkboxes).map(cb => convertToSchemaType(path, cb.value, true));
+          setNestedValue(data, path, values);
         } else {
           setNestedValue(data, path, []);
         }
@@ -282,7 +289,7 @@ function collectFormData() {
     else if (input.classList && input.classList.contains('na-checkbox')) {
       const naCheckbox = document.getElementById(path + '_na');
       if (naCheckbox && naCheckbox.checked) {
-        setNestedValue(data, path, naCheckbox.value);
+        setNestedValue(data, path, convertToSchemaType(path, naCheckbox.value, true));
         processedPaths.add(path);
       }
     }
@@ -290,11 +297,12 @@ function collectFormData() {
       if (!processedPaths.has(path)) {
         const naCheckbox = document.getElementById(path + '_na');
         if (naCheckbox && naCheckbox.checked) {
-          setNestedValue(data, path, naCheckbox.value);
+          setNestedValue(data, path, convertToSchemaType(path, naCheckbox.value, true));
         } else {
           const checkboxes = document.querySelectorAll(`[data-path="${path}"].multi-select-checkbox:checked`);
           if (checkboxes.length > 0) {
-            setNestedValue(data, path, Array.from(checkboxes).map(cb => cb.value));
+            const values = Array.from(checkboxes).map(cb => convertToSchemaType(path, cb.value, true));
+            setNestedValue(data, path, values);
           } else {
             setNestedValue(data, path, []);
           }
@@ -308,9 +316,9 @@ function collectFormData() {
         const naRadio = document.querySelector(`[data-path="${path}"].na-radio-input:checked`);
         
         if (naRadio) {
-          setNestedValue(data, path, naRadio.value);
+          setNestedValue(data, path, convertToSchemaType(path, naRadio.value, false));
         } else if (selectedRadio) {
-          setNestedValue(data, path, selectedRadio.value);
+          setNestedValue(data, path, convertToSchemaType(path, selectedRadio.value, false));
         } else {
           setNestedValue(data, path, null);
         }
@@ -340,7 +348,9 @@ function collectFormData() {
       processedPaths.add(path);
     }
     else if (input.tagName === 'SELECT' || (input.tagName === 'INPUT' && input.type === 'text') || (input.tagName === 'INPUT' && input.type === 'email') || input.tagName === 'TEXTAREA') {
-      setNestedValue(data, path, input.value);
+      // ✅ FIXED: Convert SELECT values based on schema type
+      const convertedValue = convertToSchemaType(path, input.value, false);
+      setNestedValue(data, path, convertedValue);
       processedPaths.add(path);
     }
   });
@@ -350,7 +360,6 @@ function collectFormData() {
   
   return data;
 }
-
 
 // ==================== ABOUT MODAL =======================
 function showAboutModal() {
@@ -386,18 +395,6 @@ async function showViewModal() {
         // NEW: Validate against schema
         const isValid = await validateAndShowSummary(data, state.currentSchema);
         
-        if (!isValid) {
-          const confirmView = await ashConfirm(
-            '⚠️ Warning: Form contains validation errors.\n\n' +
-            'Fields with errors are highlighted. \n\n' +
-            'Do you want to view it anyway?'
-          );
-          
-          if (!confirmView) {
-            return;
-          }
-        }
-        
         // Check for invalid fields from data loading (separate from validation)
         const invalidFields = document.querySelectorAll('.invalid-data');
         if (invalidFields.length > 0) {
@@ -425,7 +422,7 @@ async function showViewModal() {
         // Close button handler
         document.getElementById('closeViewBtn').onclick = () => {
         viewModal.style.display = 'none';
-        clearAllValidationErrors();
+        // clearAllValidationErrors();
       };
 
       // Close on outside click
@@ -812,6 +809,117 @@ window.addEventListener('DOMContentLoaded', async () => {
     updateFileStatusDisplay();
   }
 });
+
+
+/*** Helper Functions */
+/**
+ * Converts a value to the correct type based on schema
+ * @param {string} fieldPath - Dot-notation path to the field
+ * @param {string} value - The string value to convert
+ * @param {boolean} isArray - Whether this is an array item
+ * @returns {string|number|null} - Converted value
+ */
+function convertToSchemaType(fieldPath, value, isArray) {
+  // 1. Handle empty values
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  
+  // 2. Get the schema for this field
+  const fieldSchema = getFieldSchemaForPath(fieldPath);
+  
+  // 3. Determine the target type
+  let targetType = fieldSchema.type;
+  
+  // If it's an array field, look at the items type
+  if (targetType === 'array' && isArray && fieldSchema.items) {
+    targetType = fieldSchema.items.type;
+  }
+  
+  // 4. Check custom options for response_type
+  const customConfig = state.customOptions?.[fieldPath];
+  const responseType = customConfig?.response_type;
+  
+  // 5. Multi-select always returns strings
+  if (responseType === 'multi-select') {
+    return String(value);
+  }
+  
+  // 6. Convert based on schema type
+  switch (targetType) {
+    case 'number':
+    case 'integer':
+      const num = Number(value);
+      return !isNaN(num) ? num : value;
+      
+    case 'boolean':
+      return value === 'true' || value === true;
+      
+    case 'string':
+    default:
+      return String(value);
+  }
+}
+
+/**
+ * Gets the schema for a specific field path
+ * @param {string} fieldPath - Dot-notation path to the field
+ * @returns {Object|null} - Field schema or null
+ */
+function getFieldSchemaForPath(fieldPath) {
+  if (!state.currentSchema?.properties) {
+    return null;
+  }
+  
+  const keys = fieldPath.split('.');
+  let current = state.currentSchema.properties;
+  
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    
+    if (!current?.[key]) {
+      return null;
+    }
+    
+    const prop = current[key];
+    
+    // Resolve $ref if present
+    if (prop.$ref) {
+      const resolved = resolveRefInCollect(prop.$ref);
+      if (!resolved) return null;
+      
+      if (i === keys.length - 1) {
+        return resolved;
+      }
+      current = resolved.properties;
+    } else {
+      if (i === keys.length - 1) {
+        return prop;
+      }
+      current = prop.properties;
+    }
+  }
+  
+  return null;
+}
+
+function resolveRefInCollect(ref) {
+  if (!ref || !ref.startsWith('#/')) return null;
+  
+  const path = ref.substring(2).split('/');
+  let result = state.currentSchema;
+  
+  for (const key of path) {
+    if (key === 'definitions' && !result[key] && result.$defs) {
+      result = result.$defs;
+    } else {
+      result = result[key];
+    }
+    if (!result) return null;
+  }
+  
+  return result;
+}
 
 export {
   collectFormData,

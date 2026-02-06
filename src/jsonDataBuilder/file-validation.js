@@ -158,7 +158,7 @@ function resolveRef(ref, schema) {
     if (!ref || !ref.startsWith('#/')) return null;
     
     const path = ref.substring(2).split('/');
-    let result = rootSchema;
+    let result = schema;
     
     for (const key of path) {
       if (key === 'definitions' && !result[key] && result.$defs) {

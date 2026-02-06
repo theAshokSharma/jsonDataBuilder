@@ -34,7 +34,7 @@ async function saveJsonWithDialog(data, dataFilename, dataFilePath) {
       const writable = await handle.createWritable();
       await writable.write(blob);
       await writable.close();
-      console.log('✓ JSON saved to file');
+      console.log('✔ JSON saved to file');
       return true;
     } catch (error) {
       if (error.name === 'AbortError') {
@@ -57,7 +57,7 @@ async function saveJsonWithDialog(data, dataFilename, dataFilePath) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    console.log('✓ JSON saved to file (fallback)');
+    console.log('✔ JSON saved to file (fallback)');
     return true;
   }
 }
@@ -69,7 +69,7 @@ async function exportJsonToClipboard(data) {
   
   try {
     await navigator.clipboard.writeText(jsonString);
-    console.log('✓ JSON copied to clipboard');
+    console.log('✔ JSON copied to clipboard');
     ashAlert('JSON copied to clipboard!');    
   } catch (error) {
     const textarea = document.createElement('textarea');
@@ -80,7 +80,7 @@ async function exportJsonToClipboard(data) {
     textarea.select();
     document.execCommand('copy');
     document.body.removeChild(textarea);
-    console.log('✓ JSON copied to clipboard (fallback)');    
+    console.log('✔ JSON copied to clipboard (fallback)');    
     ashAlert('JSON copied to clipboard!');
 
   }
@@ -233,6 +233,139 @@ function ashAlert(message) {
   });
 }
 
+/**
+ * 🆕 NEW: Shows a custom alert dialog with SCROLLABLE message for long content
+ * Similar to ashConfirm but with only an OK button
+ * Dialog size is capped at 700px width and 500px height with scrollable content
+ * 
+ * @param {string} message - The message to display (supports newlines)
+ * @param {string} [title='Alert'] - Optional title for the dialog
+ * @returns {Promise<boolean>} Resolves to true when OK is clicked
+ */
+function ashAlertScrollable(message, title = 'Alert') {
+  return new Promise((resolve) => {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.background = 'rgba(0,0,0,0.6)';
+    modal.style.backdropFilter = 'blur(3px)';
+    modal.style.display = 'flex';
+    modal.style.alignItems = 'center';
+    modal.style.justifyContent = 'center';
+    modal.style.zIndex = '10001'; // Higher than other modals
+
+    // Create dialog box
+    const dialog = document.createElement('div');
+    dialog.style.background = 'white';
+    dialog.style.padding = '0';
+    dialog.style.borderRadius = '12px';
+    dialog.style.boxShadow = '0 12px 48px rgba(0,0,0,0.4)';
+    dialog.style.maxWidth = '700px';
+    dialog.style.width = '90%';
+    dialog.style.maxHeight = '500px';
+    dialog.style.display = 'flex';
+    dialog.style.flexDirection = 'column';
+    dialog.style.overflow = 'hidden';
+
+    // Title header
+    const header = document.createElement('div');
+    header.style.padding = '20px 24px';
+    header.style.background = 'linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%)';
+    header.style.color = 'white';
+    header.style.borderRadius = '12px 12px 0 0';
+    
+    const titleElement = document.createElement('h3');
+    titleElement.textContent = title;
+    titleElement.style.margin = '0';
+    titleElement.style.fontSize = '20px';
+    titleElement.style.fontWeight = '600';
+    header.appendChild(titleElement);
+
+    // Message area (scrollable)
+    const messageContainer = document.createElement('div');
+    messageContainer.style.flex = '1';
+    messageContainer.style.overflowY = 'auto';
+    messageContainer.style.padding = '24px';
+    messageContainer.style.maxHeight = 'calc(500px - 140px)'; // Leave room for header + footer
+
+    const text = document.createElement('pre');
+    text.textContent = message;
+    text.style.margin = '0';
+    text.style.whiteSpace = 'pre-wrap';
+    text.style.wordWrap = 'break-word';
+    text.style.fontFamily = 'inherit';
+    text.style.fontSize = '14px';
+    text.style.lineHeight = '1.6';
+    text.style.color = '#333';
+    messageContainer.appendChild(text);
+
+    // Footer with button
+    const footer = document.createElement('div');
+    footer.style.padding = '16px 24px';
+    footer.style.background = '#f8f9fa';
+    footer.style.borderTop = '1px solid #e9ecef';
+    footer.style.display = 'flex';
+    footer.style.justifyContent = 'center';
+
+    // OK button
+    const okBtn = document.createElement('button');
+    okBtn.textContent = 'OK';
+    okBtn.style.padding = '12px 32px';
+    okBtn.style.backgroundColor = '#007bff';
+    okBtn.style.color = 'white';
+    okBtn.style.border = 'none';
+    okBtn.style.borderRadius = '6px';
+    okBtn.style.cursor = 'pointer';
+    okBtn.style.fontWeight = '600';
+    okBtn.style.fontSize = '15px';
+    okBtn.style.transition = 'all 0.2s';
+    okBtn.onmouseover = () => { 
+      okBtn.style.backgroundColor = '#0056b3';
+      okBtn.style.transform = 'translateY(-2px)';
+      okBtn.style.boxShadow = '0 4px 12px rgba(0,123,255,0.3)';
+    };
+    okBtn.onmouseout = () => { 
+      okBtn.style.backgroundColor = '#007bff';
+      okBtn.style.transform = 'translateY(0)';
+      okBtn.style.boxShadow = 'none';
+    };
+    okBtn.onclick = () => {
+      resolve(true);
+      document.body.removeChild(modal);
+    };
+
+    // Assemble dialog
+    footer.appendChild(okBtn);
+    dialog.appendChild(header);
+    dialog.appendChild(messageContainer);
+    dialog.appendChild(footer);
+    modal.appendChild(dialog);
+    document.body.appendChild(modal);
+
+    // Focus OK button
+    okBtn.focus();
+
+    // Close on Escape key
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        resolve(true);
+        document.body.removeChild(modal);
+        document.removeEventListener('keydown', handleKeyDown);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+
+    // Clean up event listener when modal closes
+    modal.addEventListener('DOMNodeRemoved', () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    });
+  });
+}
+
 /*
  * AddToolTip
  * Usage example for the buttons (add this after the buttons are defined or in DOMContentLoaded)
@@ -295,10 +428,12 @@ function escapeHtml(str) {
     };
     return String(str).replace(/[&<>"']/g, char => htmlEscapes[char]);
 }
+
 export { saveJsonWithDialog, 
          exportJsonToClipboard,
          addTooltip,
-         ashAlert, 
+         ashAlert,
+         ashAlertScrollable, // 🆕 NEW EXPORT
          ashConfirm,
          escapeHtml
 };
