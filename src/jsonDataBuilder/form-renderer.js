@@ -561,6 +561,7 @@ function switchTab(tabKey) {
   if (state.currentTab) {
     const prevTabButton = document.getElementById(`tab-${state.currentTab}`);
     const prevTabContent = document.getElementById(`content-${state.currentTab}`);
+
     if (prevTabButton) prevTabButton.classList.remove('active');
     if (prevTabContent) prevTabContent.classList.remove('active');
   }
@@ -581,6 +582,7 @@ function switchTab(tabKey) {
         attachEventListeners();
         // NEW: Initialize any dependent fields in this newly rendered tab
         initializePendingDependentFields();
+        attachRealtimeValidation(state.currentSchema);
       }, 100);
     }
 
@@ -615,6 +617,7 @@ function renderAllTabs() {
   
   // Attach event listeners to all newly rendered elements
   attachEventListeners();
+  attachRealtimeValidation(state.currentSchema);
   
   console.log('✓ All tabs rendered');
 }
