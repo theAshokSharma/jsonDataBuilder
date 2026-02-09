@@ -3,6 +3,7 @@
 // @ts-check
 import { state } from './state.js';
 import { resolveRef } from './file-validation.js';
+import { getFieldSchemaForPath, resolveRefInCollect } from './data-builder.js';
 import { ashAlert, ashAlertScrollable, ashConfirm, escapeHtml } from './utils.js';
 
 console.log('📋 Input Validation Module Loaded - Version 3.10 (TAB-AWARE FIXED)');
@@ -92,6 +93,7 @@ export function validateFieldValue(value, schema, fieldPath) {
       if (!customOptionsChecked && schema.enum && !schema.enum.includes(value)) {
         errors.push(`Must be one of: ${schema.enum.join(', ')}`);
       }
+
       break;
 
     case 'number':
@@ -214,7 +216,8 @@ export function validateFieldValue(value, schema, fieldPath) {
           if (schema.properties[key]) {
             const propValidation = validateFieldValue(val, schema.properties[key], `${fieldPath}.${key}`);
             if (!propValidation.isValid) {
-              errors.push(`Property ${key}: ${propValidation.errors.join(', ')}`);
+              // Ashok not needed at Object Level
+              // errors.push(`Property ${key}: ${propValidation.errors.join(', ')}`);
             }
           } else if (schema.additionalProperties === false) {
             errors.push(`Property ${key} is not allowed`);
@@ -326,25 +329,52 @@ function areItemsUnique(arr) {
 }
 
 /**
- * Validates an entire form data object against the schema
+ * Validates an entire form data object against a JSON schema
+ * 
+ * Features:
+ * - Validates required fields
+ * - Validates field values against schema types and constraints
+ * - Handles nested objects recursively
+ * - Resolves $ref references to schema definitions
+ * - Checks string length, number ranges, patterns, formats, enums
+ * - Returns detailed error messages per field
+ * 
  * @param {Object} data - The form data to validate
- * @param {Object} schema - The JSON schema
+ * @param {Object} schema - The JSON schema to validate against
  * @returns {Object} - { isValid: boolean, errors: Object, warnings: Object }
+ * 
+ * Example usage:
+ * ```javascript
+ * const result = validateFormData(formData, jsonSchema);
+ * if (!result.isValid) {
+ *   console.log('Validation errors:', result.errors);
+ *   // errors format: { "fieldPath": ["error message 1", "error message 2"] }
+ * }
+ * ```
  */
 export function validateFormData(data, schema) {
   const errors = {};
   const warnings = {};
   let isValid = true;
 
+  /**
+   * Recursively validates an object against its schema
+   * 
+   * @param {Object} obj - The data object to validate
+   * @param {Object} schemaObj - The schema object to validate against
+   * @param {string} path - Current path in dot notation (e.g., "demographic.mbr_address")
+   */
   function validateObject(obj, schemaObj, path = '') {
+    // Exit if schema has no properties to validate
     if (!schemaObj.properties) return;
 
-    // Check required fields
+    // ==================== REQUIRED FIELDS VALIDATION ====================
     if (schemaObj.required) {
       schemaObj.required.forEach(requiredField => {
         const fieldPath = path ? `${path}.${requiredField}` : requiredField;
         const value = obj[requiredField];
         
+        // Check if field is missing, null, undefined, or empty string
         if (value === null || value === undefined || value === '') {
           errors[fieldPath] = ['This field is required'];
           isValid = false;
@@ -352,34 +382,61 @@ export function validateFormData(data, schema) {
       });
     }
 
-    // Validate each property
+    // ==================== PROPERTY VALIDATION ====================
     Object.entries(schemaObj.properties).forEach(([key, propSchema]) => {
       const fieldPath = path ? `${path}.${key}` : key;
       const value = obj[key];
 
-      // Skip if value doesn't exist and field is not required
+      // Skip validation if value doesn't exist and field is not required
       if ((value === null || value === undefined || value === '') && 
           (!schemaObj.required || !schemaObj.required.includes(key))) {
         return;
       }
 
+      // Validate the field value against its schema
+      // validateFieldValue() handles:
+      // - Type checking (string, number, integer, boolean, array, object)
+      // - String constraints (minLength, maxLength, pattern, format, enum)
+      // - Number constraints (minimum, maximum, multipleOf)
+      // - Array constraints (minItems, maxItems, uniqueItems)
+      // - $ref resolution
       const validation = validateFieldValue(value, propSchema, fieldPath);
       if (!validation.isValid) {
         errors[fieldPath] = validation.errors;
         isValid = false;
       }
 
+      // ==================== RECURSIVE NESTED OBJECT VALIDATION ====================
+      // ✅ CRITICAL FIX: Resolve $ref before checking type
+      // When propSchema is { "$ref": "#/$defs/SomeObject" }, it has no direct 'type' property
+      // Must resolve the reference first to get the actual schema with type information
+      let resolvedSchema = propSchema;
+      if (propSchema.$ref) {
+        resolvedSchema = resolveRef(propSchema.$ref, schema);
+      }
+
       // Recursively validate nested objects
-      if (propSchema.type === 'object' && typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        validateObject(value, propSchema, fieldPath);
+      // Only proceed if:
+      // 1. Schema was resolved successfully (not null)
+      // 2. Schema type is 'object'
+      // 3. Value is actually an object (not null, not array)
+      if (resolvedSchema && 
+          resolvedSchema.type === 'object' && 
+          typeof value === 'object' && 
+          value !== null && 
+          !Array.isArray(value)) {
+        validateObject(value, resolvedSchema, fieldPath);
       }
     });
   }
 
+  // Start validation from root
   validateObject(data, schema);
 
+  // Return validation results
   return { isValid, errors, warnings };
 }
+
 
 /**
  * 🔧 FIXED: Groups errors by tab based on field path
@@ -766,10 +823,10 @@ function findInputElement(fieldPath) {
 
 /**
  * Attaches real-time validation to form inputs
- * @param {Object} schema - The JSON schema
+ * @param {Object} schema - The JSON schema 
  */
 export function attachRealtimeValidation(schema) {
-  console.log('🔗 Attaching real-time validation listeners...');
+  console.log('🔗 Attaching ENHANCED real-time validation listeners...');
   
   const inputs = document.querySelectorAll('input[data-path], select[data-path], textarea[data-path]');
   let attachedCount = 0;
@@ -778,44 +835,50 @@ export function attachRealtimeValidation(schema) {
     const fieldPath = input.dataset.path;
     if (!fieldPath) return;
 
-    // Skip if already has validation listener
     if (input.dataset.validationListenerAttached === 'true') return;
 
-    // Get schema for this field
-    const fieldSchema = getFieldSchema(fieldPath, schema);
+    // const fieldSchema = getFieldSchema(fieldPath, schema);
+    const fieldSchema = getFieldSchemaForPath(fieldPath);
     if (!fieldSchema) {
       console.warn(`No schema found for ${fieldPath}`);
       return;
     }
 
-    // Skip if field has dropdown control (already validated elsewhere)
-    if (input.tagName === 'SELECT' && state.customOptions[fieldPath]) {
-      return;
+    // Is Required Field
+    const isRequired = isFieldRequired(fieldPath);
+
+    
+    // If field is required, always validate it
+    const needsRealtimeValidation = isRequired && shouldValidateRealtime(input, fieldSchema);
+    
+    if (needsRealtimeValidation) {
+      // Real-time validation on input
+      input.addEventListener('input', () => {
+        if (isFieldValidatable(input)) {
+          validateAndDisplayFieldError(input, fieldSchema, fieldPath);
+        } else {
+          clearFieldError(input, fieldPath);
+        }
+      });
+      
+      console.log(`  ✅ Real-time validation: ${fieldPath} (${input.type})`);
+    } else {
+      // Just clear errors on change for exempt controls
+      input.addEventListener('change', () => {
+        clearFieldError(input, fieldPath);
+      });
+      
+      console.log(`  ℹ️ Auto-clear: ${fieldPath} (${input.type || input.tagName})`);
     }
-
-    // Skip multi-select, checkbox, radio (these have their own validation)
-    if (input.classList.contains('multi-select-checkbox') ||
-        input.classList.contains('checkbox-input') ||
-        input.classList.contains('radio-input') ||
-        input.classList.contains('na-checkbox')) {
-      return;
-    }
-
-    // Attach validation on blur
-    input.addEventListener('blur', () => {
-      validateAndDisplayFieldError(input, fieldSchema, fieldPath);
-    });
-
-    // Clear error on input
-    input.addEventListener('input', () => {
-      clearFieldError(input);
-    });
 
     input.dataset.validationListenerAttached = 'true';
     attachedCount++;
   });
   
-  console.log(`✅ Attached validation to ${attachedCount} input fields`);
+  // Monitor disabled state changes
+  observeDisabledStateChanges();
+  
+  console.log(`✅ Attached validation to ${attachedCount} fields`);
 }
 
 /**
@@ -896,17 +959,28 @@ function validateAndDisplayFieldError(input, fieldSchema, fieldPath) {
 
     input.parentNode.insertBefore(errorDiv, input.nextSibling);
   }
+  else {
+    clearFieldError(input, fieldPath);
+  }
 }
 
 /**
  * Clears validation error for a field
  * @param {HTMLElement} input - The input element
  */
-function clearFieldError(input) {
+function clearFieldError(input, fieldPath) {
   input.classList.remove('validation-error');
-  const errorMessage = input.parentNode.querySelector('.validation-error-message');
-  if (errorMessage) {
-    errorMessage.remove();
+  
+  if (fieldPath) {
+    const errorMessage = input.parentNode.querySelector(`.validation-error-message[data-field-path="${fieldPath}"]`);
+    if (errorMessage) {
+      errorMessage.remove();
+    }
+  } else {
+    const errorMessage = input.parentNode.querySelector('.validation-error-message');
+    if (errorMessage) {
+      errorMessage.remove();
+    }
   }
 }
 
@@ -968,7 +1042,100 @@ export async function validateAndShowSummary(data, schema) {
   
   return validation.isValid;
 }
+/**
+ * Determines if a field should have real-time validation
+ */
+function shouldValidateRealtime(input, fieldSchema) {
 
+  // Exempt dropdown
+  if (input.tagName === 'SELECT') return false;
+  
+  // Exempt radio buttons
+  if (input.type === 'radio' || input.classList.contains('radio-input')) return false;
+  
+  // Exempt checkboxes (except boolean)
+  if (input.type === 'checkbox' && 
+      (input.classList.contains('multi-select-checkbox') || 
+       input.classList.contains('checkbox-input') ||
+       input.classList.contains('na-checkbox'))) {
+    return false;
+  }
+  
+  // Exempt date/time
+  if (input.type === 'date' || input.type === 'datetime-local' || input.type === 'time') {
+    return false;
+  }
+  
+  // Exempt sliders
+  if (input.type === 'range' || input.classList.contains('slider-input')) {
+    return false;
+  }
+  
+  // Include text, number, email, textarea
+  if (input.type === 'text' || input.type === 'number' || 
+      input.type === 'email' || input.type === 'url' ||
+      input.tagName === 'TEXTAREA') {
+    return true;
+  }
+  
+  // Include boolean checkboxes
+  if (input.type === 'checkbox' && fieldSchema.type === 'boolean') {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Checks if field should be validated (not empty, not disabled)
+ */
+function isFieldValidatable(input) {
+  if (input.disabled) return false;
+  
+  const formGroup = input.closest('.form-group');
+  if (formGroup && formGroup.classList.contains('disabled')) return false;
+  
+  const value = input.type === 'checkbox' ? input.checked : input.value;
+  if (value === null || value === undefined || value === '') return false;
+  
+  return true;
+}
+
+/**
+ * Observes disabled state changes and clears errors
+ */
+function observeDisabledStateChanges() {
+  const formGroups = document.querySelectorAll('.form-group');
+  
+  const observer = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+      if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+        const target = mutation.target;
+        if (target.classList.contains('form-group') && target.classList.contains('disabled')) {
+          const fieldPath = target.dataset.fieldPath;
+          if (fieldPath) {
+            const input = findInputElement(fieldPath);
+            if (input) {
+              clearFieldError(input, fieldPath);
+              console.log(`  🧹 Cleared validation error for disabled field: ${fieldPath}`);
+            }
+          }
+        }
+      }
+    });
+  });
+  
+  formGroups.forEach(formGroup => {
+    observer.observe(formGroup, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+  });
+  
+  if (!window._fieldDisabledObserver) {
+    window._fieldDisabledObserver = observer;
+  }
+}
 /**
  * Clears all validation errors from the form (all tabs)
  */
@@ -977,14 +1144,90 @@ export function clearAllValidationErrors() {
   document.querySelectorAll('.validation-error').forEach(el => el.classList.remove('validation-error'));
   document.querySelectorAll('.invalid-fields-summary').forEach(el => el.remove());
   
-  // Disconnect observer and clear global state
+  // Disconnect observers
   if (window._tabChangeObserver) {
     window._tabChangeObserver.disconnect();
     window._tabChangeObserver = null;
   }
+  if (window._fieldDisabledObserver) {
+    window._fieldDisabledObserver.disconnect();
+    window._fieldDisabledObserver = null;
+  }
   window._validationErrorsByTab = null;
   
-  console.log('🧹 Cleared all validation errors from all tabs');
+  console.log('🧹 Cleared all validation errors');
 }
 
+/**
+ * Checks if the final key in a field path is a required field
+ * Handles nested objects and $ref resolution
+ * 
+ * @param {string} fieldPath - Dot-notation path to the field (e.g., 'demographic.mbr_first_name')
+ * @returns {boolean} - True if the final key is required, false otherwise
+ * 
+ * @example
+ * isFieldRequired('demographic.mbr_first_name') // true if mbr_first_name is in demographic's required array
+ * isFieldRequired('demographic.mbr_address.mbr_country') // true if mbr_country is in mbr_address's required array
+ */
+function isFieldRequired(fieldPath) {
+  if (!state.currentSchema?.properties) {
+    console.warn('No schema properties found');
+    return false;
+  }
+  
+  if (!fieldPath || typeof fieldPath !== 'string') {
+    console.warn('Invalid field path provided');
+    return false;
+  }
+  
+  const keys = fieldPath.split('.');
+  let current = state.currentSchema.properties;
+  let currentSchema = state.currentSchema;
+  
+  // Navigate through the path
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i];
+    
+    // Check if property exists at this level
+    if (!current?.[key]) {
+      console.warn(`Property "${key}" not found at path level ${i}`);
+      return false;
+    }
+    
+    const prop = current[key];
+    
+    // If this is the final key, check if it's required
+    if (i === keys.length - 1) {
+      const requiredFields = currentSchema.required || [];
+      const isRequired = requiredFields.includes(key);
+      console.log(`Field "${fieldPath}" is ${isRequired ? 'REQUIRED' : 'NOT REQUIRED'}`);
+      return isRequired;
+    }
+    
+    // Not the final key, need to navigate deeper
+    // Resolve $ref if present
+    if (prop.$ref) {
+      const resolved = resolveRefInCollect(prop.$ref);
+      if (!resolved) {
+        console.warn(`Could not resolve $ref: ${prop.$ref}`);
+        return false;
+      }
+      
+      // Update current context to resolved schema
+      current = resolved.properties;
+      currentSchema = resolved;
+    } else if (prop.type === 'object' && prop.properties) {
+      // Navigate into nested object
+      current = prop.properties;
+      currentSchema = prop;
+    } else {
+      // Property exists but is not an object - path is invalid
+      console.warn(`Property "${key}" is not an object, cannot navigate further`);
+      return false;
+    }
+  }
+  
+  // Should never reach here
+  return false;
+}
 //==== END OF FILE ====//
