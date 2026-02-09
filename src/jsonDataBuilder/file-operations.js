@@ -147,7 +147,7 @@ function loadDataFromFile() {
     // New: Store filename and path (path is limited in browsers)
     updateState({
       dataFilename: file.name.endsWith('.json') ? file.name : `${file.name}.json`,
-      dataFilePath: file.webkitRelativePath || file.name
+      dataFilePath: file.webkitRelativePath
     });
     try {
       const text = await file.text();

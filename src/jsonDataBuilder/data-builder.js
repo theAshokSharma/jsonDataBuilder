@@ -925,7 +925,9 @@ export {
   collectFormData,
   setNestedValue,
   showAboutModal,
-  showViewModal
+  showViewModal,
+  getFieldSchemaForPath,
+  resolveRefInCollect
 };
 
 //==== END OF FILE ====//
