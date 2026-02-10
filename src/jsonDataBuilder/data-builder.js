@@ -10,7 +10,7 @@ import { validateAndShowSummary, clearAllValidationErrors } from './input-valida
 import { getLastSchemaFile, getLastOptionsFile, createFileFromData } from './storage-manager.js';
 
 // Initialize on page load
-console.log('JSON Data Builder Loaded - Version 3.7`');
+console.log('JSON Data Builder Loaded - Version 3.8`');
 
 
 // Button event listeners
@@ -812,115 +812,408 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 
 /*** Helper Functions */
-/**
- * Converts a value to the correct type based on schema
- * @param {string} fieldPath - Dot-notation path to the field
- * @param {string} value - The string value to convert
- * @param {boolean} isArray - Whether this is an array item
- * @returns {string|number|null} - Converted value
- */
-function convertToSchemaType(fieldPath, value, isArray) {
-  // 1. Handle empty values
-  if (value === null || value === undefined || value === '') {
-    return null;
-  }
-  
-  // 2. Get the schema for this field
-  const fieldSchema = getFieldSchemaForPath(fieldPath);
-  
-  // 3. Determine the target type
-  let targetType = fieldSchema.type;
-  
-  // If it's an array field, look at the items type
-  if (targetType === 'array' && isArray && fieldSchema.items) {
-    targetType = fieldSchema.items.type;
-  }
-  
-  // 4. Check custom options for response_type
-  const customConfig = state.customOptions?.[fieldPath];
-  const responseType = customConfig?.response_type;
-  
-  // 5. Multi-select always returns strings
-  if (responseType === 'multi-select') {
-    return String(value);
-  }
-  
-  // 6. Convert based on schema type
-  switch (targetType) {
-    case 'number':
-    case 'integer':
-      const num = Number(value);
-      return !isNaN(num) ? num : value;
-      
-    case 'boolean':
-      return value === 'true' || value === true;
-      
-    case 'string':
-    default:
-      return String(value);
-  }
-}
 
 /**
- * Gets the schema for a specific field path
- * @param {string} fieldPath - Dot-notation path to the field
- * @returns {Object|null} - Field schema or null
+ * ✅ MAIN FUNCTION: Gets schema for any field path
+ * Replace getFieldSchemaForPath in data-builder.js with this
  */
 function getFieldSchemaForPath(fieldPath) {
-  if (!state.currentSchema?.properties) {
+  if (!state.currentSchema) {
+    console.warn('❌ No schema available');
     return null;
   }
   
-  const keys = fieldPath.split('.');
-  let current = state.currentSchema.properties;
+  if (!fieldPath || typeof fieldPath !== 'string') {
+    console.warn('❌ Invalid field path');
+    return null;
+  }
   
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
+  console.log(`\n🔍 getFieldSchemaForPath: "${fieldPath}"`);
+  
+  // Split path and remove array indices for schema navigation
+  const keys = fieldPath.split('.');
+  const schemaKeys = keys.filter(k => isNaN(parseInt(k)));
+  
+  console.log('  Keys:', keys);
+  console.log('  Schema keys (no indices):', schemaKeys);
+  
+  // Find starting point
+  let current = findStartingPoint();
+  if (!current) {
+    console.warn('  ❌ No starting point found');
+    return null;
+  }
+  
+  console.log('  ✅ Starting point found');
+  
+  // Navigate through schema keys only
+  for (let i = 0; i < schemaKeys.length; i++) {
+    const key = schemaKeys[i];
+    console.log(`  📍 [${i}] Navigating: "${key}"`);
     
-    if (!current?.[key]) {
+    if (!current || typeof current !== 'object') {
+      console.warn(`    ❌ Current is not navigable`);
       return null;
     }
     
-    const prop = current[key];
+    // Get property
+    let prop = current[key];
     
-    // Resolve $ref if present
+    if (!prop) {
+      console.warn(`    ❌ Property "${key}" not found`);
+      console.log(`    Available:`, Object.keys(current));
+      return null;
+    }
+    
+    console.log(`    ✅ Found property "${key}"`);
+    
+    // Resolve $ref
     if (prop.$ref) {
-      const resolved = resolveRefInCollect(prop.$ref);
-      if (!resolved) return null;
+      console.log(`    🔗 Resolving $ref: ${prop.$ref}`);
+      prop = resolveRef(prop.$ref);
       
-      if (i === keys.length - 1) {
-        return resolved;
+      if (!prop) {
+        console.warn(`    ❌ Failed to resolve $ref`);
+        return null;
       }
-      current = resolved.properties;
-    } else {
-      if (i === keys.length - 1) {
-        return prop;
-      }
-      current = prop.properties;
+      console.log(`    ✅ Resolved`);
+    }
+    
+    // Last key? Return the schema
+    if (i === schemaKeys.length - 1) {
+      console.log(`  ✅ FOUND SCHEMA for "${fieldPath}"`);
+      console.log(`    Type: ${prop.type}`);
+      return prop;
+    }
+    
+    // Continue navigation
+    current = getNextLevel(prop, keys, schemaKeys[i]);
+    
+    if (!current) {
+      console.warn(`    ❌ Cannot navigate deeper from "${key}"`);
+      return null;
     }
   }
   
+  console.warn(`  ❌ Reached end without finding schema`);
   return null;
 }
 
-function resolveRefInCollect(ref) {
-  if (!ref || !ref.startsWith('#/')) return null;
+/**
+ * ✅ Finds the starting point for navigation
+ * Handles all schema types
+ */
+function findStartingPoint() {
+  console.log('  🔎 Finding starting point...');
+  
+  // Case 1: Standard schema with properties
+  if (state.currentSchema.properties) {
+    console.log('    ➡️ Standard schema (has properties)');
+    return state.currentSchema.properties;
+  }
+  
+  // Case 2: Polymorphic schema (oneOf/anyOf at root)
+  if (state.currentSchema.oneOf || state.currentSchema.anyOf) {
+    console.log('    ➡️ Polymorphic schema (oneOf/anyOf)');
+    
+    // Try selected type
+    if (state.selectedPolymorphicType?.option) {
+      let selected = state.selectedPolymorphicType.option;
+      
+      if (selected.$ref) {
+        selected = resolveRef(selected.$ref);
+      }
+      
+      if (selected?.properties) {
+        console.log('    ✅ Using selected type');
+        return selected.properties;
+      }
+    }
+    
+    // Fallback: First option
+    const options = state.currentSchema.oneOf || state.currentSchema.anyOf;
+    if (options?.[0]) {
+      let first = options[0];
+      
+      if (first.$ref) {
+        first = resolveRef(first.$ref);
+      }
+      
+      if (first?.properties) {
+        console.log('    ⚠️ Using first option (fallback)');
+        return first.properties;
+      }
+    }
+  }
+  
+  // Case 3: Non-standard $Defs.properties
+  if (state.currentSchema.$Defs?.properties) {
+    console.log('    ➡️ Non-standard ($Defs.properties)');
+    return state.currentSchema.$Defs.properties;
+  }
+  
+  console.warn('    ❌ No starting point found');
+  return null;
+}
+
+/**
+ * ✅ Gets next level for navigation
+ * Handles objects, arrays, and polymorphic items
+ */
+function getNextLevel(prop, allKeys, currentKey) {
+  console.log(`    🔽 Getting next level from "${currentKey}"`);
+  console.log(`      Type: ${prop.type}`);
+  
+  // Object with properties
+  if (prop.type === 'object' && prop.properties) {
+    console.log(`      ✅ Object → properties`);
+    return prop.properties;
+  }
+  
+  // Array
+  if (prop.type === 'array' && prop.items) {
+    console.log(`      📦 Array → items`);
+    let items = prop.items;
+    
+    // Resolve $ref in items
+    if (items.$ref) {
+      console.log(`        🔗 Items has $ref: ${items.$ref}`);
+      items = resolveRef(items.$ref);
+      
+      if (!items) {
+        console.warn(`        ❌ Failed to resolve items $ref`);
+        return null;
+      }
+    }
+    
+    // Handle polymorphic items (oneOf/anyOf)
+    if (items.oneOf || items.anyOf) {
+      console.log(`        🎯 Polymorphic array items`);
+      
+      // Find array index in path
+      const currentKeyIndex = allKeys.indexOf(currentKey);
+      const nextKey = allKeys[currentKeyIndex + 1];
+      
+      if (nextKey && !isNaN(parseInt(nextKey))) {
+        console.log(`        📊 Array index in path: ${nextKey}`);
+        
+        // Try to get selected option from DOM
+        const selected = getSelectedArrayItemOption(currentKey, parseInt(nextKey));
+        
+        if (selected) {
+          console.log(`        ✅ Using selected option`);
+          items = selected;
+        } else {
+          // Fallback: First option
+          const options = items.oneOf || items.anyOf;
+          let first = options[0];
+          
+          if (first.$ref) {
+            first = resolveRef(first.$ref);
+          }
+          
+          console.log(`        ⚠️ Using first option (no selection)`);
+          items = first;
+        }
+      }
+    }
+    
+    if (items.properties) {
+      console.log(`      ✅ Array items → properties`);
+      return items.properties;
+    }
+    
+    // Items might be oneOf/anyOf without properties yet
+    if (items.oneOf || items.anyOf) {
+      console.log(`      ⚠️ Items still polymorphic, needs selection`);
+      return null;
+    }
+  }
+  
+  console.warn(`      ❌ Cannot get next level (type: ${prop.type})`);
+  return null;
+}
+
+/**
+ * ✅ Resolves $ref with recursion support
+ */
+function resolveRef(ref) {
+  if (!ref || typeof ref !== 'string') {
+    return null;
+  }
+  
+  console.log(`      🔗 resolveRef: ${ref}`);
+  
+  // Recursive reference to root
+  if (ref === '#') {
+    console.log(`        🔄 Recursive reference to root`);
+    
+    // Return the selected polymorphic option if available
+    if (state.selectedPolymorphicType?.option) {
+      let selected = state.selectedPolymorphicType.option;
+      
+      if (selected.$ref && selected.$ref !== '#') {
+        selected = resolveRef(selected.$ref);
+      }
+      
+      if (selected) {
+        console.log(`        ✅ Returning selected type`);
+        return selected;
+      }
+    }
+    
+    // Return root schema
+    console.log(`        ✅ Returning root schema`);
+    return state.currentSchema;
+  }
+  
+  // Regular reference
+  if (!ref.startsWith('#/')) {
+    console.warn(`        ❌ Invalid ref format: ${ref}`);
+    return null;
+  }
   
   const path = ref.substring(2).split('/');
   let result = state.currentSchema;
   
   for (const key of path) {
+    // Handle both $defs and definitions
     if (key === 'definitions' && !result[key] && result.$defs) {
       result = result.$defs;
+    } else if (key === '$defs' && !result[key] && result.definitions) {
+      result = result.definitions;
     } else {
       result = result[key];
     }
-    if (!result) return null;
+    
+    if (!result) {
+      console.warn(`        ❌ Path segment not found: ${key}`);
+      return null;
+    }
   }
   
+  console.log(`        ✅ Resolved to: ${result.title || result.type || 'object'}`);
   return result;
 }
 
+/**
+ * ✅ Gets selected option for array item from DOM
+ */
+function getSelectedArrayItemOption(arrayFieldKey, index) {
+  // Build selector ID
+  const escapedKey = arrayFieldKey.replace(/\./g, '_');
+  const selectorId = `array-type-${escapedKey}-${index}`;
+  
+  console.log(`        🔍 Looking for selector: ${selectorId}`);
+  
+  const selector = document.getElementById(selectorId);
+  
+  if (!selector) {
+    console.log(`        ⚠️ Selector not found`);
+    return null;
+  }
+  
+  const selectedIndex = parseInt(selector.value);
+  
+  if (isNaN(selectedIndex) || selectedIndex < 0) {
+    console.log(`        ⚠️ No valid selection (value: ${selector.value})`);
+    return null;
+  }
+  
+  console.log(`        ✅ Selected index: ${selectedIndex}`);
+  
+  // Get options from root schema
+  const options = state.currentSchema.oneOf || state.currentSchema.anyOf;
+  
+  if (!options || selectedIndex >= options.length) {
+    console.warn(`        ❌ Invalid option index: ${selectedIndex}`);
+    return null;
+  }
+  
+  let option = options[selectedIndex];
+  
+  if (option.$ref) {
+    option = resolveRef(option.$ref);
+  }
+  
+  return option;
+}
+
+/**
+ * ✅ ENHANCED: convertToSchemaType with better error handling
+ * Replace convertToSchemaType in data-builder.js with this
+ */
+function convertToSchemaType(fieldPath, value, isArray) {
+  // Handle empty/null
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+  
+  console.log(`\n🔄 convertToSchemaType: "${fieldPath}" = "${value}"`);
+  
+  // Get schema
+  const fieldSchema = getFieldSchemaForPath(fieldPath);
+  
+  if (!fieldSchema) {
+    console.warn(`  ⚠️ No schema found, returning string`);
+    return String(value);
+  }
+  
+  console.log(`  Schema type: ${fieldSchema.type}`);
+  
+  // Determine target type
+  let targetType = fieldSchema.type;
+  
+  // For array items, use items type
+  if (targetType === 'array' && isArray && fieldSchema.items) {
+    targetType = fieldSchema.items.type;
+    console.log(`  Array item type: ${targetType}`);
+  }
+  
+  // Check custom options
+  const customConfig = state.customOptions?.[fieldPath];
+  const responseType = customConfig?.response_type;
+  
+  if (responseType === 'multi-select') {
+    console.log(`  Multi-select → string`);
+    return String(value);
+  }
+  
+  // Convert based on type
+  console.log(`  Converting to: ${targetType}`);
+  
+  switch (targetType) {
+    case 'number':
+    case 'integer':
+      const num = Number(value);
+      const result = !isNaN(num) ? num : value;
+      console.log(`  Result: ${result} (${typeof result})`);
+      return result;
+      
+    case 'boolean':
+      const bool = value === 'true' || value === true;
+      console.log(`  Result: ${bool}`);
+      return bool;
+      
+    case 'string':
+    default:
+      console.log(`  Result: "${value}" (string)`);
+      return String(value);
+  }
+}
+
+/**
+ * ✅ HELPER: Enhanced resolveRefInCollect
+ * Replace resolveRefInCollect in data-builder.js with this
+ */
+function resolveRefInCollect(ref) {
+  return resolveRef(ref);
+}
+
+
+// ============================================================
+// EXPORT
+// ============================================================
 export {
   collectFormData,
   setNestedValue,
