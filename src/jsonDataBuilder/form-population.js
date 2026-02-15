@@ -533,6 +533,24 @@ function populateArrayField(pathStr, values) {
   } else {
     console.warn(`⚠ No multi-select container found for ${pathStr}`);
     
+    // ⭐ FIX: Check for checkbox-container (for fields rendered as checkbox lists)
+    const checkboxContainer = document.getElementById(`checkbox_${escapedPath}`);
+    if (checkboxContainer) {
+      console.log(`📝 Found checkbox container for ${pathStr}, delegating to populateCheckboxList`);
+      populateCheckboxList(pathStr, values);
+      return;
+    }
+    
+    // ⭐ FIX: Check for radio-container (for single-value arrays rendered as radio buttons)
+    const radioContainer = document.getElementById(`radio_${escapedPath}`);
+    if (radioContainer) {
+      console.log(`📝 Found radio container for ${pathStr}, delegating to populateRadioButton`);
+      // For radio buttons, use first value if array
+      const singleValue = Array.isArray(values) ? values[0] : values;
+      populateRadioButton(pathStr, singleValue);
+      return;
+    }
+    
     // Fallback to regular select, with added validity check
     const selectInput = document.querySelector(`select[data-path="${pathStr}"]`);
     if (selectInput) {
