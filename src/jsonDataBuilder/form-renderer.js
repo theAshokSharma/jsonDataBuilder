@@ -10,6 +10,34 @@ import { attachRealtimeValidation } from './input-validation.js';
 
 console.log('📋 Form Renderer Module Loaded');
 
+// ==================== HELPER FUNCTION ====================
+
+/**
+ * Extracts property name from array path for better labeling
+ * @param {string} arrayPath - Path like "rules.0.conditions" or "items"
+ * @returns {string} - Property name in Title Case (e.g., "Condition", "Item")
+ */
+function getArrayItemLabel(arrayPath) {
+  if (!arrayPath) return 'Item';
+  
+  // Extract the last segment of the path (the property name)
+  const segments = arrayPath.split('.');
+  const propertyName = segments[segments.length - 1];
+  
+  // Convert to singular and Title Case
+  // Remove trailing 's' if it exists for basic pluralization
+  let singular = propertyName;
+  if (singular.endsWith('s') && singular.length > 1) {
+    singular = singular.slice(0, -1);
+  }
+  
+  // Convert to Title Case: first letter uppercase, rest lowercase
+  const titleCase = singular.charAt(0).toUpperCase() + singular.slice(1).toLowerCase();
+  
+  return titleCase;
+}
+
+
 // ==================== MAIN FORM RENDERING ====================
 
 /**
@@ -851,10 +879,13 @@ function createComplexArrayItem(arrayPath, itemSchema, index, container) {
     }
   };
   
+  // ENHANCED: Use property name instead of "Item"
+  const itemLabel = getArrayItemLabel(arrayPath);
+
   headerDiv.innerHTML = `
     <span class="array-item-title">
       <span class="collapse-icon">▼</span>
-      Item ${index + 1}
+      ${itemLabel} ${index + 1}
     </span>
     <button type="button" class="remove-item-btn" onclick="event.stopPropagation(); removeArrayItem(this)">Remove</button>
   `;
@@ -928,10 +959,13 @@ function createSimpleArrayItem(arrayPath, itemSchema, index, container) {
     }
   };
   
+  // ENHANCED: Use property name instead of "Item"
+  const itemLabel = getArrayItemLabel(arrayPath);
+
   headerDiv.innerHTML = `
     <span class="array-item-title">
       <span class="collapse-icon">▼</span>
-      Item ${index + 1}
+      ${itemLabel} ${index + 1}
     </span>
     <button type="button" class="remove-item-btn" onclick="event.stopPropagation(); removeArrayItem(this)">Remove</button>
   `;
@@ -949,7 +983,7 @@ function createSimpleArrayItem(arrayPath, itemSchema, index, container) {
       <input type="${inputType}" 
              name="${itemPath}" 
              data-path="${itemPath}"
-             placeholder="Value for item ${index + 1}"
+             placeholder="Value for ${itemLabel.toLowerCase()} ${index + 1}"
              class="array-item-input">
     </div>
   `;
@@ -1267,6 +1301,9 @@ window.removeArrayItem = function(btn) {
   
   item.remove();
   
+  // ENHANCED: Get property label for updates
+  const itemLabel = getArrayItemLabel(arrayPath);
+
   // Update remaining item numbers and paths
   const items = container.querySelectorAll('.array-item');
   console.log(`📊 Remaining items: ${items.length}`);
@@ -1282,9 +1319,9 @@ window.removeArrayItem = function(btn) {
         // Preserve the icon and update text
         titleSpan.innerHTML = '';
         titleSpan.appendChild(iconSpan);
-        titleSpan.appendChild(document.createTextNode(` Item ${idx + 1}`));
+        titleSpan.appendChild(document.createTextNode(` ${itemLabel} ${idx + 1}`));
       } else {
-        titleSpan.innerHTML = `<span class="collapse-icon">▼</span> Item ${idx + 1}`;
+        titleSpan.innerHTML = `<span class="collapse-icon">▼</span> ${itemLabel} ${idx + 1}`;
       }
     }
     
