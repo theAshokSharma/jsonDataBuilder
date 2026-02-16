@@ -883,7 +883,7 @@ function createComplexArrayItem(arrayPath, itemSchema, index, container) {
   
   // Insert before controls
   const controls = container.querySelector('.array-controls');
-  if (controls) {
+  if (controls && container.contains(controls) && controls.parentNode === container) {
     container.insertBefore(itemDiv, controls);
     console.log('✅ Array item inserted before controls');
   } else {
@@ -921,7 +921,13 @@ function createSimpleArrayItem(arrayPath, itemSchema, index, container) {
   
   // Insert before controls
   const controls = container.querySelector('.array-controls');
-  container.insertBefore(itemDiv, controls);
+  if (controls && container.contains(controls) && controls?.parentNode === container) {
+    container.insertBefore(itemDiv, controls);
+  } else {
+    container.appendChild(itemDiv);
+    console.log('⚠️  Controls not found or not direct child, appended simple item');
+  }
+
 }
 
 /**

@@ -189,3 +189,10 @@ Transform your JSON schemas into beautiful, functional forms in minutes. Experie
     └── data-builder.js
   ```
 </details>
+
+<details>
+  <summary>Helpful links</summary>
+
+  https://app.quicktype.io/?l=schema
+
+  </details>
