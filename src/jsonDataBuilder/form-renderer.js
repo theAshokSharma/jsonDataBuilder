@@ -715,15 +715,6 @@ function createNestedObject(key, prop, isRequired, path) {
   `;
 }
 
-/**
- * Enhanced: Creates array field with support for recursive references
- * 
- * @param {string} key - Field key
- * @param {Object} prop - Property schema
- * @param {boolean} isRequired - Whether field is required
- * @param {Array} path - Path in data structure
- * @returns {string} HTML string for array field
- */
 function createArrayOfObjects(key, prop, isRequired, path) {
   const title = prop.title || key;
   const description = prop.description || '';
@@ -734,7 +725,7 @@ function createArrayOfObjects(key, prop, isRequired, path) {
   const isRecursive = itemSchema?.$ref && 
                      (itemSchema.$ref === '#' || itemSchema.$ref.startsWith('#/'));
   
-  // FIXED: Always apply proper escaping for HTML attributes
+  // Always apply proper escaping for HTML attributes
   let itemSchemaData;
   if (isRecursive) {
     // For recursive refs, store a marker
@@ -749,7 +740,10 @@ function createArrayOfObjects(key, prop, isRequired, path) {
     path: pathStr,
     isRecursive,
     ref: itemSchema?.$ref,
-    escapedData: itemSchemaData.substring(0, 100) // Log first 100 chars
+    itemType: itemSchema?.type,
+    hasNestedArray: itemSchema?.properties ? 
+      Object.values(itemSchema.properties).some(p => p.type === 'array') : false,
+    escapedData: itemSchemaData.substring(0, 100)
   });
   
   return `
@@ -768,6 +762,7 @@ function createArrayOfObjects(key, prop, isRequired, path) {
     </div>
   `;
 }
+
 
 
 /**
@@ -824,9 +819,9 @@ function resolveRecursiveReference(ref, arrayPath) {
   return resolved;
 }
 
-
 /**
- * NEW: Creates complex array item (object, polymorphic, nested)
+ * Creates complex array item with collapsible header
+ * UPDATED: Now collapsed by default
  * 
  * @param {string} arrayPath - Path to array
  * @param {Object} itemSchema - Schema for array item
@@ -834,19 +829,34 @@ function resolveRecursiveReference(ref, arrayPath) {
  * @param {HTMLElement} container - Array container element
  */
 function createComplexArrayItem(arrayPath, itemSchema, index, container) {
-  console.log('🎨 Creating complex array item:', { arrayPath, index });
+  console.log('🎨 Creating complex array item:', { arrayPath, index, 
+    hasProperties: !!itemSchema.properties,
+    nestedArrays: itemSchema.properties ? 
+      Object.keys(itemSchema.properties).filter(key => 
+        itemSchema.properties[key].type === 'array'
+      ) : []
+  });
   
   const itemDiv = document.createElement('div');
-  itemDiv.className = 'array-item';
+  itemDiv.className = 'array-item collapsed';
   itemDiv.dataset.index = index;
   itemDiv.dataset.arrayPath = arrayPath;
   
-  // Create header with remove button
+  // Create header with collapse icon and remove button
   const headerDiv = document.createElement('div');
   headerDiv.className = 'array-item-header';
+  headerDiv.onclick = function(e) {
+    if (!e.target.classList.contains('remove-item-btn')) {
+      toggleArrayItem(this);
+    }
+  };
+  
   headerDiv.innerHTML = `
-    <span class="array-item-title">Item ${index + 1}</span>
-    <button type="button" class="remove-item-btn" onclick="removeArrayItem(this)">Remove</button>
+    <span class="array-item-title">
+      <span class="collapse-icon">▼</span>
+      Item ${index + 1}
+    </span>
+    <button type="button" class="remove-item-btn" onclick="event.stopPropagation(); removeArrayItem(this)">Remove</button>
   `;
   itemDiv.appendChild(headerDiv);
   
@@ -857,11 +867,10 @@ function createComplexArrayItem(arrayPath, itemSchema, index, container) {
   
   // Handle different schema types
   if (itemSchema.__polymorphic || itemSchema.oneOf || itemSchema.anyOf) {
-    // Polymorphic item - create type selector
-    console.log('🎨 Creating polymorphic array item');
     renderPolymorphicArrayItem(itemSchema, contentDiv, arrayPath, index);
   } else if (itemSchema.properties) {
-    // Object with properties
+    // Object with properties - this will handle nested arrays automatically
+    // because createField will create array fields for any array properties
     console.log('🎨 Creating object array item with properties:', Object.keys(itemSchema.properties));
     const properties = itemSchema.properties || {};
     const required = itemSchema.required || [];
@@ -893,7 +902,8 @@ function createComplexArrayItem(arrayPath, itemSchema, index, container) {
 }
 
 /**
- * NEW: Creates simple array item (string, number, etc.)
+ * Creates simple array item (string, number, etc.)
+ * UPDATED: Now collapsed by default
  * 
  * @param {string} arrayPath - Path to array
  * @param {Object} itemSchema - Schema for array item
@@ -901,23 +911,50 @@ function createComplexArrayItem(arrayPath, itemSchema, index, container) {
  * @param {HTMLElement} container - Array container element
  */
 function createSimpleArrayItem(arrayPath, itemSchema, index, container) {
+  console.log('🎨 Creating simple array item with collapsible header:', { arrayPath, index });
+  
   const itemDiv = document.createElement('div');
-  itemDiv.className = 'array-item array-item-simple';
+  itemDiv.className = 'array-item array-item-simple collapsed';  // 👈 ADD 'collapsed' class here
   itemDiv.dataset.index = index;
+  itemDiv.dataset.arrayPath = arrayPath;
+  
+  // Create header with collapse icon and remove button
+  const headerDiv = document.createElement('div');
+  headerDiv.className = 'array-item-header';
+  headerDiv.onclick = function(e) {
+    // Don't toggle if clicking the remove button
+    if (!e.target.classList.contains('remove-item-btn')) {
+      toggleArrayItem(this);
+    }
+  };
+  
+  headerDiv.innerHTML = `
+    <span class="array-item-title">
+      <span class="collapse-icon">▼</span>
+      Item ${index + 1}
+    </span>
+    <button type="button" class="remove-item-btn" onclick="event.stopPropagation(); removeArrayItem(this)">Remove</button>
+  `;
+  itemDiv.appendChild(headerDiv);
+  
+  // Create content area
+  const contentDiv = document.createElement('div');
+  contentDiv.className = 'array-item-content';
   
   const itemPath = `${arrayPath}.${index}`;
   const inputType = getInputTypeFromSchema(itemSchema);
   
-  itemDiv.innerHTML = `
+  contentDiv.innerHTML = `
     <div class="array-item-simple-content">
       <input type="${inputType}" 
              name="${itemPath}" 
              data-path="${itemPath}"
-             placeholder="Item ${index + 1}"
+             placeholder="Value for item ${index + 1}"
              class="array-item-input">
-      <button type="button" class="remove-item-btn" onclick="removeArrayItem(this)">×</button>
     </div>
   `;
+  
+  itemDiv.appendChild(contentDiv);
   
   // Insert before controls
   const controls = container.querySelector('.array-controls');
@@ -927,7 +964,6 @@ function createSimpleArrayItem(arrayPath, itemSchema, index, container) {
     container.appendChild(itemDiv);
     console.log('⚠️  Controls not found or not direct child, appended simple item');
   }
-
 }
 
 /**
@@ -1213,7 +1249,7 @@ window.addArrayItem = function(arrayPath) {
 };
 
 /**
- * Enhanced: Remove array item (already exists but ensure it updates indices)
+ * Enhanced: Remove array item with proper index updating
  */
 window.removeArrayItem = function(btn) {
   console.log('🗑️  Removing array item');
@@ -1237,22 +1273,51 @@ window.removeArrayItem = function(btn) {
   
   items.forEach((item, idx) => {
     item.dataset.index = idx;
-    const title = item.querySelector('.array-item-title');
-    if (title) {
-      title.textContent = `Item ${idx + 1}`;
+    
+    // Update header title with proper icon preservation
+    const titleSpan = item.querySelector('.array-item-title');
+    if (titleSpan) {
+      const iconSpan = titleSpan.querySelector('.collapse-icon');
+      if (iconSpan) {
+        // Preserve the icon and update text
+        titleSpan.innerHTML = '';
+        titleSpan.appendChild(iconSpan);
+        titleSpan.appendChild(document.createTextNode(` Item ${idx + 1}`));
+      } else {
+        titleSpan.innerHTML = `<span class="collapse-icon">▼</span> Item ${idx + 1}`;
+      }
     }
     
-    // Update data-path attributes for simple items
-    const input = item.querySelector('.array-item-input');
-    if (input && arrayPath) {
-      const newPath = `${arrayPath}.${idx}`;
-      input.dataset.path = newPath;
-      input.name = newPath;
-    }
+    // Update data-path attributes for all inputs in this item
+    const inputs = item.querySelectorAll('[data-path]');
+    inputs.forEach(input => {
+      const oldPath = input.dataset.path;
+      if (oldPath && arrayPath) {
+        // Replace the index in the path
+        const pathParts = oldPath.split('.');
+        pathParts[pathParts.length - 2] = idx.toString(); // Update the index
+        const newPath = pathParts.join('.');
+        input.dataset.path = newPath;
+        if (input.name) input.name = newPath;
+      }
+    });
   });
   
   console.log('✅ Array item removed and indices updated');
 };
+
+
+/**
+ * Toggle array item collapse/expand
+ */
+window.toggleArrayItem = function(header) {
+  const arrayItem = header.closest('.array-item');
+  if (arrayItem) {
+    arrayItem.classList.toggle('collapsed');
+    console.log(`🔄 Toggled array item: ${arrayItem.classList.contains('collapsed') ? 'collapsed' : 'expanded'}`);
+  }
+};
+
 
 /**
  * NEW: Updates the file status display with current file names
