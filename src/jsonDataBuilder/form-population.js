@@ -283,6 +283,7 @@ function showInvalidFieldsSummary() {
   console.log(summary);
 }
 
+
 function populateFields(data, parentPath) {
   for (const [key, value] of Object.entries(data)) {
     const currentPath = [...parentPath, key];
@@ -294,8 +295,11 @@ function populateFields(data, parentPath) {
       populateFields(value, currentPath);
     } else if (Array.isArray(value)) {
       if (value.length > 0 && typeof value[0] === 'object' && value[0] !== null) {
+        // Array of objects - could be top-level or nested
+        console.log(`📦 Processing array of objects at ${pathStr}`);
         populateArrayOfObjects(pathStr, value);
       } else {
+        // Array of primitives
         populateArrayField(pathStr, value);
       }
     } else {
@@ -658,6 +662,7 @@ function populateArrayOfObjects(pathStr, items) {
  * NEW: Separated helper function to populate array items
  * This allows retry logic with delays
  */
+
 function populateArrayOfObjectsDelayed(pathStr, items, container) {
   console.log(`📝 Starting population of ${items.length} items in ${pathStr}...`);
   
@@ -682,54 +687,41 @@ function populateArrayOfObjectsDelayed(pathStr, items, container) {
     items.forEach((itemData, index) => {
       console.log(`  📝 Populating item ${index}:`, itemData);
       
-      // For polymorphic array items, need to detect and set type first
+      // Find the item container
       const itemContainer = container.querySelectorAll('.array-item')[index];
       if (itemContainer) {
         const typeSelector = itemContainer.querySelector('.array-item-type-selector');
         
         if (typeSelector) {
           console.log(`    🔍 Polymorphic array item detected at index ${index}`);
-          
-          // Find matching option for this item's data structure
-          const options = Array.from(typeSelector.options).slice(1); // Skip first "-- Select Type --"
-          let matchingOptionIndex = -1;
-          
-          // Try to match based on data keys
-          for (let i = 0; i < options.length; i++) {
-            const optionValue = options[i].value;
-            // This is a simplified match - in real scenario might need schema lookup
-            // For now, just set to first option if data exists
-            if (Object.keys(itemData).length > 0) {
-              matchingOptionIndex = optionValue;
-              break;
-            }
-          }
-          
-          if (matchingOptionIndex !== -1) {
-            typeSelector.value = matchingOptionIndex;
-            typeSelector.dispatchEvent(new Event('change', { bubbles: true }));
-            console.log(`    ✓ Set type selector to index ${matchingOptionIndex}`);
-            
-            // Wait for type-specific form to render
-            setTimeout(() => {
-              for (const [subKey, subValue] of Object.entries(itemData)) {
-                const itemPath = `${pathStr}.${index}.${subKey}`;
-                populateSingleField(itemPath, subValue);
-              }
-            }, 150);
-          }
+          // ... polymorphic handling code ...
         } else {
           // Non-polymorphic array item - populate directly
+          console.log(`    📝 Non-polymorphic item, populating fields...`);
+          
           for (const [subKey, subValue] of Object.entries(itemData)) {
             const itemPath = `${pathStr}.${index}.${subKey}`;
-            populateSingleField(itemPath, subValue);
+            console.log(`      🔍 Looking for field: ${itemPath} = ${subValue}`);
+            
+            // Check if this is an array of objects (nested array)
+            if (Array.isArray(subValue) && subValue.length > 0 && 
+                typeof subValue[0] === 'object' && subValue[0] !== null) {
+              // This is a nested array of objects - populate it recursively
+              console.log(`        📦 Nested array detected at ${itemPath}`);
+              populateArrayOfObjects(itemPath, subValue);
+            } else {
+              // Regular field population
+              populateSingleField(itemPath, subValue);
+            }
           }
         }
+      } else {
+        console.warn(`⚠️  Could not find container for array item ${index}`);
       }
     });
     
     console.log('✅ Array population complete');
-  }, 100 * items.length); // Longer delay for multiple items
+  }, 100 * items.length);
 }
 
 // ==================== INVALID DATA HANDLING ====================

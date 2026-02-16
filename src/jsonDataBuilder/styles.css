@@ -1619,4 +1619,103 @@ textarea.validation-success {
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
+/* Add to the end of your styles.css file */
+
+/* Collapsible array item styles */
+.array-item {
+  position: relative;
+  transition: all 0.3s ease;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  background: white;
+}
+
+.array-item.collapsed .array-item-content,
+.array-item.collapsed .array-item-simple-content {
+  display: none !important;
+}
+
+.array-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.array-item-header:hover {
+  background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+}
+
+.array-item-header .array-item-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--secondary-color);
+}
+
+.array-item-header .collapse-icon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+  font-size: 12px;
+  color: var(--secondary-color);
+}
+
+.array-item.collapsed .collapse-icon {
+  transform: rotate(-90deg);
+}
+
+.array-item-header .remove-item-btn {
+  margin-left: auto;
+  background: transparent;
+  color: #d32f2f;
+  border: 1px solid #d32f2f;
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.array-item-header .remove-item-btn:hover {
+  background: #d32f2f;
+  color: white;
+}
+
+/* Simple array items styling */
+.array-item.array-item-simple {
+  padding: 0;
+}
+
+.array-item-simple .array-item-content {
+  padding: 15px;
+}
+
+.array-item-simple-content {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 15px;
+  background: white;
+}
+
+/* Array item content area */
+.array-item-content {
+  padding: 15px;
+  background: white;
+  border-radius: 0 0 6px 6px;
+}
+
+/* Ensure nested items also work */
+.array-item .array-item {
+  margin-left: 20px;
+  border-left: 3px solid var(--secondary-color);
+}
 /* ==== END OF FILE ==== */
