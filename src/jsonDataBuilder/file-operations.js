@@ -402,7 +402,19 @@ async function showConfigModal() {
 
 // Resolve JSON references in option file
 function resolveReferences(obj, root) {
-  if (typeof obj !== 'object' || obj === null) return obj;
+  if (typeof obj !== 'object' || obj === null) {
+    // Resolve ##listName string references (e.g. in dependent_values values)
+    if (typeof obj === 'string' && obj.startsWith('##')) {
+      const listName = obj.slice(2);
+      const resolved = root?._lists?.[listName];
+      if (resolved === undefined) {
+        console.warn(`⚠️ resolveReferences: ##${listName} not found in _lists`);
+        return obj;
+      }
+      return resolved;
+    }
+    return obj;
+  }
   
   if (Array.isArray(obj)) {
     return obj.map(item => resolveReferences(item, root));
@@ -414,8 +426,12 @@ function resolveReferences(obj, root) {
     for (const key of refPath) {
       refValue = refValue[key];
     }
-    const result = { ...obj };
-    delete result.$ref;
+    // Recursively resolve all remaining sibling keys (e.g. dependent_values with ## refs)
+    const result = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (key === '$ref') continue;
+      result[key] = resolveReferences(value, root);
+    }
     result.values = refValue;
     return result;
   }

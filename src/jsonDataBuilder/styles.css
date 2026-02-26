@@ -1718,4 +1718,19 @@ textarea.validation-success {
   margin-left: 20px;
   border-left: 3px solid var(--secondary-color);
 }
+
+/* NA options: visible but not user-selectable */
+option.na-option-disabled {
+  color: #aaa;
+  font-style: italic;
+}
+
+label.na-option-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+label.na-option-disabled input[disabled] {
+  cursor: not-allowed;
+}
 /* ==== END OF FILE ==== */
