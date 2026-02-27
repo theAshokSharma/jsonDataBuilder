@@ -57,12 +57,23 @@ function applyConditionalRules() {
           
           setDisabledFieldValue(fieldKey, fieldGroup);
         } else {
-          console.log('Enabling field:', fieldKey);              
+          // Capture whether the field was disabled BEFORE we remove the class.
+          // enableFieldValue must only fire on the disabled→enabled transition —
+          // NOT on every rule evaluation, otherwise it wipes the user's selection
+          // each time any field on the form changes.
+          const wasDisabled = fieldGroup.classList.contains('disabled');
+
+          console.log('Enabling field:', fieldKey);
           fieldGroup.classList.remove('disabled');
           
           const indicator = fieldGroup.querySelector('.disabled-indicator');
           if (indicator) {
             indicator.remove();
+          }
+          
+          // Only reset + re-lock disabled_options when genuinely transitioning disabled → enabled.
+          if (wasDisabled) {
+            enableFieldValue(fieldKey, fieldGroup);
           }
         }
       });
@@ -96,25 +107,13 @@ function getFieldValue(fieldPath) {
   if (input) return input.value;
   
   // Boolean checkbox - returns boolean
-  input = document.querySelector(`input[type="checkbox"][data-path="${fieldPath}"]:not(.multi-select-checkbox):not(.na-checkbox):not(.checkbox-input):not(.na-checkbox-input)`);
+  input = document.querySelector(`input[type="checkbox"][data-path="${fieldPath}"]:not(.multi-select-checkbox):not(.checkbox-input)`);
   if (input) return input.checked;
   
   // Checkbox list - returns array of values
   const checkboxInputs = document.querySelectorAll(`[data-path="${fieldPath}"].checkbox-input:checked`);
   if (checkboxInputs.length > 0) {
     return Array.from(checkboxInputs).map(cb => cb.value);
-  }
-  
-  // Checkbox N/A - returns value
-  const checkboxNA = document.getElementById(fieldPath + '_cb_na');
-  if (checkboxNA && checkboxNA.checked) {
-    return checkboxNA.value;
-  }
-  
-  // Multi-select dropdown N/A - returns value
-  const naCheckbox = document.getElementById(fieldPath + '_na');
-  if (naCheckbox && naCheckbox.checked) {
-    return naCheckbox.value;
   }
   
   // Multi-select dropdown - returns array of values
@@ -138,58 +137,181 @@ function setDisabledFieldValue(fieldPath, fieldGroup) {
     defaultValue = 'N/A';
   }
   
+  // ── Single-select dropdown ──────────────────────────────────────────────────
   const selectInput = fieldGroup.querySelector(`select[data-path="${fieldPath}"]`);
   if (selectInput) {
-    let naOption = Array.from(selectInput.options).find(opt => opt.value === defaultValue);
-    if (!naOption && defaultValue === 'N/A') {
-      naOption = document.createElement('option');
-      naOption.value = 'N/A';
-      naOption.textContent = 'N/A';
-      selectInput.appendChild(naOption);
+    // Look for a disabled_options <option> matching the default value.
+    // If the schema includes disabled_options: ["N/A"], it's already in the DOM (disabled).
+    // JS can set select.value to a disabled <option> directly.
+    const disabledOpt = Array.from(selectInput.options)
+      .find(o => o.dataset.disabledOption === 'true' && o.value === defaultValue);
+    if (disabledOpt) {
+      // Temporarily un-disable so the browser honours select.value assignment.
+      disabledOpt.disabled = false;
+      selectInput.value = defaultValue;
+      disabledOpt.disabled = true;  // Re-disable — still cannot be re-selected by user.
+    } else {
+      // Fallback: no disabled_options in schema — create a temporary option.
+      const tempOpt = document.createElement('option');
+      tempOpt.value = defaultValue;
+      tempOpt.textContent = defaultValue;
+      tempOpt.dataset.disabledOption = 'true';
+      tempOpt.className = 'disabled-option';
+      selectInput.appendChild(tempOpt);
+      selectInput.value = defaultValue;
     }
-    selectInput.value = defaultValue;
     return;
   }
   
+  // ── Text input ──────────────────────────────────────────────────────────────
   const textInput = fieldGroup.querySelector(`input[type="text"][data-path="${fieldPath}"], input[type="email"][data-path="${fieldPath}"]`);
   if (textInput) {
     textInput.value = defaultValue;
     return;
   }
   
+  // ── Number input ────────────────────────────────────────────────────────────
   const numberInput = fieldGroup.querySelector(`input[type="number"][data-path="${fieldPath}"]`);
   if (numberInput) {
     numberInput.value = defaultValue;
     return;
   }
   
+  // ── Date input ──────────────────────────────────────────────────────────────
   const dateInput = fieldGroup.querySelector(`input[type="date"][data-path="${fieldPath}"]`);
   if (dateInput) {
     dateInput.value = defaultValue;
     return;
   }
   
+  // ── Multi-select dropdown ───────────────────────────────────────────────────
   const multiSelectContainer = fieldGroup.querySelector('.multi-select-container');
   if (multiSelectContainer) {
     const dropdownId = multiSelectContainer.id;
     
-    const allCheckboxes = document.querySelectorAll(`[data-path="${fieldPath}"].multi-select-checkbox`);
+    // Deselect all checkboxes.
+    const allCheckboxes = multiSelectContainer.querySelectorAll(`[data-path="${fieldPath}"].multi-select-checkbox`);
     allCheckboxes.forEach(cb => cb.checked = false);
     
-    const naCheckbox = document.getElementById(fieldPath + '_na');
-    if (naCheckbox) {
-      naCheckbox.checked = true;
+    // Find the disabled_options checkbox matching the default value and check it.
+    // It stays disabled for user clicks — JS can still set .checked programmatically.
+    const disabledOptCb = multiSelectContainer.querySelector(
+      `[data-path="${fieldPath}"][data-disabled-option="true"][value="${defaultValue}"]`
+    );
+    if (disabledOptCb) {
+      disabledOptCb.checked = true;
     }
     
     updateMultiSelectDisplay(dropdownId, fieldPath);
     return;
   }
+  
+  // ── Checkbox list ───────────────────────────────────────────────────────────
+  const checkboxContainer = fieldGroup.querySelector('.checkbox-container');
+  if (checkboxContainer) {
+    // Deselect all checkboxes.
+    const allCheckboxes = checkboxContainer.querySelectorAll(`[data-path="${fieldPath}"].checkbox-input`);
+    allCheckboxes.forEach(cb => cb.checked = false);
+    
+    // Check the disabled_options checkbox matching the default value.
+    const disabledOptCb = checkboxContainer.querySelector(
+      `[data-path="${fieldPath}"][data-disabled-option="true"][value="${defaultValue}"]`
+    );
+    if (disabledOptCb) {
+      disabledOptCb.checked = true;
+    }
+    return;
+  }
+  
+  // ── Radio button list ───────────────────────────────────────────────────────
+  const radioContainer = fieldGroup.querySelector('.radio-container');
+  if (radioContainer) {
+    // Deselect all radio buttons.
+    const allRadios = radioContainer.querySelectorAll(`[data-path="${fieldPath}"].radio-input`);
+    allRadios.forEach(rb => rb.checked = false);
+    
+    // Check the disabled_options radio matching the default value.
+    const disabledOptRb = radioContainer.querySelector(
+      `[data-path="${fieldPath}"][data-disabled-option="true"][value="${defaultValue}"]`
+    );
+    if (disabledOptRb) {
+      disabledOptRb.checked = true;
+    }
+    return;
+  }
+}
+
+/**
+ * enableFieldValue — counterpart to setDisabledFieldValue.
+ * Called when a field transitions from disabled → enabled.
+ *
+ * disabled_options options always remain in the DOM.
+ * For selects: reset value to '' (disabled options become unselected).
+ * For checkboxes/radios: uncheck all inputs including disabled_options ones,
+ *   then re-disable disabled_options inputs so the user cannot re-check them.
+ *
+ * @param {string}      fieldPath  - The data-path of the field.
+ * @param {HTMLElement} fieldGroup - The .form-group wrapper element.
+ */
+function enableFieldValue(fieldPath, fieldGroup) {
+  // ── Single-select dropdown ──────────────────────────────────────────────────
+  const selectInput = fieldGroup.querySelector(`select[data-path="${fieldPath}"]`);
+  if (selectInput) {
+    // Reset to blank — disabled_options stay in DOM but become unselected.
+    selectInput.value = '';
+    // If setDisabledFieldValue created a temporary fallback option, remove it.
+    Array.from(selectInput.options)
+      .filter(o => o.dataset.disabledOption === 'true' && !o.dataset.persistent)
+      .forEach(o => {
+        // Only remove if it was a dynamically created fallback (no matching rendered option).
+        // Rendered disabled_options have class 'disabled-option'; keep those.
+        if (!o.classList.contains('disabled-option')) o.remove();
+      });
+    return;
+  }
+
+  // ── Multi-select dropdown ───────────────────────────────────────────────────
+  const multiSelectContainer = fieldGroup.querySelector('.multi-select-container');
+  if (multiSelectContainer) {
+    const dropdownId = multiSelectContainer.id;
+    const allCheckboxes = multiSelectContainer.querySelectorAll(`[data-path="${fieldPath}"].multi-select-checkbox`);
+    allCheckboxes.forEach(cb => {
+      cb.checked = false;
+      if (cb.dataset.disabledOption) cb.disabled = true;  // Re-lock any that were opened.
+    });
+    updateMultiSelectDisplay(dropdownId, fieldPath);
+    return;
+  }
+
+  // ── Checkbox list ───────────────────────────────────────────────────────────
+  const checkboxContainer = fieldGroup.querySelector('.checkbox-container');
+  if (checkboxContainer) {
+    const allCheckboxes = checkboxContainer.querySelectorAll(`[data-path="${fieldPath}"].checkbox-input`);
+    allCheckboxes.forEach(cb => {
+      cb.checked = false;
+      if (cb.dataset.disabledOption) cb.disabled = true;  // Re-lock any that were opened.
+    });
+    return;
+  }
+
+  // ── Radio button list ───────────────────────────────────────────────────────
+  const radioContainer = fieldGroup.querySelector('.radio-container');
+  if (radioContainer) {
+    const allRadios = radioContainer.querySelectorAll(`[data-path="${fieldPath}"].radio-input`);
+    allRadios.forEach(rb => {
+      rb.checked = false;
+      if (rb.dataset.disabledOption) rb.disabled = true;  // Re-lock any that were opened.
+    });
+    return;
+  }
+
+  // Text, number, date inputs have no disabled_options — nothing to reset.
 }
 
 /**
  * ENHANCED: Update options for a dependent field with input_control override support
  * Now supports overriding both input_control and response_type per dependency value
- * 
+ *
  * @param {string} pathStr - Field path
  * @param {string} depValue - Current value of dependency field
  * @param {HTMLElement} element - DOM element (select, container, etc)
@@ -240,15 +362,14 @@ function updateFieldOptions(pathStr, depValue, element, rule, explicitValues = n
   }
   
   // Expand range values
-  const enumValues = expandRangeValues(rawValues);
-  const naValue = rule.na || null;
-  const hasNAOption = naValue !== null;
+  const enumValues    = expandRangeValues(rawValues);
+  const disabledOptions = rule.disabled_options || [];
   
   console.log(`  📊 Configuration:`, {
     inputControl,
     responseType,
     expandedValueCount: enumValues.length,
-    hasNA: hasNAOption
+    disabledOptionCount: disabledOptions.length
   });
   
   // ✅ PHASE 2: Check if we need to rebuild the control type
@@ -257,7 +378,7 @@ function updateFieldOptions(pathStr, depValue, element, rule, explicitValues = n
   
   if (needsRebuild) {
     console.log(`  🔨 Control type change detected: ${currentControlType} → ${inputControl}`);
-    element = rebuildControlWithType(pathStr, element, inputControl, responseType, enumValues, naValue, hasNAOption);
+    element = rebuildControlWithType(pathStr, element, inputControl, responseType, enumValues, disabledOptions);
     
     if (!element) {
       console.error(`  ❌ Failed to rebuild control for ${pathStr}`);
@@ -269,13 +390,13 @@ function updateFieldOptions(pathStr, depValue, element, rule, explicitValues = n
     console.log(`  ↻ Updating options (same control type: ${inputControl})`);
     
     if (element.tagName === 'SELECT') {
-      updateSelectOptions(element, enumValues, naValue, hasNAOption, pathStr);
+      updateSelectOptions(element, enumValues, pathStr, disabledOptions);
     } else if (element.classList.contains('multi-select-container')) {
-      updateMultiSelectOptions(element, enumValues, naValue, hasNAOption, pathStr);
+      updateMultiSelectOptions(element, enumValues, pathStr, disabledOptions);
     } else if (element.classList.contains('checkbox-container')) {
-      updateCheckboxOptions(element, enumValues, naValue, hasNAOption, pathStr);
+      updateCheckboxOptions(element, enumValues, pathStr, disabledOptions);
     } else if (element.classList.contains('radio-container')) {
-      updateRadioOptions(element, enumValues, naValue, hasNAOption, pathStr);
+      updateRadioOptions(element, enumValues, pathStr, disabledOptions);
     } else {
       console.warn(`  ⚠️ Unknown element type for ${pathStr}`);
     }
@@ -434,7 +555,7 @@ function initializeSingleDependentField(fieldPath, depField, depFieldValue, conf
     defaultValues: config.values || [],
     responseType: config.response_type || 'single-select',
     inputControl: config.input_control || 'drop-down', // ✅ ADD THIS LINE
-    na: config.na
+    disabled_options: config.disabled_options || []
   };
   
   // Update field options (will handle overrides automatically)
