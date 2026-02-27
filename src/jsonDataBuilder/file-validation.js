@@ -154,13 +154,41 @@ function displayValidationResults(results) {
   }
 }
 
-function resolveRef(ref, schema) {
+/**
+ * Resolves a JSON reference string against a schema or options root.
+ *
+ * Handles three cases to stay in sync with resolveReferences() in file-operations.js:
+ *  1. ##listName  — resolves from root._lists (options-style shared lists)
+ *  2. #/path/…   — navigates the object by path segments, with definitions/$defs aliasing
+ *  3. Anything else — returns null
+ *
+ * @param {string} ref - The reference string (e.g. "#/$defs/MyType" or "##myList")
+ * @param {Object} schema - The JSON schema (or options root) to resolve against
+ * @param {Object} [root] - Optional options root for resolving ##listName references.
+ *                          Falls back to `schema` if omitted.
+ * @returns {*} The resolved value, or null if not found
+ */
+function resolveRef(ref, schema, root = null) {
+    // Case 1: ##listName — matches resolveReferences() string-ref handling
+    if (typeof ref === 'string' && ref.startsWith('##')) {
+      const listName = ref.slice(2);
+      const listsRoot = root ?? schema;
+      const resolved = listsRoot?._lists?.[listName];
+      if (resolved === undefined) {
+        console.warn(`⚠️ resolveRef: ##${listName} not found in _lists`);
+        return null;
+      }
+      return resolved;
+    }
+
+    // Case 2: standard JSON pointer (#/...)
     if (!ref || !ref.startsWith('#/')) return null;
-    
+
     const path = ref.substring(2).split('/');
     let result = schema;
-    
+
     for (const key of path) {
+      // definitions <-> $defs aliasing so both schema conventions work
       if (key === 'definitions' && !result[key] && result.$defs) {
         result = result.$defs;
       } else if (key === '$defs' && !result[key] && result.definitions) {
@@ -168,9 +196,9 @@ function resolveRef(ref, schema) {
       } else {
         result = result[key];
       }
-      if (!result) return null;
+      if (result == null) return null;
     }
-    
+
     return result;
   }
   

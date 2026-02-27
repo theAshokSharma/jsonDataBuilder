@@ -20,19 +20,19 @@ import {addInvalidMultiSelectWarning, removeInvalidWarning} from './form-populat
  */
 function createInputControl(key, prop, pathStr, choiceConfig, isRequired, isDependent, depField) {
   const inputControl = choiceConfig?.input_control || 'text';
-  const disabledOptions = choiceConfig?.disabled_options || [];
+  const dsisableOptions = choiceConfig?.dsisable_options || [];
   
   console.log(`Creating input control: ${inputControl} for ${pathStr}`);
   
   switch (inputControl) {
     case 'drop-down':
-      return createDropdownControl(pathStr, choiceConfig, isRequired, isDependent, depField, disabledOptions);
+      return createDropdownControl(pathStr, choiceConfig, isRequired, isDependent, depField, dsisableOptions);
     
     case 'check-box':
-      return createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, depField, disabledOptions);
+      return createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, depField, dsisableOptions);
     
     case 'radio-button':
-      return createRadioButtonControl(pathStr, choiceConfig, isRequired, isDependent, depField, disabledOptions);
+      return createRadioButtonControl(pathStr, choiceConfig, isRequired, isDependent, depField, dsisableOptions);
     
     case 'date-time-picker':
       return createDateTimePickerControl(pathStr, prop, isRequired);
@@ -50,7 +50,7 @@ function createInputControl(key, prop, pathStr, choiceConfig, isRequired, isDepe
 /**
  * Creates dropdown control (refactored from existing logic)
  */
-function createDropdownControl(pathStr, choiceConfig, isRequired, isDependent, depField, disabledOptions) {
+function createDropdownControl(pathStr, choiceConfig, isRequired, isDependent, depField, dsisableOptions) {
   const responseType = choiceConfig?.response_type || 'single-select';
   let rawValues = isDependent ? [] : (choiceConfig?.values || []);
   let enumValues = expandRangeValues(rawValues);
@@ -62,16 +62,16 @@ function createDropdownControl(pathStr, choiceConfig, isRequired, isDependent, d
       ...state.exclusiveOptionsMap,
       [pathStr]: exclusiveValues
     },
-    disabledOptionsMap: {
-      ...state.disabledOptionsMap,
-      [pathStr]: disabledOptions
+    disableOptionsMap: {
+      ...state.disableOptionsMap,
+      [pathStr]: dsisableOptions
     }
   });
   
   if (responseType === 'multi-select') {
-    return createMultiSelectDropdown(pathStr, enumValues, isDependent, depField, disabledOptions);
+    return createMultiSelectDropdown(pathStr, enumValues, isDependent, depField, dsisableOptions);
   } else {
-    return createSingleSelectDropdown(pathStr, enumValues, isDependent, depField, disabledOptions, isRequired);
+    return createSingleSelectDropdown(pathStr, enumValues, isDependent, depField, dsisableOptions, isRequired);
   }
 }
 
@@ -79,7 +79,7 @@ function createDropdownControl(pathStr, choiceConfig, isRequired, isDependent, d
  * UPDATED: createMultiSelectDropdown with value/label support
  * Displays labels but stores values
  */
-function createMultiSelectDropdown(pathStr, enumValues, isDependent, depField, disabledOptions) {
+function createMultiSelectDropdown(pathStr, enumValues, isDependent, depField, dsisableOptions) {
   const dropdownId = 'multiselect_' + pathStr.replace(/\./g, '_');
   let html = `
     <div class="multi-select-container" id="${dropdownId}" ${isDependent ? `data-dependent="true" data-dep-field="${depField}"` : ''}>
@@ -92,22 +92,42 @@ function createMultiSelectDropdown(pathStr, enumValues, isDependent, depField, d
   `;
   
   if (!isDependent) {
+    const disabledValuesSet = new Set(
+      (dsisableOptions || []).map(e => normalizeDisabledOption(e).value)
+    );
+    
     enumValues.forEach((item, idx) => {
       const value = item.value;
       const label = item.label;
-      
-      html += `
-        <div class="multi-select-option">
-          <input type="checkbox" id="${pathStr}_${idx}" value="${value}" 
-                 data-path="${pathStr}" data-dropdown="${dropdownId}"
-                 data-label="${label}"
-                 class="multi-select-checkbox"
-                 onchange="handleMultiSelectChange(event, '${pathStr}', '${dropdownId}')">
-          <label for="${pathStr}_${idx}">${label}</label>
-        </div>`;
+      if (disabledValuesSet.has(String(value))) {
+        // This value is in dsisable_options — render it as disabled in-place.
+        const doId = `${pathStr}_do_${String(value).toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        html += `
+          <div class="multi-select-option">
+            <input type="checkbox" id="${doId}" value="${value}"
+                   data-path="${pathStr}" data-dropdown="${dropdownId}"
+                   data-label="${label}"
+                   class="multi-select-checkbox"
+                   data-disable-option="true"
+                   disabled
+                   onchange="handleMultiSelectChange(event, '${pathStr}', '${dropdownId}')">
+            <label for="${doId}" class="disable-option">${label}</label>
+          </div>`;
+      } else {
+        html += `
+          <div class="multi-select-option">
+            <input type="checkbox" id="${pathStr}_${idx}" value="${value}" 
+                   data-path="${pathStr}" data-dropdown="${dropdownId}"
+                   data-label="${label}"
+                   class="multi-select-checkbox"
+                   onchange="handleMultiSelectChange(event, '${pathStr}', '${dropdownId}')">
+            <label for="${pathStr}_${idx}">${label}</label>
+          </div>`;
+      }
     });
     
-    disabledOptions.forEach(entry => {
+    // Add dsisable_options values that are NOT already in enumValues.
+    filterNewDisabledOptions(dsisableOptions, enumValues).forEach(entry => {
       const doVal   = normalizeDisabledOption(entry).value;
       const doLabel = normalizeDisabledOption(entry).label;
       const doId    = `${pathStr}_do_${doVal.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -117,10 +137,10 @@ function createMultiSelectDropdown(pathStr, enumValues, isDependent, depField, d
                  data-path="${pathStr}" data-dropdown="${dropdownId}"
                  data-label="${doLabel}"
                  class="multi-select-checkbox"
-                 data-disabled-option="true"
+                 data-disable-option="true"
                  disabled
                  onchange="handleMultiSelectChange(event, '${pathStr}', '${dropdownId}')">
-          <label for="${doId}" class="disabled-option">${doLabel}</label>
+          <label for="${doId}" class="disable-option">${doLabel}</label>
         </div>`;
     });
   }
@@ -132,24 +152,29 @@ function createMultiSelectDropdown(pathStr, enumValues, isDependent, depField, d
 /**
  * UPDATED: createSingleSelectDropdown with value/label support
  */
-function createSingleSelectDropdown(pathStr, enumValues, isDependent, depField, disabledOptions, isRequired) {
+function createSingleSelectDropdown(pathStr, enumValues, isDependent, depField, dsisableOptions, isRequired) {
   let html = `<select name="${pathStr}" id="${pathStr}" data-path="${pathStr}" 
               ${isDependent ? `data-dependent="true" data-dep-field="${depField}"` : ''} 
               ${isRequired ? 'required' : ''}>
     <option value="">-- Select --</option>`;
   
   if (!isDependent) {
-    html += enumValues.map(item => 
-      `<option value="${item.value}">${item.label}</option>`
-    ).join('');
+    const disabledValuesSet = new Set(
+      (dsisableOptions || []).map(e => normalizeDisabledOption(e).value)
+    );
     
-    // disabled_options are always present in the DOM but user cannot select them.
-    // setDisabledFieldValue() sets select.value to one of these when field is conditionally disabled.
-    // enableFieldValue() resets select.value to '' — the option stays in the DOM, just unselected.
-    disabledOptions.forEach(entry => {
+    html += enumValues.map(item => {
+      if (disabledValuesSet.has(String(item.value))) {
+        return `<option value="${item.value}" disabled class="disable-option" data-disable-option="true">${item.label}</option>`;
+      }
+      return `<option value="${item.value}">${item.label}</option>`;
+    }).join('');
+    
+    // Add dsisable_options values that are NOT already in enumValues.
+    filterNewDisabledOptions(dsisableOptions, enumValues).forEach(entry => {
       const doVal   = normalizeDisabledOption(entry).value;
       const doLabel = normalizeDisabledOption(entry).label;
-      html += `<option value="${doVal}" disabled class="disabled-option" data-disabled-option="true">${doLabel}</option>`;
+      html += `<option value="${doVal}" disabled class="disable-option" data-disable-option="true">${doLabel}</option>`;
     });
   }
   
@@ -162,7 +187,7 @@ function createSingleSelectDropdown(pathStr, enumValues, isDependent, depField, 
  * FIXED: Creates checkbox list control with proper HTML structure
  * NOTE: response_type is IGNORED for checkbox control
  */
-function createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, depField, disabledOptions) {
+function createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, depField, dsisableOptions) {
   let rawValues = isDependent ? [] : (choiceConfig?.values || []);
   let enumValues = expandRangeValues(rawValues);
   
@@ -172,9 +197,9 @@ function createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, d
       ...state.exclusiveOptionsMap,
       [pathStr]: exclusiveValues
     },
-    disabledOptionsMap: {
-      ...state.disabledOptionsMap,
-      [pathStr]: disabledOptions
+    disableOptionsMap: {
+      ...state.disableOptionsMap,
+      [pathStr]: dsisableOptions
     }
   });
   
@@ -184,31 +209,49 @@ function createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, d
               ${isDependent ? `data-dependent="true" data-dep-field="${depField}"` : ''}>`;
   
   if (!isDependent) {
+    const disabledValuesSet = new Set(
+      (dsisableOptions || []).map(e => normalizeDisabledOption(e).value)
+    );
+    
     enumValues.forEach((item, idx) => {
-      html += `
-        <label class="checkbox-option" for="${pathStr}_cb_${idx}">
-          <input type="checkbox" id="${pathStr}_cb_${idx}" value="${item.value}" 
-                 data-path="${pathStr}" data-container="${containerId}"
-                 data-label="${item.label}"
-                 class="checkbox-input"
-                 onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
-          <span>${item.label}</span>
-        </label>`;
+      if (disabledValuesSet.has(String(item.value))) {
+        const doId = `${pathStr}_do_${String(item.value).toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        html += `
+          <label class="checkbox-option disable-option" for="${doId}">
+            <input type="checkbox" id="${doId}" value="${item.value}" 
+                   data-path="${pathStr}" data-container="${containerId}"
+                   data-label="${item.label}"
+                   class="checkbox-input"
+                   data-disable-option="true"
+                   disabled
+                   onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
+            <span>${item.label}</span>
+          </label>`;
+      } else {
+        html += `
+          <label class="checkbox-option" for="${pathStr}_cb_${idx}">
+            <input type="checkbox" id="${pathStr}_cb_${idx}" value="${item.value}" 
+                   data-path="${pathStr}" data-container="${containerId}"
+                   data-label="${item.label}"
+                   class="checkbox-input"
+                   onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
+            <span>${item.label}</span>
+          </label>`;
+      }
     });
     
-    disabledOptions.forEach(entry => {
+    // Add dsisable_options values that are NOT already in enumValues.
+    filterNewDisabledOptions(dsisableOptions, enumValues).forEach(entry => {
       const doVal   = normalizeDisabledOption(entry).value;
       const doLabel = normalizeDisabledOption(entry).label;
       const doId    = `${pathStr}_do_${doVal.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
-      // disabled_options checkboxes are always in DOM but permanently disabled for user clicks.
-      // setDisabledFieldValue() programmatically checks them; enableFieldValue() unchecks + re-disables.
       html += `
-        <label class="checkbox-option disabled-option" for="${doId}">
+        <label class="checkbox-option disable-option" for="${doId}">
           <input type="checkbox" id="${doId}" value="${doVal}" 
                  data-path="${pathStr}" data-container="${containerId}"
                  data-label="${doLabel}"
                  class="checkbox-input"
-                 data-disabled-option="true"
+                 data-disable-option="true"
                  disabled
                  onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
           <span>${doLabel}</span>
@@ -225,14 +268,14 @@ function createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, d
  * FIXED: Creates radio button control with proper HTML structure
  * NOTE: response_type is IGNORED for radio-button control
  */
-function createRadioButtonControl(pathStr, choiceConfig, isRequired, isDependent, depField, disabledOptions) {
+function createRadioButtonControl(pathStr, choiceConfig, isRequired, isDependent, depField, dsisableOptions) {
   let rawValues = isDependent ? [] : (choiceConfig?.values || []);
   let enumValues = expandRangeValues(rawValues);
   
   updateState({
-    disabledOptionsMap: {
-      ...state.disabledOptionsMap,
-      [pathStr]: disabledOptions
+    disableOptionsMap: {
+      ...state.disableOptionsMap,
+      [pathStr]: dsisableOptions
     }
   });
   
@@ -242,29 +285,49 @@ function createRadioButtonControl(pathStr, choiceConfig, isRequired, isDependent
               ${isDependent ? `data-dependent="true" data-dep-field="${depField}"` : ''}>`;
   
   if (!isDependent) {
+    const disabledValuesSet = new Set(
+      (dsisableOptions || []).map(e => normalizeDisabledOption(e).value)
+    );
+    
     enumValues.forEach((item, idx) => {
-      html += `
-        <label class="radio-option" for="${pathStr}_rb_${idx}">
-          <input type="radio" id="${pathStr}_rb_${idx}" name="${pathStr}" value="${item.value}" 
-                 data-path="${pathStr}" 
-                 data-label="${item.label}"
-                 class="radio-input"
-                 onchange="handleRadioChange(event, '${pathStr}')">
-          <span>${item.label}</span>
-        </label>`;
+      if (disabledValuesSet.has(String(item.value))) {
+        const doId = `${pathStr}_do_${String(item.value).toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+        html += `
+          <label class="radio-option disable-option" for="${doId}">
+            <input type="radio" id="${doId}" name="${pathStr}" value="${item.value}" 
+                   data-path="${pathStr}" 
+                   data-label="${item.label}"
+                   class="radio-input"
+                   data-disable-option="true"
+                   disabled
+                   onchange="handleRadioChange(event, '${pathStr}')">
+            <span>${item.label}</span>
+          </label>`;
+      } else {
+        html += `
+          <label class="radio-option" for="${pathStr}_rb_${idx}">
+            <input type="radio" id="${pathStr}_rb_${idx}" name="${pathStr}" value="${item.value}" 
+                   data-path="${pathStr}" 
+                   data-label="${item.label}"
+                   class="radio-input"
+                   onchange="handleRadioChange(event, '${pathStr}')">
+            <span>${item.label}</span>
+          </label>`;
+      }
     });
     
-    disabledOptions.forEach(entry => {
+    // Add dsisable_options values that are NOT already in enumValues.
+    filterNewDisabledOptions(dsisableOptions, enumValues).forEach(entry => {
       const doVal   = normalizeDisabledOption(entry).value;
       const doLabel = normalizeDisabledOption(entry).label;
       const doId    = `${pathStr}_do_${doVal.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
       html += `
-        <label class="radio-option disabled-option" for="${doId}">
+        <label class="radio-option disable-option" for="${doId}">
           <input type="radio" id="${doId}" name="${pathStr}" value="${doVal}" 
                  data-path="${pathStr}" 
                  data-label="${doLabel}"
                  class="radio-input"
-                 data-disabled-option="true"
+                 data-disable-option="true"
                  disabled
                  onchange="handleRadioChange(event, '${pathStr}')">
           <span>${doLabel}</span>
@@ -456,7 +519,7 @@ function populateCheckboxList(pathStr, values) {
     
     const matchingCheckbox = Array.from(allCheckboxes).find(cb => String(cb.value) === stringValue);
     if (matchingCheckbox) {
-      if (matchingCheckbox.dataset.disabledOption && matchingCheckbox.disabled) {
+      if (matchingCheckbox.dataset.disableOption && matchingCheckbox.disabled) {
         // Stored value is a disabled_option loaded into an enabled field.
         // Enable it temporarily so it shows as checked; re-disable after user unchecks.
         enableDisabledOptionForUncheck(matchingCheckbox, 'check-box', pathStr);
@@ -505,7 +568,7 @@ function populateRadioButton(pathStr, value) {
   const radioButton = radioContainer.querySelector(`input[type="radio"][value="${stringValue}"]`);
   
   if (radioButton) {
-    if (radioButton.dataset.disabledOption && radioButton.disabled) {
+    if (radioButton.dataset.disableOption && radioButton.disabled) {
       // Stored value is a disabled_option loaded into an enabled field.
       // Enable temporarily for display; re-disable after user picks a real value.
       // No change event — this is a stored value, not a real user selection.
@@ -549,7 +612,7 @@ function populateSlider(pathStr, value) {
 /**
  * normalizeDisabledOption
  *
- * Normalises a disabled_options entry to a {value, label} object.
+ * Normalises a dsisable_options entry to a {value, label} object.
  * An entry can be a plain string or a {value, label} object.
  *
  * @param {string|Object} entry
@@ -563,9 +626,32 @@ function normalizeDisabledOption(entry) {
 }
 
 /**
+ * filterNewDisabledOptions
+ *
+ * Returns only the dsisable_options entries whose value is NOT already present
+ * in enumValues. Prevents duplicate entries when a schema author accidentally
+ * lists a value in both "values" and "dsisable_options".
+ *
+ * @param {Array} dsisableOptions - Raw dsisable_options from schema
+ * @param {Array} enumValues      - Already-expanded regular options [{value, label}]
+ * @returns {Array} Filtered dsisable_options entries
+ */
+function filterNewDisabledOptions(dsisableOptions, enumValues) {
+  const existingValues = new Set((enumValues || []).map(item => String(item.value)));
+  return (dsisableOptions || []).filter(entry => {
+    const val = normalizeDisabledOption(entry).value;
+    if (existingValues.has(val)) {
+      console.warn(`dsisable_options: "${val}" already exists in values — skipping duplicate.`);
+      return false;
+    }
+    return true;
+  });
+}
+
+/**
  * enableDisabledOptionForUncheck
  *
- * Called when a populate function loads a disabled_options value into an
+ * Called when a populate function loads a dsisable_options value into an
  * ENABLED field. Temporarily enables the input so the stored value is
  * visible and checked. Attaches a one-time listener on the container so
  * that as soon as the user UNchecks it (or selects a different radio), the
@@ -625,7 +711,7 @@ function enableDisabledOptionForUncheck(input, controlType, pathStr) {
  * populateSingleSelect
  *
  * Populates a single-select <select> from loaded data.
- * disabled_options values are always present in the DOM with `disabled` attribute.
+ * dsisable_options values are always present in the DOM with `disabled` attribute.
  * JS can set select.value to a disabled <option> — it shows the stored value and
  * the user cannot re-select it via the dropdown once they pick something else.
  *
@@ -645,9 +731,9 @@ function populateSingleSelect(pathStr, value) {
   const matchingOption = Array.from(select.options).find(o => o.value === stringValue);
 
   if (matchingOption) {
-    // Works for both regular and disabled_options — browser allows JS to set disabled <option>.
+    // Works for both regular and dsisable_options — browser allows JS to set disabled <option>.
     select.value = stringValue;
-    console.log(`✓ Set select ${pathStr} = "${stringValue}"${matchingOption.dataset.disabledOption ? ' (disabled option — loaded from data)' : ''}`);
+    console.log(`✓ Set select ${pathStr} = "${stringValue}"${matchingOption.dataset.disableOption ? ' (disabled option — loaded from data)' : ''}`);
   } else {
     console.warn(`⚠ Value "${stringValue}" not found in options for ${pathStr}`);
   }
@@ -658,7 +744,7 @@ function populateSingleSelect(pathStr, value) {
  *
  * Populates a multi-select dropdown container from loaded data.
  * Parallel to populateCheckboxList but for the multi-select control type.
- * When a disabled_options value is found in the loaded data, routes through
+ * When a dsisable_options value is found in the loaded data, routes through
  * enableDisabledOptionForUncheck so the user can uncheck it but not re-check it.
  *
  * form-population.js should call this for multi-select dropdowns.
@@ -687,13 +773,13 @@ function populateMultiSelectDropdown(pathStr, values) {
     const stringValue = String(val);
     const match = Array.from(allCheckboxes).find(cb => String(cb.value) === stringValue);
     if (match) {
-      if (match.dataset.disabledOption && match.disabled) {
-        // disabled_options value loaded into an enabled field — temporarily unlock.
+      if (match.dataset.disableOption && match.disabled) {
+        // dsisable_options value loaded into an enabled field — temporarily unlock.
         enableDisabledOptionForUncheck(match, 'multi-select', pathStr);
       } else {
         match.checked = true;
       }
-      console.log(`✓ Checked "${stringValue}" for ${pathStr}${match.dataset.disabledOption ? ' (disabled option)' : ''}`);
+      console.log(`✓ Checked "${stringValue}" for ${pathStr}${match.dataset.disableOption ? ' (disabled option)' : ''}`);
     } else {
       console.warn(`⚠ Option not found for value: "${stringValue}" in ${pathStr}`);
     }
@@ -756,7 +842,7 @@ function expandRangeValues(rawValues) {
 /**
  * Update options for single-select dropdown
  */
-function updateSelectOptions(selectElement, enumValues, pathStr, disabledOptions) {
+function updateSelectOptions(selectElement, enumValues, pathStr, dsisableOptions) {
   selectElement.innerHTML = '<option value="">-- Select --</option>';
   
   enumValues.forEach(item => {
@@ -766,16 +852,16 @@ function updateSelectOptions(selectElement, enumValues, pathStr, disabledOptions
     selectElement.appendChild(opt);
   });
   
-  // disabled_options are always rendered but user cannot select them.
-  (disabledOptions || []).forEach(entry => {
+  // dsisable_options are always rendered but user cannot select them.
+  filterNewDisabledOptions(dsisableOptions, enumValues).forEach(entry => {
     const doVal   = normalizeDisabledOption(entry).value;
     const doLabel = normalizeDisabledOption(entry).label;
     const opt = document.createElement('option');
     opt.value = doVal;
     opt.textContent = doLabel;
     opt.disabled = true;
-    opt.className = 'disabled-option';
-    opt.dataset.disabledOption = 'true';
+    opt.className = 'disable-option';
+    opt.dataset.disableOption = 'true';
     selectElement.appendChild(opt);
   });
 }
@@ -783,30 +869,52 @@ function updateSelectOptions(selectElement, enumValues, pathStr, disabledOptions
 /**
  * Update options for multi-select dropdown
  */
-function updateMultiSelectOptions(container, enumValues, pathStr, disabledOptions) {
+function updateMultiSelectOptions(container, enumValues, pathStr, dsisableOptions) {
   const dropdown = container.querySelector('.multi-select-dropdown');
   if (!dropdown) return;
   
   dropdown.innerHTML = '';
   
+  const disabledValuesSet = new Set(
+    (dsisableOptions || []).map(e => normalizeDisabledOption(e).value)
+  );
+  
   enumValues.forEach((item, idx) => {
     const optionDiv = document.createElement('div');
     optionDiv.className = 'multi-select-option';
-    optionDiv.innerHTML = `
-      <input type="checkbox" 
-             id="${pathStr}_${idx}" 
-             value="${item.value}" 
-             data-path="${pathStr}"
-             data-dropdown="${container.id}"
-             data-label="${item.label}"
-             class="multi-select-checkbox"
-             onchange="handleMultiSelectChange(event, '${pathStr}', '${container.id}')">
-      <label for="${pathStr}_${idx}">${item.label}</label>
-    `;
+    if (disabledValuesSet.has(String(item.value))) {
+      const doId = `${pathStr}_do_${String(item.value).toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      optionDiv.innerHTML = `
+        <input type="checkbox" 
+               id="${doId}" 
+               value="${item.value}" 
+               data-path="${pathStr}"
+               data-dropdown="${container.id}"
+               data-label="${item.label}"
+               class="multi-select-checkbox"
+               data-disable-option="true"
+               disabled
+               onchange="handleMultiSelectChange(event, '${pathStr}', '${container.id}')">
+        <label for="${doId}" class="disable-option">${item.label}</label>
+      `;
+    } else {
+      optionDiv.innerHTML = `
+        <input type="checkbox" 
+               id="${pathStr}_${idx}" 
+               value="${item.value}" 
+               data-path="${pathStr}"
+               data-dropdown="${container.id}"
+               data-label="${item.label}"
+               class="multi-select-checkbox"
+               onchange="handleMultiSelectChange(event, '${pathStr}', '${container.id}')">
+        <label for="${pathStr}_${idx}">${item.label}</label>
+      `;
+    }
     dropdown.appendChild(optionDiv);
   });
   
-  (disabledOptions || []).forEach(entry => {
+  // Add dsisable_options values that are NOT already in enumValues.
+  filterNewDisabledOptions(dsisableOptions, enumValues).forEach(entry => {
     const doVal   = normalizeDisabledOption(entry).value;
     const doLabel = normalizeDisabledOption(entry).label;
     const doId    = `${pathStr}_do_${doVal.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -820,10 +928,10 @@ function updateMultiSelectOptions(container, enumValues, pathStr, disabledOption
              data-dropdown="${container.id}"
              data-label="${doLabel}"
              class="multi-select-checkbox"
-             data-disabled-option="true"
+             data-disable-option="true"
              disabled
              onchange="handleMultiSelectChange(event, '${pathStr}', '${container.id}')">
-      <label for="${doId}" class="disabled-option">${doLabel}</label>
+      <label for="${doId}" class="disable-option">${doLabel}</label>
     `;
     dropdown.appendChild(doDiv);
   });
@@ -834,7 +942,7 @@ function updateMultiSelectOptions(container, enumValues, pathStr, disabledOption
 /**
  * FIXED: Update options for checkbox list
  */
-function updateCheckboxOptions(container, enumValues, pathStr, disabledOptions) {
+function updateCheckboxOptions(container, enumValues, pathStr, dsisableOptions) {
   container.innerHTML = '';
   const containerId = container.id;
   
@@ -856,12 +964,12 @@ function updateCheckboxOptions(container, enumValues, pathStr, disabledOptions) 
     container.appendChild(label);
   });
   
-  (disabledOptions || []).forEach(entry => {
+  filterNewDisabledOptions(dsisableOptions, enumValues).forEach(entry => {
     const doVal   = normalizeDisabledOption(entry).value;
     const doLabel = normalizeDisabledOption(entry).label;
     const doId    = `${pathStr}_do_${doVal.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     const label = document.createElement('label');
-    label.className = 'checkbox-option disabled-option';
+    label.className = 'checkbox-option disable-option';
     label.htmlFor = doId;
     label.innerHTML = `
       <input type="checkbox" 
@@ -871,7 +979,7 @@ function updateCheckboxOptions(container, enumValues, pathStr, disabledOptions) 
              data-container="${containerId}"
              data-label="${doLabel}"
              class="checkbox-input"
-             data-disabled-option="true"
+             data-disable-option="true"
              disabled
              onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
       <span>${doLabel}</span>
@@ -883,33 +991,57 @@ function updateCheckboxOptions(container, enumValues, pathStr, disabledOptions) 
 /**
  * FIXED: Update options for radio button list
  */
-function updateRadioOptions(container, enumValues, pathStr, disabledOptions) {
+function updateRadioOptions(container, enumValues, pathStr, dsisableOptions) {
   container.innerHTML = '';
+  
+  const disabledValuesSet = new Set(
+    (dsisableOptions || []).map(e => normalizeDisabledOption(e).value)
+  );
   
   enumValues.forEach((item, idx) => {
     const label = document.createElement('label');
-    label.className = 'radio-option';
-    label.htmlFor = `${pathStr}_rb_${idx}`;
-    label.innerHTML = `
-      <input type="radio" 
-             id="${pathStr}_rb_${idx}" 
-             name="${pathStr}" 
-             value="${item.value}" 
-             data-path="${pathStr}"
-             data-label="${item.label}"
-             class="radio-input"
-             onchange="handleRadioChange(event, '${pathStr}')">
-      <span>${item.label}</span>
-    `;
+    if (disabledValuesSet.has(String(item.value))) {
+      const doId = `${pathStr}_do_${String(item.value).toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+      label.className = 'radio-option disable-option';
+      label.htmlFor = doId;
+      label.innerHTML = `
+        <input type="radio" 
+               id="${doId}" 
+               name="${pathStr}" 
+               value="${item.value}" 
+               data-path="${pathStr}"
+               data-label="${item.label}"
+               class="radio-input"
+               data-disable-option="true"
+               disabled
+               onchange="handleRadioChange(event, '${pathStr}')">
+        <span>${item.label}</span>
+      `;
+    } else {
+      label.className = 'radio-option';
+      label.htmlFor = `${pathStr}_rb_${idx}`;
+      label.innerHTML = `
+        <input type="radio" 
+               id="${pathStr}_rb_${idx}" 
+               name="${pathStr}" 
+               value="${item.value}" 
+               data-path="${pathStr}"
+               data-label="${item.label}"
+               class="radio-input"
+               onchange="handleRadioChange(event, '${pathStr}')">
+        <span>${item.label}</span>
+      `;
+    }
     container.appendChild(label);
   });
   
-  (disabledOptions || []).forEach(entry => {
+  // Add dsisable_options values that are NOT already in enumValues.
+  filterNewDisabledOptions(dsisableOptions, enumValues).forEach(entry => {
     const doVal   = normalizeDisabledOption(entry).value;
     const doLabel = normalizeDisabledOption(entry).label;
     const doId    = `${pathStr}_do_${doVal.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     const label = document.createElement('label');
-    label.className = 'radio-option disabled-option';
+    label.className = 'radio-option disable-option';
     label.htmlFor = doId;
     label.innerHTML = `
       <input type="radio" 
@@ -919,7 +1051,7 @@ function updateRadioOptions(container, enumValues, pathStr, disabledOptions) {
              data-path="${pathStr}"
              data-label="${doLabel}"
              class="radio-input"
-             data-disabled-option="true"
+             data-disable-option="true"
              disabled
              onchange="handleRadioChange(event, '${pathStr}')">
       <span>${doLabel}</span>
@@ -935,7 +1067,7 @@ function updateMultiSelectDisplay(dropdownId, path) {
   const selectedContainer = document.getElementById(dropdownId + '_selected');
   if (!selectedContainer) return;
   
-  // All checked checkboxes — including disabled_options ones (same class) — are shown.
+  // All checked checkboxes — including dsisable_options ones (same class) — are shown.
   const selectedCheckboxes = document.querySelectorAll(`[data-path="${path}"].multi-select-checkbox:checked`);
   
   selectedContainer.innerHTML = '';
@@ -988,10 +1120,10 @@ function detectCurrentControlType(element) {
  * @param {string} inputControl - New input control type
  * @param {string} responseType - Response type (single-select/multi-select)
  * @param {Array} enumValues - Values as [{value, label}, ...]
- * @param {Array} disabledOptions - Values that are always present but not selectable by user
+ * @param {Array} dsisableOptions - Values that are always present but not selectable by user
  * @returns {HTMLElement|null} New element or null if failed
  */
-function rebuildControlWithType(pathStr, oldElement, inputControl, responseType, enumValues, disabledOptions) {
+function rebuildControlWithType(pathStr, oldElement, inputControl, responseType, enumValues, dsisableOptions) {
   console.log(`  🔨 Rebuilding control for ${pathStr}:`, {
     oldType: detectCurrentControlType(oldElement),
     newType: inputControl,
@@ -1009,8 +1141,8 @@ function rebuildControlWithType(pathStr, oldElement, inputControl, responseType,
   const currentValue = getCurrentControlValue(oldElement, pathStr);
   console.log(`  💾 Stored current value:`, currentValue);
   
-  // Create new control HTML — disabledOptions comes from the function parameter.
-  const newControlHTML = createControlHTML(pathStr, inputControl, responseType, enumValues, disabledOptions);
+  // Create new control HTML — dsisableOptions comes from the function parameter.
+  const newControlHTML = createControlHTML(pathStr, inputControl, responseType, enumValues, dsisableOptions);
   
   // Replace old element
   const tempDiv = document.createElement('div');
@@ -1053,25 +1185,25 @@ function rebuildControlWithType(pathStr, oldElement, inputControl, responseType,
  * @param {string} inputControl - Control type
  * @param {string} responseType - Response type
  * @param {Array} enumValues - Values as [{value, label}, ...]
- * @param {Array} disabledOptions - Values always in DOM but not selectable
+ * @param {Array} dsisableOptions - Values always in DOM but not selectable
  * @returns {string} HTML string
  */
-function createControlHTML(pathStr, inputControl, responseType, enumValues, disabledOptions) {
+function createControlHTML(pathStr, inputControl, responseType, enumValues, dsisableOptions) {
   const escapedPath = pathStr.replace(/\./g, '_');
   
   switch (inputControl) {
     case 'drop-down':
       if (responseType === 'multi-select') {
-        return createMultiSelectHTML(pathStr, escapedPath, enumValues, disabledOptions);
+        return createMultiSelectHTML(pathStr, escapedPath, enumValues, dsisableOptions);
       } else {
-        return createSingleSelectHTML(pathStr, enumValues, disabledOptions);
+        return createSingleSelectHTML(pathStr, enumValues, dsisableOptions);
       }
     
     case 'check-box':
-      return createCheckboxHTML(pathStr, escapedPath, enumValues, disabledOptions);
+      return createCheckboxHTML(pathStr, escapedPath, enumValues, dsisableOptions);
     
     case 'radio-button':
-      return createRadioHTML(pathStr, escapedPath, enumValues, disabledOptions);
+      return createRadioHTML(pathStr, escapedPath, enumValues, dsisableOptions);
     
     case 'slider':
       return createSliderHTML(pathStr, escapedPath, enumValues);
@@ -1156,7 +1288,7 @@ function restoreControlValue(element, pathStr, value, inputControl) {
 /**
  * ✅ NEW: Helper functions to create HTML for each control type
  */
-function createMultiSelectHTML(pathStr, escapedPath, enumValues, disabledOptions) {
+function createMultiSelectHTML(pathStr, escapedPath, enumValues, dsisableOptions) {
   const dropdownId = `multiselect_${escapedPath}`;
   
   let html = `
@@ -1180,7 +1312,7 @@ function createMultiSelectHTML(pathStr, escapedPath, enumValues, disabledOptions
       </div>`;
   });
   
-  (disabledOptions || []).forEach(entry => {
+  filterNewDisabledOptions(dsisableOptions, enumValues).forEach(entry => {
     const doVal   = normalizeDisabledOption(entry).value;
     const doLabel = normalizeDisabledOption(entry).label;
     const doId    = `${pathStr}_do_${doVal.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
@@ -1190,10 +1322,10 @@ function createMultiSelectHTML(pathStr, escapedPath, enumValues, disabledOptions
                data-path="${pathStr}" data-dropdown="${dropdownId}"
                data-label="${doLabel}"
                class="multi-select-checkbox"
-               data-disabled-option="true"
+               data-disable-option="true"
                disabled
                onchange="handleMultiSelectChange(event, '${pathStr}', '${dropdownId}')">
-        <label for="${doId}" class="disabled-option">${doLabel}</label>
+        <label for="${doId}" class="disable-option">${doLabel}</label>
       </div>`;
   });
   
@@ -1201,7 +1333,7 @@ function createMultiSelectHTML(pathStr, escapedPath, enumValues, disabledOptions
   return html;
 }
 
-function createSingleSelectHTML(pathStr, enumValues, disabledOptions) {
+function createSingleSelectHTML(pathStr, enumValues, dsisableOptions) {
   let html = `<select data-path="${pathStr}" id="${pathStr}" data-dependent="true">
     <option value="">-- Select --</option>`;
   
@@ -1209,18 +1341,18 @@ function createSingleSelectHTML(pathStr, enumValues, disabledOptions) {
     html += `<option value="${item.value}">${item.label}</option>`;
   });
   
-  // disabled_options are always in the DOM; user cannot select them via UI.
-  (disabledOptions || []).forEach(entry => {
+  // dsisable_options are always in the DOM; user cannot select them via UI.
+  filterNewDisabledOptions(dsisableOptions, enumValues).forEach(entry => {
     const doVal   = normalizeDisabledOption(entry).value;
     const doLabel = normalizeDisabledOption(entry).label;
-    html += `<option value="${doVal}" disabled class="disabled-option" data-disabled-option="true">${doLabel}</option>`;
+    html += `<option value="${doVal}" disabled class="disable-option" data-disable-option="true">${doLabel}</option>`;
   });
   
   html += `</select>`;
   return html;
 }
 
-function createCheckboxHTML(pathStr, escapedPath, enumValues, disabledOptions) {
+function createCheckboxHTML(pathStr, escapedPath, enumValues, dsisableOptions) {
   const containerId = `checkbox_${escapedPath}`;
   
   let html = `<div class="checkbox-container" id="${containerId}" data-path="${pathStr}" data-dependent="true">`;
@@ -1237,17 +1369,17 @@ function createCheckboxHTML(pathStr, escapedPath, enumValues, disabledOptions) {
       </label>`;
   });
   
-  (disabledOptions || []).forEach(entry => {
+  filterNewDisabledOptions(dsisableOptions, enumValues).forEach(entry => {
     const doVal   = normalizeDisabledOption(entry).value;
     const doLabel = normalizeDisabledOption(entry).label;
     const doId    = `${pathStr}_do_${doVal.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     html += `
-      <label class="checkbox-option disabled-option" for="${doId}">
+      <label class="checkbox-option disable-option" for="${doId}">
         <input type="checkbox" id="${doId}" value="${doVal}" 
                data-path="${pathStr}" data-container="${containerId}"
                data-label="${doLabel}"
                class="checkbox-input"
-               data-disabled-option="true"
+               data-disable-option="true"
                disabled
                onchange="handleCheckboxChange(event, '${pathStr}', '${containerId}')">
         <span>${doLabel}</span>
@@ -1258,7 +1390,7 @@ function createCheckboxHTML(pathStr, escapedPath, enumValues, disabledOptions) {
   return html;
 }
 
-function createRadioHTML(pathStr, escapedPath, enumValues, disabledOptions) {
+function createRadioHTML(pathStr, escapedPath, enumValues, dsisableOptions) {
   const containerId = `radio_${escapedPath}`;
   
   let html = `<div class="radio-container" id="${containerId}" data-path="${pathStr}" data-dependent="true">`;
@@ -1275,17 +1407,17 @@ function createRadioHTML(pathStr, escapedPath, enumValues, disabledOptions) {
       </label>`;
   });
   
-  (disabledOptions || []).forEach(entry => {
+  filterNewDisabledOptions(dsisableOptions, enumValues).forEach(entry => {
     const doVal   = normalizeDisabledOption(entry).value;
     const doLabel = normalizeDisabledOption(entry).label;
     const doId    = `${pathStr}_do_${doVal.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     html += `
-      <label class="radio-option disabled-option" for="${doId}">
+      <label class="radio-option disable-option" for="${doId}">
         <input type="radio" id="${doId}" name="${pathStr}" value="${doVal}" 
                data-path="${pathStr}" 
                data-label="${doLabel}"
                class="radio-input"
-               data-disabled-option="true"
+               data-disable-option="true"
                disabled
                onchange="handleRadioChange(event, '${pathStr}')">
         <span>${doLabel}</span>
@@ -1340,6 +1472,7 @@ if (typeof module !== 'undefined' && module.exports) {
     populateMultiSelectDropdown,
     expandRangeValues,
     normalizeDisabledOption,
+    filterNewDisabledOptions,
     enableDisabledOptionForUncheck,
     updateSelectOptions,
     updateMultiSelectOptions,
@@ -1364,6 +1497,7 @@ export {
     createDefaultInput,
     expandRangeValues,
     normalizeDisabledOption,
+    filterNewDisabledOptions,
     enableDisabledOptionForUncheck,
     updateSelectOptions,
     updateMultiSelectOptions,

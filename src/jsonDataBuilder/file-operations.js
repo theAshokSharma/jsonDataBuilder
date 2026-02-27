@@ -104,8 +104,8 @@ function loadOptionsFromFile() {
               optionsMap: config.dependent_values[depField],
               defaultValues: config.values || [],
               responseType: config.response_type,
-              inputControl: config.input_control || 'drop-down', // ✅ ADD THIS LINE
-              na: config.na
+              inputControl: config.input_control || 'drop-down',
+              dsisable_options: config.dsisable_options || []
             });
           }
         }
@@ -558,8 +558,8 @@ async function processOptionsFile(schema) {
             optionsMap: config.dependent_values[depField],
             defaultValues: config.values || [],
             responseType: config.response_type,
-            inputControl: config.input_control || 'drop-down', // ✅ ADD THIS LINE
-            na: config.na
+            inputControl: config.input_control || 'drop-down',
+            dsisable_options: config.dsisable_options || []
           });
         }
       }

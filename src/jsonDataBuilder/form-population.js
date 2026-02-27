@@ -419,7 +419,7 @@ function populateSingleField(pathStr, value) {
   }
   
   // Try boolean checkbox
-  input = document.querySelector(`input[type="checkbox"][data-path="${pathStr}"]:not(.multi-select-checkbox):not(.na-checkbox):not(.checkbox-input):not(.na-checkbox-input)`);
+  input = document.querySelector(`input[type="checkbox"][data-path="${pathStr}"]:not(.multi-select-checkbox):not(.checkbox-input)`);
   if (input) {
     input.checked = value === true;
     input.classList.remove('invalid-data');
@@ -465,16 +465,13 @@ function populateArrayField(pathStr, values) {
   
   if (container) {
     const allCheckboxes = document.querySelectorAll(`[data-path="${pathStr}"].multi-select-checkbox`);
-    const naCheckbox = document.getElementById(pathStr + '_na');
-    
-    if (allCheckboxes.length === 0 && !naCheckbox) {
+    if (allCheckboxes.length === 0) {
       console.warn(`No checkboxes found for ${pathStr}`);
       return;
     }
     
     // Uncheck all first
     allCheckboxes.forEach(cb => cb.checked = false);
-    if (naCheckbox) naCheckbox.checked = false;
     
     // Handle different value types
     const valuesToCheck = Array.isArray(values) ? values : [values];
@@ -487,17 +484,7 @@ function populateArrayField(pathStr, values) {
     valuesToCheck.forEach(val => {
       const stringValue = String(val);
       
-      // Check if it's the N/A checkbox
-      if (naCheckbox && naCheckbox.value === stringValue) {
-        naCheckbox.checked = true;
-        
-        // UPDATED: Enhanced logging with label
-        const naLabel = naCheckbox.dataset.label || naCheckbox.value;
-        console.log(`✓ Checked NA for ${pathStr}: value="${stringValue}", label="${naLabel}"`);
-        return;
-      }
-      
-      // UPDATED: Find and check the matching checkbox by VALUE (not label)
+      // Find and check the matching checkbox by VALUE (not label)
       const matchingCheckbox = Array.from(allCheckboxes).find(cb => String(cb.value) === stringValue);
       if (matchingCheckbox) {
         matchingCheckbox.checked = true;
@@ -836,9 +823,8 @@ function enforceValidMultiSelection(container, fieldPath) {
   const validator = (e) => {
     const allCheckboxes = container.querySelectorAll('.multi-select-checkbox');
     const checkedCheckboxes = container.querySelectorAll('.multi-select-checkbox:checked');
-    const naCheckbox = container.querySelector('.na-checkbox');
     
-    const hasValidSelection = checkedCheckboxes.length > 0 || (naCheckbox && naCheckbox.checked);
+    const hasValidSelection = checkedCheckboxes.length > 0;
     
     if (!hasValidSelection) {
       e.preventDefault();
@@ -870,10 +856,10 @@ function enforceValidMultiSelection(container, fieldPath) {
   container.dataset.validationListener = 'true';
   
   // Also validate on checkbox change
-  const checkboxes = container.querySelectorAll('.multi-select-checkbox, .na-checkbox');
+  const checkboxes = container.querySelectorAll('.multi-select-checkbox');
   checkboxes.forEach(cb => {
     cb.addEventListener('change', () => {
-      const checkedBoxes = container.querySelectorAll('.multi-select-checkbox:checked, .na-checkbox:checked');
+      const checkedBoxes = container.querySelectorAll('.multi-select-checkbox:checked');
       if (checkedBoxes.length > 0) {
         container.classList.remove('invalid-data');
         delete container.dataset.invalidValues;

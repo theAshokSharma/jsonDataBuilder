@@ -409,10 +409,10 @@ select:focus,
   cursor: pointer;
 }
 
-/* Disabled Options (disabled_options schema key)
+/* Disabled Options (dsisable_options schema key)
    Always visible in the option list but not user-selectable.
    Visually distinct: separator line, italic text, muted colour, no-cursor. */
-.disabled-option {
+.disable-option {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid #ddd;
@@ -420,14 +420,14 @@ select:focus,
   cursor: not-allowed;
 }
 
-.disabled-option label,
-label.disabled-option {
+.disable-option label,
+label.disable-option {
   font-style: italic;
   color: #888;
   cursor: not-allowed;
 }
 
-option.disabled-option {
+option.disable-option {
   color: #999;
   font-style: italic;
 }
@@ -1104,7 +1104,7 @@ option.disabled-option {
   background: #f0f0f0;
 }
 
-.checkbox-option.disabled-option {
+.checkbox-option.disable-option {
   border-top: 1px solid #ddd;
   margin-top: 8px;
   padding-top: 14px;
@@ -1112,7 +1112,7 @@ option.disabled-option {
   cursor: not-allowed;
 }
 
-.checkbox-option.disabled-option input[type="checkbox"] {
+.checkbox-option.disable-option input[type="checkbox"] {
   cursor: not-allowed;
 }
 
@@ -1169,7 +1169,7 @@ option.disabled-option {
   background: #f0f0f0;
 }
 
-.radio-option.disabled-option {
+.radio-option.disable-option {
   border-top: 1px solid #ddd;
   margin-top: 8px;
   padding-top: 14px;
@@ -1177,7 +1177,7 @@ option.disabled-option {
   cursor: not-allowed;
 }
 
-.radio-option.disabled-option input[type="radio"] {
+.radio-option.disable-option input[type="radio"] {
   cursor: not-allowed;
 }
 
@@ -1742,15 +1742,15 @@ textarea.validation-success {
   border-left: 3px solid var(--secondary-color);
 }
 
-/* disabled_options: temporarily-enabled state (loaded from stored data)
+/* dsisable_options: temporarily-enabled state (loaded from stored data)
    When enableDisabledOptionForUncheck runs, the label gets a hover cue
    so the user knows they can uncheck it once but not re-check it. */
-label.disabled-option:has(input:not([disabled])) {
+label.disable-option:has(input:not([disabled])) {
   opacity: 0.85;
   cursor: pointer;
 }
 
-label.disabled-option:has(input:not([disabled]))::after {
+label.disable-option:has(input:not([disabled]))::after {
   content: " (cannot re-select)";
   font-size: 0.75em;
   color: #a00;
