@@ -677,11 +677,59 @@ function populateArrayOfObjectsDelayed(pathStr, items, container) {
       // Find the item container
       const itemContainer = container.querySelectorAll('.array-item')[index];
       if (itemContainer) {
-        const typeSelector = itemContainer.querySelector('.array-item-type-selector');
+        // 🔧 BUG FIX 1: Query BOTH selector classes.
+        //    form-renderer.js renders recursive $ref:"#" array items using class
+        //    'nested-polymorphic-selector', NOT 'array-item-type-selector'.
+        //    The original query was always returning null, causing the type to
+        //    never be set and fields to never be populated.
+        const typeSelector = itemContainer.querySelector(
+          '.array-item-type-selector, .nested-polymorphic-selector'
+        );
         
         if (typeSelector) {
           console.log(`    🔍 Polymorphic array item detected at index ${index}`);
-          // ... polymorphic handling code ...
+          
+          // 🔧 BUG FIX 2: Implement the missing polymorphic handling.
+          //    Previously this block only had a placeholder comment with no code.
+          //    We now detect which oneOf option the item data matches, set the
+          //    selector, wait for the fields to render, then populate them.
+          const schema = state.currentSchema;
+          const polymorphicOptions = schema.oneOf || schema.anyOf || [];
+          
+          let matchingTypeIndex = -1;
+          for (let optIdx = 0; optIdx < polymorphicOptions.length; optIdx++) {
+            let option = polymorphicOptions[optIdx];
+            if (option.$ref) {
+              option = resolveRef(option.$ref, schema);
+            }
+            if (option && isDataMatchingSchema(itemData, option)) {
+              matchingTypeIndex = optIdx;
+              break;
+            }
+          }
+          
+          if (matchingTypeIndex !== -1) {
+            console.log(`    ✅ Matched schema type index ${matchingTypeIndex} for array item ${index}`);
+            typeSelector.value = matchingTypeIndex;
+            typeSelector.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Wait for the selected type's fields to render, then populate values
+            setTimeout(() => {
+              console.log(`    📝 Populating fields for array item ${index} after type selection...`);
+              for (const [subKey, subValue] of Object.entries(itemData)) {
+                const itemPath = `${pathStr}.${index}.${subKey}`;
+                if (Array.isArray(subValue) && subValue.length > 0 &&
+                    typeof subValue[0] === 'object' && subValue[0] !== null) {
+                  populateArrayOfObjects(itemPath, subValue);
+                } else {
+                  populateSingleField(itemPath, subValue);
+                }
+              }
+            }, 300);
+          } else {
+            console.error(`    ❌ No matching schema type found for array item ${index}:`, itemData);
+          }
+
         } else {
           // Non-polymorphic array item - populate directly
           console.log(`    📝 Non-polymorphic item, populating fields...`);
