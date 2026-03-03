@@ -815,7 +815,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 /**
  * ✅ MAIN FUNCTION: Gets schema for any field path
- * Replace getFieldSchemaForPath in data-builder.js with this
  */
 function getFieldSchemaForPath(fieldPath) {
   if (!state.currentSchema) {
