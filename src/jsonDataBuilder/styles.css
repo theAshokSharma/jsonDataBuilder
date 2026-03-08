@@ -409,7 +409,7 @@ select:focus,
   cursor: pointer;
 }
 
-/* Disabled Options (dsisable_options schema key)
+/* Disabled Options (disable_values schema key)
    Always visible in the option list but not user-selectable.
    Visually distinct: separator line, italic text, muted colour, no-cursor. */
 .disable-option {
@@ -1742,7 +1742,7 @@ textarea.validation-success {
   border-left: 3px solid var(--secondary-color);
 }
 
-/* dsisable_options: temporarily-enabled state (loaded from stored data)
+/* disable_values: temporarily-enabled state (loaded from stored data)
    When enableDisabledOptionForUncheck runs, the label gets a hover cue
    so the user knows they can uncheck it once but not re-check it. */
 label.disable-option:has(input:not([disabled])) {

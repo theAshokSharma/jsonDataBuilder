@@ -105,7 +105,7 @@ function loadOptionsFromFile() {
               defaultValues: config.values || [],
               responseType: config.response_type,
               inputControl: config.input_control || 'drop-down',
-              dsisable_options: config.dsisable_options || []
+              disable_values: config.disable_values || []
             });
           }
         }
@@ -559,7 +559,7 @@ async function processOptionsFile(schema) {
             defaultValues: config.values || [],
             responseType: config.response_type,
             inputControl: config.input_control || 'drop-down',
-            dsisable_options: config.dsisable_options || []
+            disable_values: config.disable_values || []
           });
         }
       }
