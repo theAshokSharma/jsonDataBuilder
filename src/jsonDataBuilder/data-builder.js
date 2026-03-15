@@ -1144,7 +1144,7 @@ function getSelectedArrayItemOption(arrayFieldKey, index) {
  */
 function convertToSchemaType(fieldPath, value, isArray) {
   // Handle empty/null
-  if (value === null || value === undefined || value === '') {
+  if (value === null || value === undefined || value === '' || value === 'null') {
     return null;
   }
   

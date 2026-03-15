@@ -309,8 +309,18 @@ function populateFields(data, parentPath) {
 }
 
 function populateSingleField(pathStr, value) {
+  // Skip actual null/undefined values — field simply has no data.
   if (value === null || value === undefined) {
     console.log(`Skipping null/undefined for ${pathStr}`);
+    return;
+  }
+
+  // Skip the string "null" — this is a serialisation artefact that appears when a
+  // data file stores null as the literal text "null" (e.g. "mbr_cig_total_years": "null").
+  // Treating it as a real value would cause a false invalid-data warning because no
+  // option or input will ever match the string "null".
+  if (typeof value === 'string' && value.trim().toLowerCase() === 'null') {
+    console.log(`ℹ️ Skipping string "null" sentinel for ${pathStr} — treating as empty`);
     return;
   }
 
@@ -482,6 +492,14 @@ function populateArrayField(pathStr, values) {
     const invalidValues = [];
     
     valuesToCheck.forEach(val => {
+      // Null / undefined items in the source data array are not real selections.
+      // String(null) === "null" would never match an option and would trigger a
+      // false invalid-data warning, so skip them silently here at the root.
+      if (val === null || val === undefined) {
+        console.log(`ℹ️ Skipping null item in array for ${pathStr}`);
+        return;
+      }
+
       const stringValue = String(val);
       
       // Find and check the matching checkbox by VALUE (not label)

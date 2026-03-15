@@ -47,6 +47,65 @@ function createInputControl(key, prop, pathStr, choiceConfig, isRequired, isDepe
 }
 
 // ==================== DROP-DOWN CONTROL ====================
+
+/**
+ * resolveExclusiveValues
+ *
+ * Resolves exclusive_values entries against the actual options list so that
+ * the stored set always contains value-codes (e.g. "CK9908"), never raw
+ * label strings (e.g. "N/A") or stale codes that no longer appear in the list.
+ *
+ * Background: before the value/label refactor, option lists were plain strings
+ * ("N/A", "Unknown/Unsure") and exclusive_values matched those strings
+ * directly.  After the refactor, option items became {value, label} objects
+ * and the DOM <input value="…"> carries the CK code, not the label.
+ * exclusive_values in the JSON were never updated, so label-based entries
+ * stopped matching and exclusive behaviour silently broke.
+ *
+ * Resolution order for each entry in exclusiveValues:
+ *   1. {value, label} object  → use .value directly (future-proof format)
+ *   2. Plain string that is a known value-code in enumValues → keep as-is
+ *   3. Plain string that matches a known label in enumValues → swap for its value-code
+ *   4. No match found → keep as-is and warn (may belong to a dependent list
+ *      populated later; the handler will simply never match it)
+ *
+ * @param {Array} exclusiveValues  - Raw exclusive_values from config
+ * @param {Array} enumValues       - Expanded options [{value, label}, ...]
+ * @returns {string[]} Resolved array of value-code strings
+ */
+function resolveExclusiveValues(exclusiveValues, enumValues) {
+  if (!exclusiveValues || exclusiveValues.length === 0) return [];
+
+  // Build lookup maps from the current options list
+  const valueSet    = new Set(enumValues.map(item => String(item.value)));
+  const labelToValue = new Map(enumValues.map(item => [String(item.label), String(item.value)]));
+
+  return exclusiveValues.map(ev => {
+    // 1. Object format {value, label} — introduced alongside the options refactor
+    if (typeof ev === 'object' && ev !== null && 'value' in ev) {
+      return String(ev.value);
+    }
+    const str = String(ev);
+    // 2. Already a known value-code
+    if (valueSet.has(str)) return str;
+    // 3. Matches a label — resolve to its value-code
+    if (labelToValue.has(str)) {
+      const resolved = labelToValue.get(str);
+      console.warn(
+        `exclusive_values: "${str}" matched by label → resolved to value "${resolved}". ` +
+        `Update the JSON to use "${resolved}" directly.`
+      );
+      return resolved;
+    }
+    // 4. Unknown — may be valid for a dependent list populated later; keep and warn
+    console.warn(
+      `exclusive_values: "${str}" not found as a value or label in the current options list. ` +
+      `It will be kept as-is but may never match.`
+    );
+    return str;
+  });
+}
+
 /**
  * Creates dropdown control (refactored from existing logic)
  */
@@ -55,7 +114,10 @@ function createDropdownControl(pathStr, choiceConfig, isRequired, isDependent, d
   let rawValues = isDependent ? [] : (choiceConfig?.values || []);
   let enumValues = expandRangeValues(rawValues);
   
-  const exclusiveValues = choiceConfig?.exclusive_values || [];
+  const exclusiveValues = resolveExclusiveValues(
+    choiceConfig?.exclusive_values || [],
+    enumValues
+  );
 
   updateState({
     exclusiveOptionsMap: {
@@ -191,7 +253,10 @@ function createCheckboxControl(pathStr, choiceConfig, isRequired, isDependent, d
   let rawValues = isDependent ? [] : (choiceConfig?.values || []);
   let enumValues = expandRangeValues(rawValues);
   
-  const exclusiveValues = choiceConfig?.exclusive_values || [];
+  const exclusiveValues = resolveExclusiveValues(
+    choiceConfig?.exclusive_values || [],
+    enumValues
+  );
   updateState({
     exclusiveOptionsMap: {
       ...state.exclusiveOptionsMap,

@@ -126,81 +126,128 @@ function getFieldValue(fieldPath) {
   return null;
 }
 
-function setDisabledFieldValue(fieldPath, fieldGroup) {
+/**
+ * Resolves the stored value AND display label to use when a field is auto-disabled.
+ *
+ * Priority:
+ *  1. If the field's options config has a disable_values entry, use the first one.
+ *     If that entry is a {value, label} object in the options list, return both.
+ *     If it is a plain string, return it as both value and label.
+ *  2. Fall back to type-based defaults (null for numbers/booleans, date sentinel,
+ *     or 'N/A' for plain text fields with no options).
+ *
+ * @param {string} fieldPath
+ * @returns {{ value: string|null, label: string|null }}
+ */
+function getDisabledDefault(fieldPath) {
   const fieldType = getFieldTypeFromSchema(fieldPath);
-  let defaultValue;
-  
-  if (fieldType === 'integer' || fieldType === 'number' || fieldType === 'boolean')  {
-    defaultValue = null;
-  } else if (fieldType === 'date') {
-    defaultValue = '1900-01-01';
-  } else {
-    defaultValue = 'N/A';
+
+  // Numeric / boolean / null sentinel — no label needed.
+  if (fieldType === 'integer' || fieldType === 'number' || fieldType === 'boolean') {
+    return { value: null, label: null };
   }
-  
+
+  // Date sentinel — value and label are the same ISO string.
+  if (fieldType === 'date') {
+    return { value: '1900-01-01', label: '1900-01-01' };
+  }
+
+  // String / enum field — try to resolve from options config.
+  const config = state.customOptions?.[fieldPath];
+  if (config?.disable_values?.length > 0) {
+    const disableVal = config.disable_values[0]; // Use the first disable_values entry.
+
+    // Search the field's options list for a matching {value, label} pair.
+    const optionsList = config.values || [];
+    const matchingOpt = optionsList.find(opt =>
+      typeof opt === 'object' ? opt.value === disableVal : opt === disableVal
+    );
+
+    if (matchingOpt && typeof matchingOpt === 'object') {
+      // Found a value/label pair — return both.
+      return {
+        value: matchingOpt.value,
+        label: matchingOpt.label ?? matchingOpt.value
+      };
+    }
+
+    // disable_values entry is a plain string (no separate label).
+    return { value: disableVal, label: disableVal };
+  }
+
+  // Last resort: field has no options config at all.
+  return { value: 'N/A', label: 'N/A' };
+}
+
+function setDisabledFieldValue(fieldPath, fieldGroup) {
+  // Resolve value (stored in DOM / submitted) and label (displayed to user) separately.
+  const { value: defaultValue, label: defaultLabel } = getDisabledDefault(fieldPath);
+
   // ── Single-select dropdown ──────────────────────────────────────────────────
   const selectInput = fieldGroup.querySelector(`select[data-path="${fieldPath}"]`);
   if (selectInput) {
-    // Look for a disable_values <option> matching the default value.
-    // If the schema includes disable_values: ["N/A"], it's already in the DOM (disabled).
-    // JS can set select.value to a disabled <option> directly.
+    // Look for the disable_values <option> by its stored VALUE attribute.
     const disabledOpt = Array.from(selectInput.options)
       .find(o => o.dataset.disableOption === 'true' && o.value === defaultValue);
     if (disabledOpt) {
       // Temporarily un-disable so the browser honours select.value assignment.
       disabledOpt.disabled = false;
       selectInput.value = defaultValue;
-      disabledOpt.disabled = true;  // Re-disable — still cannot be re-selected by user.
+      disabledOpt.disabled = true;  // Re-disable — user cannot re-select it.
     } else {
       // Fallback: no disable_values in schema — create a temporary option.
-      // Uses data-temp-disabled so enableFieldValue can identify and remove it.
+      // value  = stored/submitted value (e.g. "CK9908")
+      // text   = human-readable label  (e.g. "N/A")
       const tempOpt = document.createElement('option');
       tempOpt.value = defaultValue;
-      tempOpt.textContent = defaultValue;
-      tempOpt.dataset.tempDisabled = 'true';  // NOT data-disable-option — keeps it temporary
+      tempOpt.textContent = defaultLabel;
+      tempOpt.dataset.tempDisabled = 'true';  // Lets enableFieldValue clean it up.
       selectInput.appendChild(tempOpt);
       selectInput.value = defaultValue;
     }
     return;
   }
-  
+
   // ── Text input ──────────────────────────────────────────────────────────────
+  // Plain text inputs store and display the same string; use the label for
+  // human-readable display (falls back to value when they are the same).
   const textInput = fieldGroup.querySelector(`input[type="text"][data-path="${fieldPath}"], input[type="email"][data-path="${fieldPath}"]`);
   if (textInput) {
-    textInput.value = defaultValue;
+    textInput.value = defaultLabel ?? defaultValue;
     return;
   }
-  
+
   // ── Number input ────────────────────────────────────────────────────────────
   const numberInput = fieldGroup.querySelector(`input[type="number"][data-path="${fieldPath}"]`);
   if (numberInput) {
     numberInput.value = defaultValue;
     return;
   }
-  
+
   // ── Date input ──────────────────────────────────────────────────────────────
   const dateInput = fieldGroup.querySelector(`input[type="date"][data-path="${fieldPath}"]`);
   if (dateInput) {
     dateInput.value = defaultValue;
     return;
   }
-  
+
   // ── Multi-select dropdown ───────────────────────────────────────────────────
   const multiSelectContainer = fieldGroup.querySelector('.multi-select-container');
   if (multiSelectContainer) {
     const dropdownId = multiSelectContainer.id;
-    
+
     // Deselect all checkboxes.
     const allCheckboxes = multiSelectContainer.querySelectorAll(`[data-path="${fieldPath}"].multi-select-checkbox`);
     allCheckboxes.forEach(cb => cb.checked = false);
-    
-    // Find the disable_values checkbox matching the default value and check it.
-    // It stays disabled for user clicks — JS can still set .checked programmatically.
+
+    // Find the disable_values checkbox by its stored VALUE attribute.
     let disabledOptCb = multiSelectContainer.querySelector(
       `[data-path="${fieldPath}"][data-disable-option="true"][value="${defaultValue}"]`
     );
     if (!disabledOptCb) {
-      // Fallback: schema has no disable_values — create a temporary checkbox.
+      // Fallback: create a temporary checkbox entry.
+      // value       → stored/submitted value (e.g. "CK9908")
+      // data-label  → display label          (e.g. "N/A")
       const tempDiv = document.createElement('div');
       tempDiv.className = 'multi-select-option';
       const tempCb = document.createElement('input');
@@ -208,11 +255,11 @@ function setDisabledFieldValue(fieldPath, fieldGroup) {
       tempCb.value = defaultValue;
       tempCb.setAttribute('data-path', fieldPath);
       tempCb.setAttribute('data-dropdown', dropdownId);
-      tempCb.setAttribute('data-label', defaultValue);
+      tempCb.setAttribute('data-label', defaultLabel);   // ← display label, not value
       tempCb.setAttribute('data-temp-disabled', 'true');
       tempCb.className = 'multi-select-checkbox';
       const tempLabel = document.createElement('label');
-      tempLabel.textContent = defaultValue;
+      tempLabel.textContent = defaultLabel;              // ← display label, not value
       tempLabel.className = 'disable-option';
       tempDiv.appendChild(tempCb);
       tempDiv.appendChild(tempLabel);
@@ -221,24 +268,24 @@ function setDisabledFieldValue(fieldPath, fieldGroup) {
       disabledOptCb = tempCb;
     }
     disabledOptCb.checked = true;
-    
+
     updateMultiSelectDisplay(dropdownId, fieldPath);
     return;
   }
-  
+
   // ── Checkbox list ───────────────────────────────────────────────────────────
   const checkboxContainer = fieldGroup.querySelector('.checkbox-container');
   if (checkboxContainer) {
     // Deselect all checkboxes.
     const allCheckboxes = checkboxContainer.querySelectorAll(`[data-path="${fieldPath}"].checkbox-input`);
     allCheckboxes.forEach(cb => cb.checked = false);
-    
-    // Check the disable_values checkbox matching the default value.
+
+    // Find the disable_values checkbox by its stored VALUE attribute.
     let disabledOptCb = checkboxContainer.querySelector(
       `[data-path="${fieldPath}"][data-disable-option="true"][value="${defaultValue}"]`
     );
     if (!disabledOptCb) {
-      // Fallback: schema has no disable_values — create a temporary checkbox.
+      // Fallback: create a temporary checkbox entry.
       const containerId = checkboxContainer.id;
       const tempLabel = document.createElement('label');
       tempLabel.className = 'checkbox-option disable-option';
@@ -247,11 +294,11 @@ function setDisabledFieldValue(fieldPath, fieldGroup) {
       tempCb.value = defaultValue;
       tempCb.setAttribute('data-path', fieldPath);
       tempCb.setAttribute('data-container', containerId);
-      tempCb.setAttribute('data-label', defaultValue);
+      tempCb.setAttribute('data-label', defaultLabel);   // ← display label, not value
       tempCb.setAttribute('data-temp-disabled', 'true');
       tempCb.className = 'checkbox-input';
       const tempSpan = document.createElement('span');
-      tempSpan.textContent = defaultValue;
+      tempSpan.textContent = defaultLabel;               // ← display label, not value
       tempLabel.appendChild(tempCb);
       tempLabel.appendChild(tempSpan);
       checkboxContainer.appendChild(tempLabel);
@@ -260,20 +307,20 @@ function setDisabledFieldValue(fieldPath, fieldGroup) {
     disabledOptCb.checked = true;
     return;
   }
-  
+
   // ── Radio button list ───────────────────────────────────────────────────────
   const radioContainer = fieldGroup.querySelector('.radio-container');
   if (radioContainer) {
     // Deselect all radio buttons.
     const allRadios = radioContainer.querySelectorAll(`[data-path="${fieldPath}"].radio-input`);
     allRadios.forEach(rb => rb.checked = false);
-    
-    // Check the disable_values radio matching the default value.
+
+    // Find the disable_values radio by its stored VALUE attribute.
     let disabledOptRb = radioContainer.querySelector(
       `[data-path="${fieldPath}"][data-disable-option="true"][value="${defaultValue}"]`
     );
     if (!disabledOptRb) {
-      // Fallback: schema has no disable_values — create a temporary radio.
+      // Fallback: create a temporary radio entry.
       const tempLabel = document.createElement('label');
       tempLabel.className = 'radio-option disable-option';
       const tempRb = document.createElement('input');
@@ -281,11 +328,11 @@ function setDisabledFieldValue(fieldPath, fieldGroup) {
       tempRb.name = fieldPath;
       tempRb.value = defaultValue;
       tempRb.setAttribute('data-path', fieldPath);
-      tempRb.setAttribute('data-label', defaultValue);
+      tempRb.setAttribute('data-label', defaultLabel);   // ← display label, not value
       tempRb.setAttribute('data-temp-disabled', 'true');
       tempRb.className = 'radio-input';
       const tempSpan = document.createElement('span');
-      tempSpan.textContent = defaultValue;
+      tempSpan.textContent = defaultLabel;               // ← display label, not value
       tempLabel.appendChild(tempRb);
       tempLabel.appendChild(tempSpan);
       radioContainer.appendChild(tempLabel);
@@ -493,10 +540,32 @@ function resetFieldValue(pathStr) {
  * Revalidate and set previously invalid values now that options may be available
  * Works with values (not labels)
  */
+
+/**
+ * Returns true for values that should be silently ignored during validation:
+ * null, undefined, empty string, and the string "null" that results from
+ * String(null) when a data file contains null inside an array field.
+ * @param {*} val
+ * @returns {boolean}
+ */
+function isNullLike(val) {
+  return val === null || val === undefined || val === '' || String(val).toLowerCase() === 'null';
+}
+
 function revalidateAndSetInvalid(el, pathStr) {
   if (el.classList.contains('invalid-data')) {
     if (el.tagName === 'SELECT') {
       const invalidValue = el.dataset.invalidValue;
+
+      // Null-like sentinels are never real selections — clear silently.
+      if (invalidValue && isNullLike(invalidValue)) {
+        el.classList.remove('invalid-data');
+        delete el.dataset.invalidValue;
+        removeInvalidWarning(el);
+        console.log(`ℹ️ Cleared null sentinel for select ${pathStr} — not a real invalid value`);
+        return;
+      }
+
       if (invalidValue) {
         // Check if value now exists in options
         const optionExistsNow = Array.from(el.options).some(opt => opt.value === invalidValue);
@@ -512,34 +581,54 @@ function revalidateAndSetInvalid(el, pathStr) {
           console.log(`✓ Recovered invalid value for ${pathStr}: "${invalidValue}" (displays as: "${label}")`);
         }
       }
-    } else { // multi-select
-      const invalidValues = JSON.parse(el.dataset.invalidValues || '[]');
-      if (invalidValues.length > 0) {
-        let stillInvalid = [];
-        let recovered = [];
-        
-        invalidValues.forEach(val => {
-          // Find checkbox by value
-          const matchingCb = Array.from(el.querySelectorAll('.multi-select-checkbox')).find(cb => cb.value === val);
-          if (matchingCb) {
-            matchingCb.checked = true;
-            recovered.push(`"${val}" → "${matchingCb.dataset.label || val}"`);
-          } else {
-            stillInvalid.push(val);
-          }
-        });
-        
-        if (stillInvalid.length === 0) {
-          el.classList.remove('invalid-data');
-          delete el.dataset.invalidValues;
-          removeInvalidWarning(el);
-          updateMultiSelectDisplay(el.id, pathStr);
-          console.log(`✓ Recovered invalid values for ${pathStr}: ${recovered.join(', ')}`);
+    } else { // multi-select / checkbox / radio
+      const rawInvalidValues = JSON.parse(el.dataset.invalidValues || '[]');
+
+      // Strip null-like entries before any processing.
+      // They appear when the source data file contains null items in an array field
+      // (e.g. "field": [null, "realValue"]). String(null) === "null" will never match
+      // a real option, so it must be excluded rather than surfaced as an error.
+      const invalidValues = rawInvalidValues.filter(v => !isNullLike(v));
+      const nullCount     = rawInvalidValues.length - invalidValues.length;
+
+      if (nullCount > 0) {
+        console.log(`ℹ️ Ignored ${nullCount} null sentinel(s) in invalidValues for ${pathStr}`);
+      }
+
+      if (invalidValues.length === 0) {
+        // All "invalid" entries were null sentinels — clear invalid state silently.
+        el.classList.remove('invalid-data');
+        delete el.dataset.invalidValues;
+        removeInvalidWarning(el);
+        updateMultiSelectDisplay(el.id, pathStr);
+        console.log(`ℹ️ Cleared null-only invalidValues for ${pathStr} — no real invalid values`);
+        return;
+      }
+
+      let stillInvalid = [];
+      let recovered = [];
+      
+      invalidValues.forEach(val => {
+        // Find checkbox by value
+        const matchingCb = Array.from(el.querySelectorAll('.multi-select-checkbox')).find(cb => cb.value === val);
+        if (matchingCb) {
+          matchingCb.checked = true;
+          recovered.push(`"${val}" → "${matchingCb.dataset.label || val}"`);
         } else {
-          el.dataset.invalidValues = JSON.stringify(stillInvalid);
-          addInvalidMultiSelectWarning(el, stillInvalid, pathStr);
-          console.log(`⚠️ Still invalid for ${pathStr}: ${stillInvalid.join(', ')}`);
+          stillInvalid.push(val);
         }
+      });
+      
+      if (stillInvalid.length === 0) {
+        el.classList.remove('invalid-data');
+        delete el.dataset.invalidValues;
+        removeInvalidWarning(el);
+        updateMultiSelectDisplay(el.id, pathStr);
+        console.log(`✓ Recovered invalid values for ${pathStr}: ${recovered.join(', ')}`);
+      } else {
+        el.dataset.invalidValues = JSON.stringify(stillInvalid);
+        addInvalidMultiSelectWarning(el, stillInvalid, pathStr);
+        console.log(`⚠️ Still invalid for ${pathStr}: ${stillInvalid.join(', ')}`);
       }
     }
   }
