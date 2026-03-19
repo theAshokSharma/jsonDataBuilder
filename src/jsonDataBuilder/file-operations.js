@@ -18,6 +18,22 @@ import {
   clearLastOptionsFile 
 } from './storage-manager.js';
 
+   import {
+     getAllSchemas,
+     saveToRegistry,
+     loadSchemaEntry,
+     removeFromRegistry,
+     selectSchemaDirectory,
+     getDirectoryName,
+     isFileSystemAccessSupported
+   } from './schema-registry.js';
+
+   import {
+     showConfigModal,           // ← the enhanced version
+     initSchemaPickerBanner
+   } from './showConfigModal-enhanced.js';
+
+
 function loadSchemaFromFile() {
   const input = document.createElement('input');
   input.type = 'file';
@@ -197,208 +213,6 @@ function loadDataFromFile() {
   input.click();
 }
 
-function updateValidationStatus() {
-  const confirmBtn = document.getElementById('confirmConfigBtn');
-  const validationStatus = document.getElementById('validationStatus');
-  
-  if (state.selectedSchemaFile) {
-    confirmBtn.disabled = false;
-    validationStatus.className = 'validation-status validation-success';
-    validationStatus.innerHTML = `
-      <div class="status-icon">✅</div>
-      <div class="status-text">Ready to load ${state.selectedOptionsFile ? 'both files' : 'schema file'}</div>
-    `;
-  } else {
-    confirmBtn.disabled = true;
-    validationStatus.className = 'validation-status';
-    validationStatus.innerHTML = `
-      <div class="status-icon">⏳</div>
-      <div class="status-text">Awaiting files...</div>
-    `;
-  }
-}
-
-async function showConfigModal() {
-  const configModal = document.getElementById('config-modal');
-  configModal.style.display = 'flex';
-  
-  const schemaFileInput = document.getElementById('schemaFileInput');
-  const optionsFileInput = document.getElementById('optionsFileInput');
-  const schemaFileName = document.getElementById('schemaFileName');
-  const optionsFileName = document.getElementById('optionsFileName');
-  const validationStatus = document.getElementById('validationStatus');
-  const confirmBtn = document.getElementById('confirmConfigBtn');
-  
-  // Reset UI
-  schemaFileName.textContent = '';
-  optionsFileName.textContent = '';
-  validationStatus.className = 'validation-status';
-  validationStatus.innerHTML = `
-    <div class="status-icon">⏳</div>
-    <div class="status-text">Awaiting files...</div>
-  `;
-  confirmBtn.disabled = true;
-  
-  // NEW: Try to load last used files
-  const lastSchema = getLastSchemaFile();
-  const lastOptions = getLastOptionsFile();
-  
-  if (lastSchema) {
-    console.log('📂 Found last used schema:', lastSchema.filename);
-    const schemaFile = createFileFromData(lastSchema.filename, lastSchema.data);
-    updateState({ selectedSchemaFile: schemaFile });
-    schemaFileName.textContent = `📋 ${lastSchema.filename} (last used)`;
-    schemaFileName.style.color = '#28a745';
-  } else if (state.selectedSchemaFile) {
-    schemaFileName.textContent = `📋 ${state.selectedSchemaFile.name}`;
-  }
-  
-  if (lastOptions) {
-    console.log('📂 Found last used options:', lastOptions.filename);
-    const optionsFile = createFileFromData(lastOptions.filename, lastOptions.data);
-    updateState({ selectedOptionsFile: optionsFile });
-    optionsFileName.textContent = `⚙️ ${lastOptions.filename} (last used)`;
-    optionsFileName.style.color = '#28a745';
-  } else if (state.selectedOptionsFile) {
-    optionsFileName.textContent = `⚙️ ${state.selectedOptionsFile.name}`;
-  }
-  
-  // Update validation status if files are loaded
-  if (lastSchema || state.selectedSchemaFile) {
-    updateValidationStatus();
-  }
-  
-  // Schema file input change handler
-  schemaFileInput.onchange = async (e) => {
-    if (e.target.files[0]) {
-      const schemaFile = e.target.files[0];
-      updateState({ selectedSchemaFile: schemaFile });
-      schemaFileName.textContent = `📋 ${schemaFile.name}`;
-      schemaFileName.style.color = '#212529';
-      
-      // FIXED: Clear old options state before auto-loading
-      updateState({ 
-        selectedOptionsFile: null,
-        customOptions: {},
-        conditionalRules: {},
-        triggersToAffected: {},
-        exclusiveOptionsMap: {}
-      });
-    
-      // Clear the options file input field
-      optionsFileInput.value = '';
-      optionsFileName.textContent = '';
-
-      // NEW: Auto-detect and load matching options file
-      await autoLoadMatchingOptionsFile(schemaFile);
-      
-      updateValidationStatus();
-    }
-  };
-  
-  // Options file input change handler (unchanged)
-  optionsFileInput.onchange = (e) => {
-    if (e.target.files[0]) {
-      updateState({ selectedOptionsFile: e.target.files[0] });
-      optionsFileName.textContent = `⚙️ ${state.selectedOptionsFile.name}`;
-      optionsFileName.style.color = '#212529';
-      updateValidationStatus();
-    }
-  };
-  
-  // Confirm button handler - UPDATED to clear options when not present
-  confirmBtn.onclick = async () => {
-    if (!state.selectedSchemaFile) {
-      await ashAlert('Please select a schema file.');
-      return;
-    }
-    
-    // Reset Load button
-    const loadDataBtn = document.getElementById('loadDataBtn');
-    if (loadDataBtn) {
-      loadDataBtn.textContent = 'Load';
-      loadDataBtn.style.color = '';
-      loadDataBtn.style.backgroundColor = '';
-      state.dataTooltip.innerText = 'Load data file in JSON format.';
-    }
-    
-    // Show loading state
-    validationStatus.className = 'validation-status';
-    validationStatus.innerHTML = `
-      <div class="status-icon">⏳</div>
-      <div class="status-text">Loading and validating files...</div>
-    `;
-    
-    try {
-      // Load schema
-      const schemaText = await state.selectedSchemaFile.text();
-      const schema = JSON.parse(schemaText);
-
-      updateState({
-        currentSchema: schema,
-        definitions: schema.definitions || schema.$defs || {}
-      });
-      
-      // Save schema to localStorage
-      saveLastSchemaFile(state.selectedSchemaFile.name, schema);
-
-      // NEW: Clear any previously stored options that don't match this schema
-      clearMismatchedOptions(state.selectedSchemaFile.name);
-
-      // Load and process options if provided
-      if (state.selectedOptionsFile) {
-        console.log('📦 Processing options file...');
-        await processOptionsFile(schema);
-      } else {
-        // CRITICAL FIX: No options file - clear from localStorage
-        console.log('ℹ️ No options file selected - clearing stored options');
-        clearLastOptionsFile();
-        
-        // Clear options from state
-        updateState({
-          customOptions: {},
-          conditionalRules: {},
-          triggersToAffected: {},
-          exclusiveOptionsMap: {}
-        });
-
-        validationStatus.className = 'validation-status validation-success';
-        validationStatus.innerHTML = `
-          <div class="status-icon">✅</div>
-          <div class="status-text">Schema loaded successfully (no options file)</div>
-        `;
-      }
-      
-      // Hide modal and render form
-      setTimeout(() => {
-        configModal.style.display = 'none';
-        renderForm(state.currentSchema);
-        console.log('✅ Configuration loaded successfully');
-      }, 500);
-      
-    } catch (error) {
-      validationStatus.className = 'validation-status validation-error';
-      validationStatus.innerHTML = `
-        <div class="status-icon">❌</div>
-        <div class="status-text">Error: ${error.message}</div>
-      `;
-      await ashAlert('Error loading files: ' + error.message);
-      console.error('Config load error:', error);
-    }
-  };
-
-  
-  // Cancel and close handlers (unchanged)
-  document.getElementById('cancelConfigBtn').onclick = () => {
-    configModal.style.display = 'none';
-  };
-  
-  configModal.onclick = (e) => {
-    if (e.target === configModal) {
-      configModal.style.display = 'none';
-    }
-  };
-}
 
 // Resolve JSON references in option file
 function resolveReferences(obj, root) {
@@ -603,7 +417,6 @@ export {
   loadOptionsFromFile,
   loadDataFromFile,
   showConfigModal,
-  updateValidationStatus,
   resolveReferences
 };
 

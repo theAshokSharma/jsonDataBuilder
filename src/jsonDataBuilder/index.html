@@ -1,5 +1,5 @@
 <!-- ====================================== -->
-<!-- FILE: index.html -->
+<!-- FILE: index.html                       -->
 <!-- ====================================== -->
 <!DOCTYPE html>
 <html lang="en">
@@ -11,193 +11,135 @@
 </head>
 <body>
   <div class="container">
+
+    <!-- HEADER -->
     <header class="header">
       <div class="header-brand">
         <div class="app-icon-container">
           <img src="media/jsondatabuilder.svg" alt="App Icon" id="appIcon" class="app-icon">
         </div>
-        <h1 class="app-title">JSON Data Builder</h2>
+        <h1 class="app-title">JSON Data Builder</h1>
       </div>
       <nav class="header-nav">
-        <button id="configBtn" class="header-button config-btn">⚙️ Config</button>      
-        <button id="loadDataBtn" class="header-button loaddata-btn" style="display: none;">📀 Load</button> 
-        <button id="viewBtn" class="header-button viewdata-btn" style="display: none;">👁️‍🗨️ View</button>        
-        <button id="saveBtn" class="header-button savefile-btn" style="display: none;">💿 Save</button>
-        <button id="exportBtn" class="header-button savetoclip-btn" style="display: none;">📋 Clipboard</button>
-        <button id="aboutBtn" class="header-button about-btn">About</button>
+        <button id="configBtn"   class="header-button config-btn">⚙️ Config</button>
+        <button id="loadDataBtn" class="header-button loaddata-btn"   style="display:none;">📀 Load</button>
+        <button id="viewBtn"     class="header-button viewdata-btn"   style="display:none;">👁️‍🗨️ View</button>
+        <button id="saveBtn"     class="header-button savefile-btn"   style="display:none;">💿 Save</button>
+        <button id="exportBtn"   class="header-button savetoclip-btn" style="display:none;">📋 Clipboard</button>
+        <button id="aboutBtn"    class="header-button about-btn">About</button>
       </nav>
       <button id="hamburgerBtn" class="hamburger" aria-label="Toggle menu">☰</button>
     </header>
-    
-   <!-- Config Modal (hidden by default) -->
-    <div id="config-modal" class="config-modal" style="display: none;">
-      <div class="config-modal-content">
-        <div class="config-modal-header">
-          <h2>📋 Configuration Setup</h2>
-          <p class="config-subtitle">Load your schema and options files to start building forms</p>
-        </div>
-        
-        <div class="config-section">
-          <div class="config-step">
-            <div class="step-number">1</div>
-            <div class="step-content">
-              <h3>Schema File (Required)</h3>
-              <p class="step-description">Load your JSON Schema file that defines the form structure.</p>
-              <div class="file-input-group">
-                <input type="file" id="schemaFileInput" accept=".json" class="file-input">
-                <label for="schemaFileInput" class="file-input-label">
-                  <span class="file-icon">📄</span>
-                  <span class="file-text">Choose Schema File</span>
-                </label>
-                <div id="schemaFileName" class="file-name"></div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="config-step">
-            <div class="step-number">2</div>
-            <div class="step-content">
-              <h3>Options File (Optional)</h3>
-              <p class="step-description">Load custom options file with dropdown values and conditional rules.</p>
-              <div class="file-input-group">
-                <input type="file" id="optionsFileInput" accept=".json" class="file-input">
-                <label for="optionsFileInput" class="file-input-label">
-                  <span class="file-icon">⚙️</span>
-                  <span class="file-text">Choose Options File</span>
-                </label>
-                <div id="optionsFileName" class="file-name"></div>
-              </div>
-              <div class="optional-tag">Optional</div>
-            </div>
-          </div>
-          
-          <div class="config-step">
-            <div class="step-number">3</div>
-            <div class="step-content">
-              <h3>Validation</h3>
-              <p class="step-description">Options file will be validated against the schema after loading.</p>
-              <div class="validation-status" id="validationStatus">
-                <div class="status-icon">⏳</div>
-                <div class="status-text">Awaiting files...</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <div class="config-modal-footer">
-          <button id="cancelConfigBtn" class="btn-secondary">Cancel</button>
-          <button id="confirmConfigBtn" class="btn-primary" disabled>
-            <span class="btn-icon">✅</span>
-            Confirm & Load
-          </button>
-        </div>
-      </div>
-    </div>
 
-    <!-- About Modal (hidden by default) -->
-    <div id="about-modal" class="config-modal" style="display: none;">
+    <!-- CONFIG MODAL — empty shell, JS fills it dynamically -->
+    <div id="config-modal" class="config-modal" style="display:none;"></div>
+
+    <!-- ABOUT MODAL -->
+    <div id="about-modal" class="config-modal" style="display:none;">
       <div class="config-modal-content">
         <div class="config-modal-header">
           <h2>ℹ️ About JSON Data Builder</h2>
           <p class="config-subtitle">A professional tool for building and editing JSON data based on schemas.</p>
           <p class="config-subtitle">Tool designed and developed by Ashok Sharma.</p>
         </div>
-        
         <div class="config-section">
           <div class="config-step">
             <div class="step-content">
               <h3>Overview</h3>
-              <p class="step-description">This application allows you to load JSON schemas and options, generate dynamic forms, validate inputs, and export structured data. It's designed for production use with robust error handling and user-friendly interfaces.</p>
+              <p class="step-description">Load JSON schemas and options, generate dynamic forms,
+              validate inputs, and export structured data.</p>
             </div>
           </div>
-          
           <div class="config-step">
             <div class="step-content">
               <h3>Features</h3>
-              <ul style="padding-left: 20px; margin: 10px 0;">
+              <ul style="padding-left:20px; margin:10px 0;">
                 <li>Dynamic form generation from JSON schemas</li>
+                <li>Schema Library — save and reload schema + options pairs</li>
                 <li>Custom options with conditional logic</li>
                 <li>Data validation and error highlighting</li>
-                <li>Save and Clipboard</li>
+                <li>Save and Clipboard export</li>
                 <li>Tab-based navigation for complex structures</li>
               </ul>
             </div>
           </div>
-          
           <div class="config-step">
             <div class="step-content">
-              <h3>Version & Tech Stack</h3>
-              <p class="step-description">Version: 3.10<br>Built with: HTML5, CSS3, Vanilla JavaScript (ES Modules)<br>Optimized for modern browsers and production deployment.</p>
+              <h3>Version &amp; Tech Stack</h3>
+              <p class="step-description">Version: 3.10<br>
+              Built with: HTML5, CSS3, Vanilla JavaScript (ES Modules)</p>
             </div>
           </div>
         </div>
-        
         <div class="config-modal-footer">
           <button id="closeAboutBtn" class="btn-primary">
-            <span class="btn-icon">✅</span>
-            Close
+            <span class="btn-icon">✅</span> Close
           </button>
         </div>
       </div>
     </div>
-    
-       <!-- File Status Display -->
-    <div id="file-status" class="file-status" style="display: none;">
+
+    <!-- FILE STATUS BAR -->
+    <div id="file-status" class="file-status" style="display:none;">
       <div class="file-status-item">
         <span class="file-status-label">Schema:</span>
-        <span id="schema-file-display" class="file-status-value">No schema file</span>
+        <span id="schema-file-display"  class="file-status-value not-loaded">No schema file</span>
       </div>
       <div class="file-status-item">
         <span class="file-status-label">Options:</span>
-        <span id="options-file-display" class="file-status-value">No option file</span>
+        <span id="options-file-display" class="file-status-value not-loaded">No option file</span>
       </div>
       <div class="file-status-item">
         <span class="file-status-label">Data:</span>
-        <span id="data-file-display" class="file-status-value">No data file</span>
+        <span id="data-file-display"    class="file-status-value not-loaded">No data file</span>
       </div>
     </div>
-     
-    <!-- Tabs container -->
-    <div id="tabs-container" class="tabs-container" style="display: none;">
+
+    <!-- TABS -->
+    <div id="tabs-container" class="tabs-container" style="display:none;">
       <div class="tabs" id="form-tabs"></div>
     </div>
-    
-    <!-- Tab contents container -->
     <div id="tab-contents"></div>
 
-    <!-- View Data Modal -->
-    <div id="view-modal" class="view-modal" style="display: none;">
-      <div class="modal-content" style="max-height: 80vh; display: flex; flex-direction: column;">
+    <!-- VIEW DATA MODAL -->
+    <div id="view-modal" class="view-modal" style="display:none;">
+      <div class="modal-content" style="max-height:80vh; display:flex; flex-direction:column;">
         <div class="modal-header">
           <h2>Current Form Data</h2>
           <button id="closeViewBtn" class="close-btn">&times;</button>
         </div>
-        <div class="modal-body" style="overflow-y: auto; flex: 1;">
-          <pre id="view-data-content" style="background-color: #363e4a; padding: 20px; border-radius: 4px; overflow-x: auto; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.6; margin: 0;"></pre>
+        <div class="modal-body" style="overflow-y:auto; flex:1;">
+          <pre id="view-data-content" class="json-container"
+               style="margin:0; padding:20px; border-radius:4px;
+                      overflow-x:auto; font-family:'Courier New',monospace;
+                      font-size:14px; line-height:1.6;"></pre>
         </div>
       </div>
     </div>
-    
-    <!-- Tab Navigation Buttons -->
-    <div id="tab-navigation" class="tab-navigation" style="display: none;">
+
+    <!-- TAB NAVIGATION -->
+    <div id="tab-navigation" class="tab-navigation" style="display:none;">
       <button id="prevTabBtn" class="tab-nav-btn" title="Previous Tab">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2">
           <polyline points="15 18 9 12 15 6"></polyline>
         </svg>
         <span>Previous</span>
       </button>
       <button id="nextTabBtn" class="tab-nav-btn" title="Next Tab">
         <span>Next</span>
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2">
           <polyline points="9 18 15 12 9 6"></polyline>
         </svg>
       </button>
     </div>
-  </div>
 
+  </div><!-- /.container -->
 
-
-  <!-- Link to external JavaScript file -->
+  <!-- SCRIPTS -->
+  <script type="module" src="schema-registry.js"></script>
+  <script type="module" src="showConfigModal-enhanced.js"></script>
   <script type="module" src="data-builder.js" defer></script>
   <script type="module" src="state.js"></script>
   <script type="module" src="utils.js"></script>
@@ -212,5 +154,4 @@
   <script type="module" src="input-validation.js"></script>
 </body>
 </html>
-
 <!-- END OF FILE -->
