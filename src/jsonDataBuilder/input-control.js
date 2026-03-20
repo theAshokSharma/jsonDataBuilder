@@ -545,6 +545,18 @@ function updateSliderValue(path, sliderId) {
   }
 }
 
+
+/**
+ * Update slider value display (FIXED: Added proper function declaration)
+ */
+function updateSliderValue(path, sliderId) {
+  const slider = document.getElementById(path);
+  const valueDisplay = document.getElementById(sliderId + '_value');
+  if (slider && valueDisplay) {
+    valueDisplay.textContent = slider.value;
+  }
+}
+
 /**
  * Update slider value display
  */

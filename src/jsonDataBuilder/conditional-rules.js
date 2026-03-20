@@ -145,6 +145,7 @@ function getDisabledDefault(fieldPath) {
   // Numeric / boolean / null sentinel — no label needed.
   if (fieldType === 'integer' || fieldType === 'number' || fieldType === 'boolean') {
     return { value: null, label: null };
+
   }
 
   // Date sentinel — value and label are the same ISO string.
