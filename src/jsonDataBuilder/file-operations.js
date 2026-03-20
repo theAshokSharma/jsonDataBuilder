@@ -23,9 +23,7 @@ import {
      saveToRegistry,
      loadSchemaEntry,
      removeFromRegistry,
-     selectSchemaDirectory,
      getDirectoryName,
-     isFileSystemAccessSupported
    } from './schema-registry.js';
 
    import {

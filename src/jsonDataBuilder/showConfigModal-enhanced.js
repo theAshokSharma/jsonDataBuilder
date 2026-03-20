@@ -1,220 +1,214 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// ENHANCED CONFIG MODAL  (drop-in replacement for showConfigModal in
-// file-operations.js)
+// showConfigModal-enhanced.js
+// ──────────────────────────────────────────────────────────────────────────────
+// Enhanced Config Modal with Schema Library.
 //
-// HOW TO INTEGRATE
-// 1.  Add this import near the top of file-operations.js:
+// Reads the schema library from  /schemas/jsonbuilder.config  (via server API).
+// When the user saves a new schema, files are uploaded to the server and the
+// config file is updated automatically.
 //
-//       import {
-//         getAllSchemas,
-//         saveToRegistry,
-//         loadSchemaEntry,
-//         removeFromRegistry,
-//         selectSchemaDirectory,
-//         getDirectoryName,
-//         isFileSystemAccessSupported
-//       } from './schema-registry.js';
-//
-// 2.  Delete (or comment out) the existing showConfigModal function.
-//
-// 3.  Paste or import everything from this file in its place.
-//
-// All other exports in file-operations.js stay unchanged.
-// ─────────────────────────────────────────────────────────────────────────────
+// Exports:
+//   showConfigModal()          – open the config / library modal
+//   initSchemaPickerBanner()   – show quick-load banner on page load
+// ──────────────────────────────────────────────────────────────────────────────
 // @ts-check
 
-import { state, updateState }                                          from './state.js';
-import { validateOptionsAgainstSchema, showValidationErrorsDialog,
-         displayValidationResults }                                    from './file-validation.js';
-import { ashAlert, ashConfirm }                                        from './utils.js';
-import { renderForm, updateFileStatusDisplay }                         from './form-renderer.js';
-import { resolveReferences }                                           from './file-operations.js';
+import { state, updateState }                                         from './state.js';
+import { validateOptionsAgainstSchema, showValidationErrorsDialog }   from './file-validation.js';
+import { ashAlert, ashConfirm }                                       from './utils.js';
+import { renderForm, updateFileStatusDisplay }                        from './form-renderer.js';
+import { resolveReferences }                                          from './file-operations.js';
 import {
   getAllSchemas,
   saveToRegistry,
   loadSchemaEntry,
-  removeFromRegistry,
-  selectSchemaDirectory,
-  getDirectoryName,
-  isFileSystemAccessSupported
-}                                                                      from './schema-registry.js';
+  removeFromRegistry
+}                                                                     from './schema-registry.js';
 
-// ─── CSS (injected once) ─────────────────────────────────────────────────────
+// ─── Inject modal CSS once ────────────────────────────────────────────────────
 
-(function injectModalStyles() {
-  if (document.getElementById('jb-config-modal-styles')) return;
+(function injectStyles() {
+  if (document.getElementById('jb-enhanced-modal-styles')) return;
+
   const style = document.createElement('style');
-  style.id = 'jb-config-modal-styles';
+  style.id = 'jb-enhanced-modal-styles';
   style.textContent = `
-    /* ── Config modal layout ── */
-    .jb-modal-body          { display:flex; gap:0; max-height:72vh; }
-    .jb-panel               { padding:20px 24px; overflow-y:auto; }
-    .jb-panel-library       { flex:1 1 45%; border-right:1px solid #eaeaea; min-width:0; }
-    .jb-panel-new           { flex:1 1 55%; min-width:0; }
-    .jb-panel-title         { font-size:13px; font-weight:700; letter-spacing:.6px;
-                               text-transform:uppercase; color:#888; margin:0 0 14px; }
+    /* ── Modal shell ── */
+    .jb-modal-content       { background:#fff; border-radius:16px; width:90%;
+                               max-width:800px; max-height:90vh; overflow:hidden;
+                               display:flex; flex-direction:column;
+                               box-shadow:0 20px 60px rgba(0,0,0,.3);
+                               animation:slideUp .35s ease; }
+    .jb-modal-header        { padding:18px 24px 12px; background:var(--secondary-color,#0033ff);
+                               color:#fff; flex-shrink:0; }
+    .jb-modal-header h2     { margin:0 0 4px; font-size:26px; font-weight:700; }
+    .jb-modal-subtitle      { margin:0; opacity:.88; font-size:14px; }
+
+    /* ── Two-panel body ── */
+    .jb-modal-body          { display:flex; flex:1; overflow:hidden; min-height:0; }
+    .jb-panel               { padding:18px 20px; overflow-y:auto; }
+    .jb-panel-library       { flex:0 0 42%; border-right:1px solid #eaeaea; }
+    .jb-panel-new           { flex:1; }
+    .jb-panel-title         { font-size:11px; font-weight:700; letter-spacing:.7px;
+                               text-transform:uppercase; color:#999; margin:0 0 12px; }
 
     /* ── Schema library list ── */
-    .jb-schema-list         { display:flex; flex-direction:column; gap:8px; }
+    .jb-schema-list         { display:flex; flex-direction:column; gap:7px; }
     .jb-schema-item         { display:flex; align-items:flex-start; gap:10px;
-                               padding:12px; border:1px solid #e0e0e0; border-radius:8px;
-                               cursor:pointer; transition:all .18s;
+                               padding:11px 12px; border:1px solid #e4e4e4;
+                               border-radius:8px; cursor:pointer;
+                               transition:border-color .15s, background .15s;
                                background:#fafafa; position:relative; }
     .jb-schema-item:hover   { border-color:#0033ff; background:#f0f4ff; }
     .jb-schema-item.selected{ border-color:#0033ff; background:#eef2ff;
                                box-shadow:0 0 0 3px rgba(0,51,255,.12); }
-    .jb-schema-radio        { margin-top:2px; cursor:pointer; accent-color:#0033ff; flex-shrink:0; }
+    .jb-schema-radio        { margin-top:3px; cursor:pointer;
+                               accent-color:#0033ff; flex-shrink:0; }
     .jb-schema-meta         { flex:1; min-width:0; }
-    .jb-schema-desc         { font-weight:600; font-size:14px; color:#222;
+    .jb-schema-desc         { font-weight:600; font-size:13px; color:#1a1a2e;
                                white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .jb-schema-files        { font-size:12px; color:#666; margin-top:3px; line-height:1.5; }
-    .jb-schema-badge        { display:inline-block; font-size:10px; font-weight:700;
-                               padding:1px 6px; border-radius:3px; margin-right:4px; }
+    .jb-schema-files        { font-size:11px; color:#777; margin-top:4px; line-height:1.7; }
+    .jb-badge               { display:inline-block; font-size:10px; font-weight:700;
+                               padding:1px 6px; border-radius:3px; margin-right:4px;
+                               vertical-align:middle; }
     .jb-badge-schema        { background:#dae7f9; color:#0255b4; }
     .jb-badge-options       { background:#e0f6e5; color:#019240; }
-    .jb-badge-no-options    { background:#f2f2f2; color:#888; }
-    .jb-schema-delete       { position:absolute; top:8px; right:8px;
-                               background:none; border:none; color:#ccc; font-size:15px;
+    .jb-badge-none          { background:#f2f2f2; color:#999; }
+    .jb-item-del            { background:none; border:none; color:#ddd; font-size:14px;
                                cursor:pointer; padding:2px 5px; border-radius:4px;
-                               line-height:1; transition:color .15s, background .15s; }
-    .jb-schema-delete:hover { color:#d32f2f; background:#fae0de; }
-    .jb-empty-lib           { color:#999; font-size:13px; text-align:center;
-                               padding:30px 16px; line-height:1.6; }
+                               line-height:1; position:absolute; top:7px; right:7px;
+                               transition:color .15s, background .15s; }
+    .jb-item-del:hover      { color:#d32f2f; background:#fae0de; }
+    .jb-empty               { color:#bbb; font-size:13px; text-align:center;
+                               padding:32px 12px; line-height:1.8; }
 
-    /* ── Directory bar ── */
-    .jb-dir-bar             { display:flex; align-items:center; gap:8px;
-                               margin-bottom:16px; padding:8px 12px;
-                               background:#f5f5f5; border-radius:6px;
-                               font-size:12px; color:#555; flex-wrap:wrap; }
-    .jb-dir-bar span        { flex:1; overflow:hidden; text-overflow:ellipsis;
-                               white-space:nowrap; }
-    .jb-dir-btn             { font-size:11px; padding:4px 10px; cursor:pointer;
-                               background:#fff; border:1px solid #ccc;
-                               border-radius:4px; color:#333; white-space:nowrap;
-                               transition:all .15s; }
-    .jb-dir-btn:hover       { border-color:#0033ff; color:#0033ff; background:#f0f4ff; }
-
-    /* ── Form steps inside "new" panel ── */
-    .jb-step                { display:flex; gap:16px; margin-bottom:16px;
-                               padding-bottom:16px; border-bottom:1px dashed #eee; }
-    .jb-step:last-child     { border-bottom:none; }
-    .jb-step-num            { width:28px; height:28px; border-radius:50%;
+    /* ── Steps (right panel) ── */
+    .jb-step                { display:flex; gap:14px; margin-bottom:14px;
+                               padding-bottom:14px; border-bottom:1px dashed #eee; }
+    .jb-step:last-child     { border-bottom:none; margin-bottom:0; padding-bottom:0; }
+    .jb-step-num            { width:26px; height:26px; border-radius:50%;
                                border:2px solid #0033ff; color:#0033ff; font-weight:700;
-                               font-size:14px; display:flex; align-items:center;
+                               font-size:13px; display:flex; align-items:center;
                                justify-content:center; flex-shrink:0; margin-top:2px; }
-    .jb-step-body           { flex:1; }
-    .jb-step-body h4        { margin:0 0 6px; font-size:14px; color:#222; }
-    .jb-step-body p         { margin:0 0 10px; font-size:12px; color:#777; }
+    .jb-step-body h4        { margin:0 0 4px; font-size:13px; color:#222; font-weight:600; }
+    .jb-step-body p         { margin:0 0 8px; font-size:12px; color:#888; line-height:1.5; }
+
+    /* ── File chooser buttons ── */
     .jb-file-label          { display:inline-flex; align-items:center; gap:6px;
-                               padding:7px 14px; background:#fff;
-                               border:2px solid #0033ff; border-radius:8px;
-                               cursor:pointer; font-size:13px; color:#0033ff;
+                               padding:6px 14px; background:#fff;
+                               border:2px solid #0033ff; border-radius:7px;
+                               cursor:pointer; font-size:12px; color:#0033ff;
                                font-weight:600; transition:all .2s; }
     .jb-file-label:hover    { background:#0033ff; color:#fff; }
-    .jb-file-label:hover .jb-file-icon { filter:brightness(10); }
-    .jb-file-icon           { font-size:16px; }
-    .jb-file-name           { margin-top:6px; font-size:12px; color:#495057;
-                               padding:5px 10px; background:#f8f9fa;
-                               border-left:3px solid #0033ff; border-radius:3px;
-                               display:none; }
-    .jb-file-name.visible   { display:block; }
-    .jb-desc-input          { width:100%; padding:8px 12px; font-family:inherit;
-                               font-size:13px; border:1px solid #ccc; border-radius:6px;
-                               resize:vertical; min-height:60px; box-sizing:border-box; }
-    .jb-desc-input:focus    { outline:none; border-color:#0033ff;
+    .jb-chosen-name         { display:none; margin-top:5px; font-size:11px;
+                               color:#444; padding:4px 10px; background:#f0f4ff;
+                               border-left:3px solid #0033ff; border-radius:3px; }
+    .jb-chosen-name.show    { display:block; }
+
+    /* ── Description textarea ── */
+    .jb-desc                { width:100%; padding:7px 10px; font-family:inherit;
+                               font-size:12px; border:1px solid #ccc; border-radius:6px;
+                               resize:vertical; min-height:52px; box-sizing:border-box;
+                               line-height:1.5; }
+    .jb-desc:focus          { outline:none; border-color:#0033ff;
                                box-shadow:0 0 0 3px rgba(0,51,255,.1); }
+
+    /* ── Save-to-library toggle ── */
     .jb-save-row            { display:flex; align-items:center; gap:8px;
-                               font-size:13px; color:#444; cursor:pointer; }
-    .jb-save-row input      { accent-color:#0033ff; width:16px; height:16px; cursor:pointer; }
+                               font-size:12px; color:#555; cursor:pointer; }
+    .jb-save-row input      { accent-color:#0033ff; width:15px; height:15px; cursor:pointer; }
 
-    /* ── Divider ── */
-    .jb-divider             { display:flex; align-items:center; gap:10px;
-                               margin:10px 0 16px; color:#bbb; font-size:12px; font-weight:600; }
-    .jb-divider::before,
-    .jb-divider::after      { content:''; flex:1; height:1px; background:#eee; }
-
-    /* ── Validation status ── */
+    /* ── Status bar ── */
     .jb-status              { display:flex; align-items:center; gap:10px;
-                               padding:12px 16px; background:#f8f9fa;
-                               border-radius:8px; margin:0 24px 0; font-size:13px; }
-    .jb-status-icon         { font-size:20px; }
+                               padding:10px 20px; background:#f8f9fa;
+                               border-top:1px solid #eaeaea; font-size:13px;
+                               flex-shrink:0; }
+    .jb-status-icon         { font-size:18px; flex-shrink:0; }
+    .jb-status.ok           { background:#f0faf2; }
+    .jb-status.warn         { background:#fffbf0; }
+    .jb-status.err          { background:#fff5f5; }
 
     /* ── Footer ── */
     .jb-footer              { display:flex; justify-content:flex-end; gap:12px;
-                               padding:16px 24px; background:#f8f9fa;
-                               border-top:1px solid #eaeaea; border-radius:0 0 16px 16px; }
+                               padding:14px 20px; background:#f8f9fa;
+                               border-top:1px solid #eaeaea; flex-shrink:0; }
+
+    /* ── Quick-picker banner ── */
+    .jb-banner              { display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+                               background:linear-gradient(135deg,#f0f4ff 0%,#e8f5e9 100%);
+                               border:1px solid #c5cde8; border-radius:10px;
+                               padding:12px 18px; margin-bottom:16px;
+                               box-shadow:0 2px 6px rgba(0,0,0,.07); }
+    .jb-banner-meta         { flex:1; min-width:140px; }
+    .jb-banner-meta h4      { margin:0 0 2px; font-size:14px; color:#1a237e; font-weight:700; }
+    .jb-banner-meta p       { margin:0; font-size:12px; color:#666; }
+    .jb-banner-select       { padding:7px 10px; font-size:13px; border:1px solid #ccc;
+                               border-radius:6px; background:#fff; cursor:pointer;
+                               min-width:210px; max-width:320px; flex:1; }
+    .jb-banner-load         { padding:8px 18px; font-size:13px; font-weight:600;
+                               background:#0033ff; color:#fff; border:none;
+                               border-radius:6px; cursor:pointer; white-space:nowrap;
+                               transition:background .2s; }
+    .jb-banner-load:hover   { background:#0022cc; }
+    .jb-banner-load:disabled{ background:#aaa; cursor:not-allowed; }
+    .jb-banner-dismiss      { background:none; border:none; color:#bbb; cursor:pointer;
+                               font-size:18px; padding:0 4px; line-height:1; flex-shrink:0; }
+    .jb-banner-dismiss:hover{ color:#555; }
   `;
   document.head.appendChild(style);
 })();
 
-// ─── Modal HTML builder ────────────────────────────────────────────────────────
+// ─── Modal HTML ───────────────────────────────────────────────────────────────
 
 /**
- * Builds the inner HTML for the enhanced config modal.
- * @param {{ entries: import('./schema-registry.js').RegistryEntry[], directoryName: string|null, isFSMode: boolean }} registry
+ * Builds inner HTML for the config modal.
+ * @param {import('./schema-registry.js').RegistryEntry[]} entries
  */
-function buildModalHTML(registry) {
-  const { entries, directoryName, isFSMode } = registry;
+function buildModalHTML(entries) {
 
-  // ── Library panel ──────────────────────────────────────────────────────────
-  const dirBarHTML = isFileSystemAccessSupported() ? `
-    <div class="jb-dir-bar">
-      <span title="${directoryName || 'No directory selected'}">
-        📁 ${directoryName ? `<strong>${directoryName}</strong>` : 'No schema directory set'}
-      </span>
-      <button class="jb-dir-btn" id="jbSelectDirBtn">
-        ${directoryName ? '⟳ Change' : '+ Set Directory'}
-      </button>
-    </div>` : `
-    <div class="jb-dir-bar" style="background:#fff8e1; border:1px solid #ffe082;">
-      ℹ️ File System API not available — schemas saved to browser storage.
-    </div>`;
-
-  const listHTML = entries.length === 0
-    ? `<div class="jb-empty-lib">
-         No schemas in library yet.<br>
-         Load a new schema below and tick<br>
-         <strong>"Save to Library"</strong> to add it.
+  const libraryRows = entries.length === 0
+    ? `<div class="jb-empty">
+         No schemas saved yet.<br>
+         Load a new schema on the right<br>
+         and tick <strong>Save to Library</strong>.
        </div>`
     : entries.map((e, i) => `
-        <div class="jb-schema-item" data-index="${i}" id="jb-lib-item-${i}">
+        <div class="jb-schema-item" data-index="${i}" id="jb-item-${i}">
           <input type="radio" class="jb-schema-radio"
-                 name="jb-schema-sel" id="jb-schema-radio-${i}" value="${i}">
+                 name="jb-sel" id="jb-radio-${i}" value="${i}">
           <div class="jb-schema-meta">
-            <div class="jb-schema-desc" title="${e.description || e.schema}">
-              ${e.description || e.schema}
+            <div class="jb-schema-desc" title="${escAttr(e.description || e.schema)}">
+              ${escHtml(e.description || e.schema)}
             </div>
             <div class="jb-schema-files">
-              <span class="jb-schema-badge jb-badge-schema">Schema</span>${e.schema}<br>
+              <span class="jb-badge jb-badge-schema">Schema</span>${escHtml(e.schema)}<br>
               ${e.options
-                ? `<span class="jb-schema-badge jb-badge-options">Options</span>${e.options}`
-                : `<span class="jb-schema-badge jb-badge-no-options">No options</span>`}
+                ? `<span class="jb-badge jb-badge-options">Options</span>${escHtml(e.options)}`
+                : `<span class="jb-badge jb-badge-none">No options file</span>`}
             </div>
           </div>
-          <button class="jb-schema-delete" data-index="${i}"
-                  title="Remove from library" aria-label="Remove">✕</button>
+          <button class="jb-item-del" data-index="${i}"
+                  title="Remove from library">✕</button>
         </div>`).join('');
 
-  // ── Full modal ─────────────────────────────────────────────────────────────
   return `
-    <div class="config-modal-content" style="max-width:780px;">
-      <div class="config-modal-header">
-        <h2>⚙️ Load Configuration</h2>
-        <p class="config-subtitle">
-          Select from your saved library or load new schema files
+    <div class="jb-modal-content">
+
+      <div class="jb-modal-header">
+        <h2>⚙️ Configuration</h2>
+        <p class="jb-modal-subtitle">
+          Pick a saved schema or load new files
         </p>
       </div>
 
       <div class="jb-modal-body">
 
-        <!-- Left: Schema Library -->
+        <!-- ── Left: Library ── -->
         <div class="jb-panel jb-panel-library">
           <p class="jb-panel-title">📚 Schema Library</p>
-          ${dirBarHTML}
-          <div class="jb-schema-list" id="jbSchemaList">${listHTML}</div>
+          <div class="jb-schema-list" id="jbList">${libraryRows}</div>
         </div>
 
-        <!-- Right: Load New Files -->
+        <!-- ── Right: Load new ── -->
         <div class="jb-panel jb-panel-new">
           <p class="jb-panel-title">📁 Load New Files</p>
 
@@ -223,13 +217,12 @@ function buildModalHTML(registry) {
             <div class="jb-step-num">1</div>
             <div class="jb-step-body">
               <h4>Schema File <span style="color:#d32f2f">*</span></h4>
-              <p>JSON Schema that defines your form structure</p>
-              <input type="file" accept=".json" id="jbSchemaFileInput"
-                     style="display:none">
-              <label for="jbSchemaFileInput" class="jb-file-label">
-                <span class="jb-file-icon">📄</span> Choose Schema
+              <p>JSON Schema that defines the form structure</p>
+              <input type="file" accept=".json" id="jbSchemaInput" style="display:none">
+              <label for="jbSchemaInput" class="jb-file-label">
+                📄 Choose Schema
               </label>
-              <div class="jb-file-name" id="jbSchemaFileName"></div>
+              <div class="jb-chosen-name" id="jbSchemaName"></div>
             </div>
           </div>
 
@@ -237,14 +230,13 @@ function buildModalHTML(registry) {
           <div class="jb-step">
             <div class="jb-step-num">2</div>
             <div class="jb-step-body">
-              <h4>Options File</h4>
-              <p>Custom dropdowns, dependent fields, and rules (optional)</p>
-              <input type="file" accept=".json" id="jbOptionsFileInput"
-                     style="display:none">
-              <label for="jbOptionsFileInput" class="jb-file-label">
-                <span class="jb-file-icon">⚙️</span> Choose Options
+              <h4>Options File <span style="color:#999; font-weight:400;">(optional)</span></h4>
+              <p>Custom dropdowns, dependent fields and conditional rules</p>
+              <input type="file" accept=".json" id="jbOptionsInput" style="display:none">
+              <label for="jbOptionsInput" class="jb-file-label">
+                ⚙️ Choose Options
               </label>
-              <div class="jb-file-name" id="jbOptionsFileName"></div>
+              <div class="jb-chosen-name" id="jbOptionsName"></div>
             </div>
           </div>
 
@@ -252,10 +244,10 @@ function buildModalHTML(registry) {
           <div class="jb-step">
             <div class="jb-step-num">3</div>
             <div class="jb-step-body">
-              <h4>Description</h4>
-              <p>Short description shown in the library (optional)</p>
-              <textarea class="jb-desc-input" id="jbDescInput"
-                placeholder="e.g. Member data entry form for Plan Year 2025…"
+              <h4>Description <span style="color:#999; font-weight:400;">(optional)</span></h4>
+              <p>Label shown in the library list</p>
+              <textarea class="jb-desc" id="jbDesc"
+                placeholder="e.g. Member entry form — Plan Year 2025"
                 maxlength="200"></textarea>
             </div>
           </div>
@@ -266,18 +258,19 @@ function buildModalHTML(registry) {
             <div class="jb-step-body">
               <h4>Save to Library</h4>
               <label class="jb-save-row">
-                <input type="checkbox" id="jbSaveToLibrary" checked>
+                <input type="checkbox" id="jbSaveChk" checked>
                 Remember this schema for quick access next time
               </label>
             </div>
           </div>
         </div>
+
       </div><!-- /.jb-modal-body -->
 
-      <!-- Validation status row -->
-      <div class="jb-status" id="jbValidationStatus">
+      <!-- Status bar -->
+      <div class="jb-status" id="jbStatus">
         <span class="jb-status-icon">⏳</span>
-        <span id="jbStatusText">Select a schema from the library or load a new file.</span>
+        <span id="jbStatusText">Select a saved schema or load new files.</span>
       </div>
 
       <!-- Footer -->
@@ -287,307 +280,332 @@ function buildModalHTML(registry) {
           <span class="btn-icon">▶</span> Load Configuration
         </button>
       </div>
-    </div>`;
+
+    </div><!-- /.jb-modal-content -->
+  `;
 }
 
-// ─── Status helpers ────────────────────────────────────────────────────────────
+// ─── Status helpers ───────────────────────────────────────────────────────────
 
 function setStatus(icon, text, cls = '') {
-  const bar  = document.getElementById('jbValidationStatus');
+  const bar  = document.getElementById('jbStatus');
   const txt  = document.getElementById('jbStatusText');
-  const iconEl = bar?.querySelector('.jb-status-icon');
-  if (!bar || !txt || !iconEl) return;
-
-  bar.className    = `jb-status ${cls}`;
-  iconEl.textContent = icon;
-  txt.textContent  = text;
+  const ico  = bar?.querySelector('.jb-status-icon');
+  if (!bar || !txt || !ico) return;
+  bar.className       = `jb-status ${cls}`;
+  ico.textContent     = icon;
+  txt.textContent     = text;
 }
 
-function setConfirmEnabled(enabled) {
+function setConfirmEnabled(on) {
   const btn = document.getElementById('jbConfirmBtn');
-  if (btn) btn.disabled = !enabled;
+  if (btn) btn.disabled = !on;
 }
 
-// ─── Main exported function ───────────────────────────────────────────────────
+// ─── showConfigModal ──────────────────────────────────────────────────────────
 
 /**
  * Opens the enhanced config modal.
- *
- * Mode A – Library: user picks a saved entry → files loaded from registry.
- * Mode B – New:     user selects files manually → optionally saved to registry.
  */
 export async function showConfigModal() {
-  // ── 1. Read current registry state ────────────────────────────────────────
-  let registry = await getAllSchemas();
 
-  // ── 2. Inject / replace modal content ────────────────────────────────────
-  const configModal = document.getElementById('config-modal');
-  if (!configModal) {
-    console.error('config-modal element not found in DOM');
-    return;
+  const modal = document.getElementById('config-modal');
+  if (!modal) { console.error('config-modal element missing'); return; }
+
+  // Load registry from server
+  let registry;
+  try {
+    registry = await getAllSchemas();
+  } catch {
+    registry = { entries: [] };
   }
 
-  configModal.innerHTML = buildModalHTML(registry);
-  configModal.style.display = 'flex';
+  // Build and show modal
+  modal.innerHTML = buildModalHTML(registry.entries);
+  modal.style.display = 'flex';
 
-  // ── 3. Local state for this modal session ─────────────────────────────────
-  let selectedSchemaFile  = null;
-  let selectedOptionsFile = null;
-  let selectedLibIndex    = -1;   // -1 = "load new files" mode
+  // ── Session-local state ──────────────────────────────────────────────────
+  let newSchemaFile  = null;   // File chosen in step 1
+  let newOptionsFile = null;   // File chosen in step 2
+  let libIndex       = -1;     // selected library row (-1 = none)
 
-  // ── 4. Library interactions ───────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────
 
-  /** Highlights the selected library item row */
-  function highlightLibItem(idx) {
-    document.querySelectorAll('.jb-schema-item').forEach(el => el.classList.remove('selected'));
-    if (idx >= 0) {
-      document.getElementById(`jb-lib-item-${idx}`)?.classList.add('selected');
-    }
-  }
-
-  /** Called whenever library selection changes */
-  function onLibrarySelect(idx) {
-    selectedLibIndex = idx;
+  function selectLibRow(idx) {
+    libIndex = idx;
+    document.querySelectorAll('.jb-schema-item')
+      .forEach(el => el.classList.remove('selected'));
+    document.getElementById(`jb-item-${idx}`)?.classList.add('selected');
     const entry = registry.entries[idx];
-    if (!entry) return;
-
-    highlightLibItem(idx);
-    setStatus('✅', `Ready to load "${entry.description || entry.schema}"`, 'validation-success');
+    setStatus('✅', `Ready — "${entry.description || entry.schema}"`, 'ok');
     setConfirmEnabled(true);
+    // Clear "new file" selections so modes don't mix
+    newSchemaFile  = null;
+    newOptionsFile = null;
+    document.getElementById('jbSchemaName').classList.remove('show');
+    document.getElementById('jbOptionsName').classList.remove('show');
+    document.getElementById('jbSchemaInput').value  = '';
+    document.getElementById('jbOptionsInput').value = '';
   }
 
-  // Click on entire item row → select that radio
-  document.querySelectorAll('.jb-schema-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-      if (/** @type {HTMLElement} */ (e.target).classList.contains('jb-schema-delete')) return;
-      const idx    = parseInt(item.dataset.index);
-      const radio  = document.getElementById(`jb-schema-radio-${idx}`);
-      if (radio) radio.checked = true;
-      onLibrarySelect(idx);
+  // ── Library row clicks ────────────────────────────────────────────────────
 
-      // Clear any "new file" selections so modes don't mix
-      selectedSchemaFile  = null;
-      selectedOptionsFile = null;
-      document.getElementById('jbSchemaFileName').classList.remove('visible');
-      document.getElementById('jbOptionsFileName').classList.remove('visible');
-      if (document.getElementById('jbSchemaFileInput')) {
-        document.getElementById('jbSchemaFileInput').value = '';
-      }
+  function attachLibListeners() {
+    document.querySelectorAll('.jb-schema-item').forEach(item => {
+      item.addEventListener('click', e => {
+        if (e.target.classList.contains('jb-item-del')) return;
+        const idx = parseInt(item.dataset.index);
+        document.getElementById(`jb-radio-${idx}`).checked = true;
+        selectLibRow(idx);
+      });
     });
-  });
 
-  // Radio inputs (keyboard / direct)
-  document.querySelectorAll('.jb-schema-radio').forEach(radio => {
-    radio.addEventListener('change', () => {
-      onLibrarySelect(parseInt(radio.value));
+    document.querySelectorAll('.jb-schema-radio').forEach(r => {
+      r.addEventListener('change', () => selectLibRow(parseInt(r.value)));
     });
-  });
 
-  // ── 5. Delete library entries ─────────────────────────────────────────────
-  document.querySelectorAll('.jb-schema-delete').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const idx   = parseInt(btn.dataset.index);
-      const entry = registry.entries[idx];
-      if (!entry) return;
+    document.querySelectorAll('.jb-item-del').forEach(btn => {
+      btn.addEventListener('click', async e => {
+        e.stopPropagation();
+        const idx   = parseInt(btn.dataset.index);
+        const entry = registry.entries[idx];
+        if (!entry) return;
 
-      const ok = await ashConfirm(`Remove "${entry.description || entry.schema}" from the library?`);
-      if (!ok) return;
+        const ok = await ashConfirm(
+          `Remove "${entry.description || entry.schema}" from the library?\n\nThe file in /schemas/ will not be deleted.`
+        );
+        if (!ok) return;
 
-      await removeFromRegistry(entry.schema, registry.dirHandle);
+        try {
+          await removeFromRegistry(entry.schema);
+        } catch (err) {
+          await ashAlert(`Could not remove entry: ${err.message}`);
+          return;
+        }
 
-      // Refresh the modal (re-read registry)
-      registry = await getAllSchemas();
-      const list = document.getElementById('jbSchemaList');
-      if (list) {
-        list.innerHTML = registry.entries.length === 0
-          ? `<div class="jb-empty-lib">
-               No schemas in library yet.<br>
-               Load a new schema below and tick
-               <strong>"Save to Library"</strong> to add it.
-             </div>`
-          : registry.entries.map((e, i) => `
-              <div class="jb-schema-item" data-index="${i}" id="jb-lib-item-${i}">
-                <input type="radio" class="jb-schema-radio"
-                       name="jb-schema-sel" id="jb-schema-radio-${i}" value="${i}">
-                <div class="jb-schema-meta">
-                  <div class="jb-schema-desc">${e.description || e.schema}</div>
-                  <div class="jb-schema-files">
-                    <span class="jb-schema-badge jb-badge-schema">Schema</span>${e.schema}<br>
-                    ${e.options
-                      ? `<span class="jb-schema-badge jb-badge-options">Options</span>${e.options}`
-                      : `<span class="jb-schema-badge jb-badge-no-options">No options</span>`}
-                  </div>
-                </div>
-                <button class="jb-schema-delete" data-index="${i}" title="Remove from library">✕</button>
-              </div>`).join('');
+        // Refresh list
+        registry = await getAllSchemas();
+        rebuildList(registry.entries);
 
-        // Re-attach event listeners after list re-render
-        list.querySelectorAll('.jb-schema-item').forEach(item => {
-          item.addEventListener('click', (ev) => {
-            if (ev.target.classList.contains('jb-schema-delete')) return;
-            const i = parseInt(item.dataset.index);
-            document.getElementById(`jb-schema-radio-${i}`)?.setAttribute('checked', '');
-            onLibrarySelect(i);
-          });
-        });
-        list.querySelectorAll('.jb-schema-delete').forEach(b => {
-          b.addEventListener('click', async (ev) => {
-            ev.stopPropagation();
-            b.dispatchEvent(new Event('click')); // handled above via closure re-render
-          });
-        });
-      }
-
-      if (selectedLibIndex === idx) {
-        selectedLibIndex = -1;
-        setStatus('⏳', 'Entry removed. Select from library or load new files.');
-        setConfirmEnabled(false);
-      }
+        if (libIndex === idx) {
+          libIndex = -1;
+          setStatus('⏳', 'Entry removed. Select from library or load new files.');
+          setConfirmEnabled(false);
+        }
+      });
     });
-  });
+  }
 
-  // ── 6. Set / change directory ─────────────────────────────────────────────
-  document.getElementById('jbSelectDirBtn')?.addEventListener('click', async () => {
-    const handle = await selectSchemaDirectory();
-    if (!handle) return;
+  /** Rebuilds the library list HTML without re-drawing the whole modal */
+  function rebuildList(entries) {
+    const list = document.getElementById('jbList');
+    if (!list) return;
+    list.innerHTML = entries.length === 0
+      ? `<div class="jb-empty">
+           No schemas saved yet.<br>
+           Load a new schema on the right<br>
+           and tick <strong>Save to Library</strong>.
+         </div>`
+      : entries.map((e, i) => `
+          <div class="jb-schema-item" data-index="${i}" id="jb-item-${i}">
+            <input type="radio" class="jb-schema-radio"
+                   name="jb-sel" id="jb-radio-${i}" value="${i}">
+            <div class="jb-schema-meta">
+              <div class="jb-schema-desc">${escHtml(e.description || e.schema)}</div>
+              <div class="jb-schema-files">
+                <span class="jb-badge jb-badge-schema">Schema</span>${escHtml(e.schema)}<br>
+                ${e.options
+                  ? `<span class="jb-badge jb-badge-options">Options</span>${escHtml(e.options)}`
+                  : `<span class="jb-badge jb-badge-none">No options file</span>`}
+              </div>
+            </div>
+            <button class="jb-item-del" data-index="${i}" title="Remove from library">✕</button>
+          </div>`).join('');
+    attachLibListeners();
+  }
 
-    registry = await getAllSchemas();  // re-read with new directory
-    const dirSpan = document.querySelector('.jb-dir-bar span');
-    if (dirSpan) {
-      dirSpan.innerHTML = `📁 <strong>${handle.name}</strong>`;
-    }
-    await ashAlert(`Schema directory set to: ${handle.name}\nExisting schemas in this directory will appear in the library next time you open this dialog.`);
-  });
+  attachLibListeners();
 
-  // ── 7. New file inputs ────────────────────────────────────────────────────
-  document.getElementById('jbSchemaFileInput').addEventListener('change', async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  // ── New file inputs ────────────────────────────────────────────────────────
 
-    try {
-      JSON.parse(await file.text());   // quick validity check
-    } catch {
-      await ashAlert('Invalid JSON in schema file.');
-      e.target.value = '';
-      return;
-    }
-
-    selectedSchemaFile = file;
-    selectedLibIndex   = -1;           // switch to "new file" mode
-    document.querySelectorAll('.jb-schema-item').forEach(el => el.classList.remove('selected'));
-    document.querySelectorAll('.jb-schema-radio').forEach(r => r.checked = false);
-
-    const nameEl = document.getElementById('jbSchemaFileName');
-    nameEl.textContent = `📄 ${file.name}`;
-    nameEl.classList.add('visible');
-
-    // Pre-fill description with schema name if empty
-    const descInput = document.getElementById('jbDescInput');
-    if (descInput && !descInput.value.trim()) {
-      descInput.value = file.name.replace(/\.json$/i, '').replace(/[-_]/g, ' ');
-    }
-
-    setStatus('✅', 'Schema ready. Add options file or confirm to load.', 'validation-success');
-    setConfirmEnabled(true);
-  });
-
-  document.getElementById('jbOptionsFileInput').addEventListener('change', async (e) => {
+  document.getElementById('jbSchemaInput').addEventListener('change', async e => {
     const file = e.target.files[0];
     if (!file) return;
 
     try {
       JSON.parse(await file.text());
     } catch {
-      await ashAlert('Invalid JSON in options file.');
+      await ashAlert('The chosen file is not valid JSON.');
       e.target.value = '';
       return;
     }
 
-    selectedOptionsFile = file;
-    const nameEl = document.getElementById('jbOptionsFileName');
+    newSchemaFile = file;
+    libIndex      = -1;
+    document.querySelectorAll('.jb-schema-item').forEach(el => el.classList.remove('selected'));
+    document.querySelectorAll('.jb-schema-radio').forEach(r => r.checked = false);
+
+    const nameEl = document.getElementById('jbSchemaName');
+    nameEl.textContent = `📄 ${file.name}`;
+    nameEl.classList.add('show');
+
+    // Pre-fill description if empty
+    const descEl = document.getElementById('jbDesc');
+    if (descEl && !descEl.value.trim()) {
+      descEl.value = file.name.replace(/\.json$/i, '').replace(/[-_]/g, ' ');
+    }
+
+    setStatus('✅', 'Schema ready — add options or confirm to load.', 'ok');
+    setConfirmEnabled(true);
+  });
+
+  document.getElementById('jbOptionsInput').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      JSON.parse(await file.text());
+    } catch {
+      await ashAlert('The chosen options file is not valid JSON.');
+      e.target.value = '';
+      return;
+    }
+
+    newOptionsFile = file;
+    const nameEl = document.getElementById('jbOptionsName');
     nameEl.textContent = `⚙️ ${file.name}`;
-    nameEl.classList.add('visible');
+    nameEl.classList.add('show');
   });
 
-  // ── 8. Cancel ─────────────────────────────────────────────────────────────
+  // ── Cancel / backdrop ─────────────────────────────────────────────────────
+
   document.getElementById('jbCancelBtn').addEventListener('click', () => {
-    configModal.style.display = 'none';
+    modal.style.display = 'none';
   });
 
-  configModal.addEventListener('click', (e) => {
-    if (e.target === configModal) configModal.style.display = 'none';
+  modal.addEventListener('click', e => {
+    if (e.target === modal) modal.style.display = 'none';
   });
 
-  // ── 9. Confirm / Load ─────────────────────────────────────────────────────
+  // ── Confirm ───────────────────────────────────────────────────────────────
+
   document.getElementById('jbConfirmBtn').addEventListener('click', async () => {
-    setStatus('⏳', 'Loading and validating…');
+    setStatus('⏳', 'Loading…');
     setConfirmEnabled(false);
 
     try {
-      if (selectedLibIndex >= 0) {
-        // ── Mode A: Load from library ──────────────────────────────────────
-        await loadFromLibrary(registry.entries[selectedLibIndex], registry.dirHandle, configModal);
-      } else if (selectedSchemaFile) {
-        // ── Mode B: Load new files ─────────────────────────────────────────
-        const description   = document.getElementById('jbDescInput').value.trim();
-        const saveToLibrary = document.getElementById('jbSaveToLibrary').checked;
-        await loadNewFiles(selectedSchemaFile, selectedOptionsFile, description, saveToLibrary, registry.dirHandle, configModal);
+      if (libIndex >= 0) {
+        // ── Mode A: load from library ───────────────────────────────────────
+        await doLoadFromLibrary(registry.entries[libIndex], modal);
+
+      } else if (newSchemaFile) {
+        // ── Mode B: load new files ──────────────────────────────────────────
+        const description   = document.getElementById('jbDesc').value.trim();
+        const saveToLib     = document.getElementById('jbSaveChk').checked;
+        await doLoadNewFiles(newSchemaFile, newOptionsFile, description, saveToLib, modal);
+
       } else {
-        setStatus('⚠️', 'Please select a schema from the library or load a new file.', 'validation-warning');
+        setStatus('⚠️', 'Please select a library entry or choose a schema file.', 'warn');
         setConfirmEnabled(true);
       }
     } catch (err) {
-      setStatus('❌', `Error: ${err.message}`, 'validation-error');
-      setConfirmEnabled(true);
       console.error('Config load error:', err);
+      setStatus('❌', `Error: ${err.message}`, 'err');
+      setConfirmEnabled(true);
     }
   });
 }
 
-// ─── Load helpers ─────────────────────────────────────────────────────────────
+// ─── Banner dropdown refresh ──────────────────────────────────────────────────
 
 /**
- * Mode A: Load schema + options from the registry.
- * @param {import('./schema-registry.js').RegistryEntry} entry
- * @param {FileSystemDirectoryHandle|null} dirHandle
- * @param {HTMLElement} modal
+ * Re-fetches the registry from the server, rebuilds the banner dropdown
+ * options, and selects the entry whose schema filename matches `activeSchema`.
+ *
+ * Called after any load so the banner always reflects the current state:
+ *   • Mode A (library load)  – selects the entry that was just loaded.
+ *   • Mode B (new files)     – adds the newly saved entry and selects it.
+ *   • Banner quick-load      – already has the index; still refreshes list
+ *                              in case other entries were added meanwhile.
+ *
+ * @param {string} activeSchema  - Filename to select (e.g. "member-schema.json")
  */
-async function loadFromLibrary(entry, dirHandle, modal) {
-  const { schemaData, optionsData, schemaFile, optionsFile } =
-    await loadSchemaEntry(entry, dirHandle);
+async function refreshBannerDropdown(activeSchema) {
+  const sel = document.getElementById('jbBannerSel');
+  if (!sel) return;   // banner not present (dismissed or not yet shown)
 
-  // Apply to global state
-  const schema = schemaData;
+  let registry;
+  try {
+    registry = await getAllSchemas();
+  } catch {
+    console.warn('Could not refresh banner dropdown.');
+    return;
+  }
+
+  const entries = registry.entries || [];
+
+  // Rebuild all <option> elements
+  // Keep the placeholder as the first option
+  sel.innerHTML =
+    '<option value="">— Choose a schema —</option>' +
+    entries.map((e, i) =>
+      `<option value="${i}">${escHtml(e.description || e.schema)}</option>`
+    ).join('');
+
+  // Update the count label in the banner meta
+  const metaP = document.querySelector('#jbPickerBanner .jb-banner-meta p');
+  if (metaP) {
+    metaP.textContent =
+      `${entries.length} schema${entries.length === 1 ? '' : 's'} available`;
+  }
+
+  // Select the active entry
+  const activeIdx = entries.findIndex(e => e.schema === activeSchema);
+  if (activeIdx >= 0) {
+    sel.value = String(activeIdx);
+    console.log(`📌 Banner dropdown: selected index ${activeIdx} ("${activeSchema}")`);
+  } else {
+    sel.value = '';
+    console.log(`ℹ️  Banner dropdown: "${activeSchema}" not found in registry`);
+  }
+}
+
+// ─── Load helpers ─────────────────────────────────────────────────────────────
+
+/** Mode A – load from saved library entry */
+async function doLoadFromLibrary(entry, modal) {
+  const { schemaData, optionsData, schemaFile, optionsFile } =
+    await loadSchemaEntry(entry);
+
   updateState({
-    currentSchema:      schema,
-    definitions:        schema.definitions || schema.$defs || {},
+    currentSchema:      schemaData,
+    definitions:        schemaData.definitions || schemaData.$defs || {},
     selectedSchemaFile: schemaFile,
     selectedOptionsFile: optionsFile,
     dataFilename:       null
   });
 
   if (optionsData) {
-    await applyOptionsData(optionsData, optionsFile);
+    // resolveReferences must run on raw data before applying —
+    // it expands $ref pointers and ##listName shortcuts in the options file.
+    const resolvedOptions = resolveReferences(optionsData, optionsData);
+    await applyOptions(resolvedOptions, optionsFile);
+    console.log(`✅ Options applied: ${entry.options}`);
   } else {
-    clearOptionsState();
+    clearOptions();
+    console.log('ℹ️ No options file for this schema entry.');
   }
 
-  closeModalAndRender(modal, schema);
+  finishLoad(modal, schemaData);
+
+  // Refresh the banner dropdown and highlight the just-loaded entry.
+  refreshBannerDropdown(entry.schema);
+
   console.log(`✅ Loaded from library: ${entry.schema}`);
 }
 
-/**
- * Mode B: Load freshly chosen files, optionally save to library.
- * @param {File}        schemaFile
- * @param {File|null}   optionsFile
- * @param {string}      description
- * @param {boolean}     saveToLib
- * @param {FileSystemDirectoryHandle|null} dirHandle
- * @param {HTMLElement} modal
- */
-async function loadNewFiles(schemaFile, optionsFile, description, saveToLib, dirHandle, modal) {
-  // Parse schema
+/** Mode B – load freshly chosen files, optionally save to library */
+async function doLoadNewFiles(schemaFile, optionsFile, description, saveToLib, modal) {
   const schemaText = await schemaFile.text();
   const schema     = JSON.parse(schemaText);
 
@@ -598,70 +616,70 @@ async function loadNewFiles(schemaFile, optionsFile, description, saveToLib, dir
     dataFilename:       null
   });
 
-  // Handle options
   if (optionsFile) {
-    const optionsText = await optionsFile.text();
-    const rawOptions  = JSON.parse(optionsText);
-    const resolved    = resolveReferences(rawOptions, rawOptions);
+    const rawOpts  = JSON.parse(await optionsFile.text());
+    const resolved = resolveReferences(rawOpts, rawOpts);
 
-    // Validate options against schema
     const validation = validateOptionsAgainstSchema(resolved, schema);
     if (!validation.isValid) {
       const proceed = await showValidationErrorsDialog(validation.missingKeys);
       if (!proceed) {
-        clearOptionsState();
+        clearOptions();
         updateState({ selectedOptionsFile: null });
-        setStatus('⚠️', 'Options rejected. Loading schema only.', 'validation-warning');
-        await sleep(600);
       } else {
-        await applyOptionsData(resolved, optionsFile);
+        await applyOptions(resolved, optionsFile);
       }
     } else {
-      await applyOptionsData(resolved, optionsFile);
+      await applyOptions(resolved, optionsFile);
     }
   } else {
-    clearOptionsState();
+    clearOptions();
     updateState({ selectedOptionsFile: null });
   }
 
-  // Save to library if requested
+  // Save to server if requested
   if (saveToLib) {
     try {
-      await saveToRegistry(schemaFile, optionsFile, description, dirHandle);
-      console.log('✅ Saved to schema library');
+      await saveToRegistry(schemaFile, optionsFile, description);
+      console.log('✅ Schema saved to server library');
     } catch (err) {
-      console.warn('Could not save to library:', err);
-      // Non-fatal — continue loading
+      // Non-fatal — file still loads, just warn
+      console.warn('⚠️  Could not save to library:', err.message);
     }
   }
 
-  closeModalAndRender(modal, schema);
+  finishLoad(modal, schema);
+
+  // Refresh the banner dropdown so the newly saved entry appears
+  // and is selected. Works even when saveToLib was unchecked because
+  // refreshBannerDropdown silently handles a missing entry.
+  refreshBannerDropdown(schemaFile.name);
+
   console.log(`✅ Loaded new files: ${schemaFile.name}`);
 }
 
 // ─── Shared utilities ─────────────────────────────────────────────────────────
 
-/** Applies a resolved options object to global app state. */
-async function applyOptionsData(resolvedOptions, optionsFile) {
+/** Applies resolved options object to global app state */
+async function applyOptions(resolvedOptions, optionsFile) {
   updateState({
-    customOptions:     resolvedOptions,
-    conditionalRules:  resolvedOptions.conditional_rules || {},
-    triggersToAffected: {},
+    customOptions:       resolvedOptions,
+    conditionalRules:    resolvedOptions.conditional_rules || {},
+    triggersToAffected:  {},
     selectedOptionsFile: optionsFile
   });
 
-  // Build triggers map
   Object.entries(state.customOptions).forEach(([field, config]) => {
     if (config.dependent_values) {
       const depField = Object.keys(config.dependent_values)[0];
       if (depField) {
         state.triggersToAffected[depField] = state.triggersToAffected[depField] || [];
         state.triggersToAffected[depField].push({
-          affected:      field,
-          optionsMap:    config.dependent_values[depField],
-          defaultValues: config.values || [],
-          responseType:  config.response_type,
-          inputControl:  config.input_control || 'drop-down',
+          affected:       field,
+          optionsMap:     config.dependent_values[depField],
+          defaultValues:  config.values || [],
+          responseType:   config.response_type,
+          inputControl:   config.input_control || 'drop-down',
           disable_values: config.disable_values || []
         });
       }
@@ -669,168 +687,175 @@ async function applyOptionsData(resolvedOptions, optionsFile) {
   });
 }
 
-/** Clears all options-related state. */
-function clearOptionsState() {
+/** Clears all options-related state */
+function clearOptions() {
   updateState({
-    customOptions:      {},
-    conditionalRules:   {},
-    triggersToAffected: {},
+    customOptions:       {},
+    conditionalRules:    {},
+    triggersToAffected:  {},
     exclusiveOptionsMap: {}
   });
 }
 
-/** Hides modal, renders form, and resets load-button UI. */
-function closeModalAndRender(modal, schema) {
+/** Closes the modal and renders the form */
+function finishLoad(modal, schema) {
+  // Reset Load Data button
+  const loadDataBtn = document.getElementById('loadDataBtn');
+  if (loadDataBtn) {
+    loadDataBtn.textContent       = '📀 Load';
+    loadDataBtn.style.color       = '';
+    loadDataBtn.style.backgroundColor = '';
+  }
+
   setTimeout(() => {
     modal.style.display = 'none';
     renderForm(schema);
     updateFileStatusDisplay();
-
-    // Reset Load Data button
-    const loadDataBtn = document.getElementById('loadDataBtn');
-    if (loadDataBtn) {
-      loadDataBtn.textContent = 'Load';
-      loadDataBtn.style.color = '';
-      loadDataBtn.style.backgroundColor = '';
-    }
-
-    console.log('✅ Configuration loaded and form rendered');
-  }, 400);
+    console.log('✅ Form rendered');
+  }, 350);
 }
 
-/** Tiny promise-based sleep. */
-const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
-// ─── Startup: Schema Picker Banner ───────────────────────────────────────────
+// ─── initSchemaPickerBanner ───────────────────────────────────────────────────
 
 /**
- * Call this from data-builder.js → DOMContentLoaded (replaces the existing
- * auto-load block).
- *
- * • If the registry has entries → shows a compact "quick-load" banner above
- *   the form, letting users pick a schema without opening the full modal.
- * • If the registry is empty → shows nothing (user must use ⚙️ Config).
+ * Shows a compact quick-load banner above the form on page startup.
+ * Does nothing if the library is empty.
+ * Call this from data-builder.js → DOMContentLoaded.
  */
 export async function initSchemaPickerBanner() {
-  const registry = await getAllSchemas();
-
-  if (registry.entries.length === 0) {
-    console.log('ℹ️ Schema library empty — awaiting manual config.');
+  let registry;
+  try {
+    registry = await getAllSchemas();
+  } catch {
+    console.warn('Could not load schema registry for banner.');
     return;
   }
 
-  const banner = buildPickerBanner(registry);
-  const container = document.getElementById('tab-contents')
-                 || document.querySelector('.container');
-  if (container) {
-    container.insertAdjacentElement('beforebegin', banner);
+  if (!registry.entries || registry.entries.length === 0) {
+    console.log('ℹ️ Schema library is empty — banner not shown.');
+    return;
+  }
+
+  const banner = buildPickerBanner(registry.entries);
+
+  // Insert immediately after the header so the banner sits below it
+  // but above everything else. Using the header as the anchor means
+  // the banner position is never affected by file-status toggling.
+  const header = document.querySelector('.header');
+  if (header) {
+    header.insertAdjacentElement('afterend', banner);
+  } else {
+    // Fallback: first child of container
+    const container = document.querySelector('.container');
+    if (container) container.insertAdjacentElement('afterbegin', banner);
   }
 }
 
-/**
- * Builds the quick-picker banner DOM element.
- * @param {import('./schema-registry.js').RegistryResult} registry
- * @returns {HTMLElement}
- */
-function buildPickerBanner(registry) {
-  // ── Inject banner styles once ──────────────────────────────────────────────
-  if (!document.getElementById('jb-banner-styles')) {
-    const s = document.createElement('style');
-    s.id = 'jb-banner-styles';
-    s.textContent = `
-      .jb-picker-banner      { background:linear-gradient(135deg,#f0f4ff 0%,#e8f5e9 100%);
-                               border:1px solid #c5cde8; border-radius:10px;
-                               padding:14px 20px; margin-bottom:16px;
-                               display:flex; align-items:center; gap:16px;
-                               flex-wrap:wrap; box-shadow:0 2px 6px rgba(0,0,0,.07); }
-      .jb-picker-banner h4   { margin:0 0 2px; font-size:14px; color:#1a237e; }
-      .jb-picker-banner p    { margin:0; font-size:12px; color:#555; }
-      .jb-picker-meta        { flex:1; min-width:160px; }
-      .jb-picker-select      { padding:7px 12px; font-size:13px; border:1px solid #ccc;
-                               border-radius:6px; background:#fff; cursor:pointer;
-                               min-width:220px; }
-      .jb-picker-load-btn    { padding:8px 18px; font-size:13px; font-weight:600;
-                               background:#0033ff; color:#fff; border:none;
-                               border-radius:6px; cursor:pointer; transition:background .2s; }
-      .jb-picker-load-btn:hover  { background:#0022cc; }
-      .jb-picker-dismiss     { background:none; border:none; color:#999; cursor:pointer;
-                               font-size:18px; padding:0 4px; line-height:1; }
-      .jb-picker-dismiss:hover   { color:#333; }
-    `;
-    document.head.appendChild(s);
-  }
-
+/** Builds the quick-picker banner DOM element */
+function buildPickerBanner(entries) {
   const banner = document.createElement('div');
-  banner.className = 'jb-picker-banner';
+  banner.className = 'jb-banner';
   banner.id        = 'jbPickerBanner';
 
-  const options = registry.entries.map((e, i) =>
-    `<option value="${i}">${e.description || e.schema}</option>`
+  const options = entries.map((e, i) =>
+    `<option value="${i}">${escHtml(e.description || e.schema)}</option>`
   ).join('');
 
   banner.innerHTML = `
-    <div class="jb-picker-meta">
+    <div class="jb-banner-meta">
       <h4>📚 Schema Library</h4>
-      <p>${registry.entries.length} schema${registry.entries.length === 1 ? '' : 's'} available</p>
+      <p>${entries.length} schema${entries.length === 1 ? '' : 's'} available</p>
     </div>
-    <select class="jb-picker-select" id="jbPickerSelect">
+    <select class="jb-banner-select" id="jbBannerSel">
       <option value="">— Choose a schema —</option>
       ${options}
     </select>
-    <button class="jb-picker-load-btn" id="jbPickerLoadBtn">Load ▶</button>
-    <button class="jb-picker-dismiss" id="jbPickerDismiss" title="Hide banner">✕</button>
+    <button class="jb-banner-load" id="jbBannerLoad">Load ▶</button>
+    <button class="jb-banner-dismiss" id="jbBannerDismiss" title="Dismiss">✕</button>
   `;
 
   // Load button
-  banner.querySelector('#jbPickerLoadBtn').addEventListener('click', async () => {
-    const idx = parseInt(banner.querySelector('#jbPickerSelect').value);
+  banner.querySelector('#jbBannerLoad').addEventListener('click', async () => {
+    const sel = banner.querySelector('#jbBannerSel');
+    const idx = parseInt(sel.value);
+
     if (isNaN(idx) || idx < 0) {
-      await ashAlert('Please select a schema first.');
+      await ashAlert('Please choose a schema from the list first.');
       return;
     }
 
-    const entry = registry.entries[idx];
-    const btn   = banner.querySelector('#jbPickerLoadBtn');
-    btn.textContent = '⏳ Loading…';
-    btn.disabled    = true;
+    const loadBtn       = banner.querySelector('#jbBannerLoad');
+    loadBtn.textContent = '⏳ Loading…';
+    loadBtn.disabled    = true;
 
     try {
+      const entry = entries[idx];
       const { schemaData, optionsData, schemaFile, optionsFile } =
-        await loadSchemaEntry(entry, registry.dirHandle);
+        await loadSchemaEntry(entry);
 
-      const schema = schemaData;
       updateState({
-        currentSchema:      schema,
-        definitions:        schema.definitions || schema.$defs || {},
-        selectedSchemaFile: schemaFile,
+        currentSchema:       schemaData,
+        definitions:         schemaData.definitions || schemaData.$defs || {},
+        selectedSchemaFile:  schemaFile,
         selectedOptionsFile: optionsFile,
-        dataFilename:       null
+        dataFilename:        null
       });
 
       if (optionsData) {
-        await applyOptionsData(optionsData, optionsFile);
+        // resolveReferences must run on raw data before applying.
+        const resolvedOptions = resolveReferences(optionsData, optionsData);
+        await applyOptions(resolvedOptions, optionsFile);
+        console.log(`✅ Options applied: ${entry.options}`);
       } else {
-        clearOptionsState();
+        clearOptions();
+        console.log('ℹ️ No options file for this schema entry.');
       }
 
-      renderForm(schema);
+      renderForm(schemaData);
       updateFileStatusDisplay();
-      banner.remove();
+
+      // Keep the banner visible so the user can switch schemas at any time.
+      // Show a brief success indicator then restore the button.
+      loadBtn.textContent = '✅ Loaded';
+      loadBtn.style.background = '#019240';
+      setTimeout(() => {
+        loadBtn.textContent       = 'Load ▶';
+        loadBtn.style.background  = '';
+        loadBtn.disabled          = false;
+      }, 2000);
+
+      // Refresh the dropdown (registry may have grown) and re-select.
+      await refreshBannerDropdown(entry.schema);
 
       console.log(`✅ Quick-loaded: ${entry.schema}`);
     } catch (err) {
       console.error('Quick-load error:', err);
       await ashAlert(`Error loading schema: ${err.message}`);
-      btn.textContent = 'Load ▶';
-      btn.disabled    = false;
+      loadBtn.textContent      = 'Load ▶';
+      loadBtn.style.background = '';
+      loadBtn.disabled         = false;
     }
   });
 
   // Dismiss button
-  banner.querySelector('#jbPickerDismiss').addEventListener('click', () => {
+  banner.querySelector('#jbBannerDismiss').addEventListener('click', () => {
     banner.remove();
   });
 
   return banner;
+}
+
+// ─── Tiny escape helpers ──────────────────────────────────────────────────────
+
+function escHtml(str = '') {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function escAttr(str = '') {
+  return escHtml(str);
 }
 // ==== END OF FILE ====
