@@ -5,7 +5,7 @@ services:
       context: .
       target: development
     ports:
-      - "8080:8080"
+      - "8585:8080"
     volumes:
       - ./src/jsonDataBuilder:/usr/share/nginx/html/
       # - ./src/jsonDataBuilder/media/*.*:/usr/share/nginx/html/media/
@@ -22,7 +22,7 @@ services:
       context: .
       target: production
     ports:
-      - "8080:8080"
+      - "8585:8080"
     environment:
       - NGINX_ENV=production
     restart: always

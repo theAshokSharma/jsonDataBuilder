@@ -342,6 +342,78 @@ function renderPolymorphicOption(optionSchema, container, path, level = 0) {
 
 
 /**
+ * Returns true when two resolved schema options are structurally equivalent
+ * for the purpose of item preservation — i.e. both have exactly one property
+ * and that property is an array (e.g. ALL_OF vs ANY_OF).
+ *
+ * @param {Object} optionA - First resolved schema option
+ * @param {Object} optionB - Second resolved schema option
+ * @returns {boolean}
+ */
+function isStructurallyEquivalentArrayOption(optionA, optionB) {
+  if (!optionA?.properties || !optionB?.properties) return false;
+
+  const keysA = Object.keys(optionA.properties);
+  const keysB = Object.keys(optionB.properties);
+
+  // Both must expose exactly one property
+  if (keysA.length !== 1 || keysB.length !== 1) return false;
+
+  // Both that single property must be type:array
+  const propA = optionA.properties[keysA[0]];
+  const propB = optionB.properties[keysB[0]];
+
+  return propA?.type === 'array' && propB?.type === 'array';
+}
+
+/**
+ * Re-keys all data-path / name / data-array-path attributes inside an
+ * array-item element when the parent property key changes (e.g. ALL_OF → ANY_OF).
+ *
+ * Only the first path segment that matches oldKey is replaced, so deeper
+ * nested paths (rule_variable, rule_operator …) are left untouched.
+ *
+ * @param {HTMLElement} itemElement - The .array-item DOM node
+ * @param {string} oldKey - Property key being replaced (e.g. "ALL_OF")
+ * @param {string} newKey - Replacement property key (e.g. "ANY_OF")
+ */
+function migrateArrayItemPaths(itemElement, oldKey, newKey) {
+  const prefix = oldKey + '.';
+
+  // Migrate every element that carries a data-path
+  itemElement.querySelectorAll('[data-path]').forEach(el => {
+    if (el.dataset.path.startsWith(prefix)) {
+      el.dataset.path = newKey + '.' + el.dataset.path.slice(prefix.length);
+      if (el.name && el.name.startsWith(prefix)) {
+        el.name = newKey + '.' + el.name.slice(prefix.length);
+      }
+    }
+  });
+
+  // Also migrate array-container data-path / id so addArrayItem still works
+  itemElement.querySelectorAll('.array-container').forEach(el => {
+    if (el.dataset.path && el.dataset.path.startsWith(prefix)) {
+      el.dataset.path = newKey + '.' + el.dataset.path.slice(prefix.length);
+      if (el.id) {
+        el.id = el.id.replace(
+          'array_' + oldKey.replace(/\./g, '_'),
+          'array_' + newKey.replace(/\./g, '_')
+        );
+      }
+    }
+  });
+
+  // Migrate dataset.arrayPath on array-item children (used by removeArrayItem)
+  itemElement.querySelectorAll('.array-item').forEach(el => {
+    if (el.dataset.arrayPath && el.dataset.arrayPath.startsWith(prefix)) {
+      el.dataset.arrayPath = newKey + '.' + el.dataset.arrayPath.slice(prefix.length);
+    }
+  });
+
+  console.log(`🔁 Migrated item paths: ${oldKey} → ${newKey}`);
+}
+
+/**
  * NEW: Handles nested polymorphic structures (oneOf/anyOf within oneOf/anyOf)
  * This is specifically for groupRule pattern in rule_data_schema.json
  * 
@@ -417,31 +489,106 @@ function renderNestedPolymorphic(schema, container, path, level) {
   
   container.appendChild(formGroup);
   
+  // Track which option index is currently rendered so we can compare on next change
+  select.dataset.previousIndex = '';
+
   // Add change event listener
   select.addEventListener('change', (e) => {
     const selectedIndex = parseInt(e.target.value);
-    dynamicContent.innerHTML = '';
-    
+    const previousIndex = select.dataset.previousIndex !== ''
+      ? parseInt(select.dataset.previousIndex)
+      : -1;
+
+    // ── Resolve both the outgoing and incoming schema options ──────────────
+    let previousResolved = null;
+    if (previousIndex >= 0 && previousIndex < options.length) {
+      let prev = options[previousIndex];
+      if (prev.$ref) prev = resolveRef(prev.$ref, state.currentSchema);
+      previousResolved = prev || null;
+    }
+
+    let resolvedOption = null;
     if (selectedIndex >= 0 && selectedIndex < options.length) {
-      const selectedOption = options[selectedIndex];
-      
-      // Resolve reference if needed
-      let resolvedOption = selectedOption;
-      if (selectedOption.$ref) {
-        resolvedOption = resolveRef(selectedOption.$ref, state.currentSchema);
+      let next = options[selectedIndex];
+      if (next.$ref) next = resolveRef(next.$ref, state.currentSchema);
+      resolvedOption = next || null;
+    }
+
+    // ── Determine whether we can preserve existing array items ────────────
+    // Only preserve when both options are structurally equivalent (e.g. ALL_OF ↔ ANY_OF)
+    const canPreserve = previousResolved && resolvedOption &&
+      isStructurallyEquivalentArrayOption(previousResolved, resolvedOption);
+
+    let savedItems = [];
+    let oldKey = null;
+    let newKey = null;
+
+    if (canPreserve) {
+      oldKey = Object.keys(previousResolved.properties)[0];   // e.g. "ALL_OF"
+      newKey = Object.keys(resolvedOption.properties)[0];     // e.g. "ANY_OF"
+
+      if (oldKey !== newKey) {
+        // Detach every .array-item from the current array container before clearing
+        const oldArrayContainer = dynamicContent.querySelector('.array-container');
+        if (oldArrayContainer) {
+          const items = Array.from(
+            oldArrayContainer.querySelectorAll(':scope > .array-item')
+          );
+          items.forEach(item => {
+            oldArrayContainer.removeChild(item);
+            savedItems.push(item);
+          });
+          console.log(
+            `💾 Saved ${savedItems.length} array item(s) from "${oldKey}" for re-use under "${newKey}"`
+          );
+        }
       }
-      
+    }
+
+    // ── Clear old content and render the newly selected option ────────────
+    dynamicContent.innerHTML = '';
+
+    if (resolvedOption) {
       console.log(`🔄 Nested option selected at level ${level}:`, {
         index: selectedIndex,
         title: resolvedOption.title,
         hasProperties: !!resolvedOption.properties
       });
-      
-      // Render the selected option (could be recursive!)
+
       renderPolymorphicOption(resolvedOption, dynamicContent, path, level + 1);
     }
+
+    // ── Re-inject saved items into the freshly-rendered array container ───
+    if (savedItems.length > 0 && newKey && oldKey && oldKey !== newKey) {
+      // Use setTimeout(0) so the new container is in the DOM before we inject
+      setTimeout(() => {
+        const newArrayContainer = dynamicContent.querySelector('.array-container');
+        if (!newArrayContainer) {
+          console.warn('⚠️  New array container not found – items could not be restored');
+          return;
+        }
+
+        const controls = newArrayContainer.querySelector('.array-controls');
+        savedItems.forEach(item => {
+          // Re-key all data-path/name attributes to the new property name
+          migrateArrayItemPaths(item, oldKey, newKey);
+          if (controls) {
+            newArrayContainer.insertBefore(item, controls);
+          } else {
+            newArrayContainer.appendChild(item);
+          }
+        });
+
+        console.log(`✅ Restored ${savedItems.length} item(s) under "${newKey}"`);
+        // Re-attach event listeners for controls inside the restored items
+        attachEventListeners();
+      }, 0);
+    }
+
+    // Remember current selection for the next change event
+    select.dataset.previousIndex = isNaN(selectedIndex) ? '' : String(selectedIndex);
   });
-  
+
   // Auto-select first option if there's only one
   if (options.length === 1) {
     select.value = '0';

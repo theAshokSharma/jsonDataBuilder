@@ -142,3 +142,5 @@ vite.config.ts.timestamp-*
 data
 
 .DS_store
+
+schemas

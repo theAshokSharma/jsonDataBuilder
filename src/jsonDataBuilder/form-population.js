@@ -309,8 +309,18 @@ function populateFields(data, parentPath) {
 }
 
 function populateSingleField(pathStr, value) {
+  // Skip actual null/undefined values — field simply has no data.
   if (value === null || value === undefined) {
     console.log(`Skipping null/undefined for ${pathStr}`);
+    return;
+  }
+
+  // Skip the string "null" — this is a serialisation artefact that appears when a
+  // data file stores null as the literal text "null" (e.g. "mbr_cig_total_years": "null").
+  // Treating it as a real value would cause a false invalid-data warning because no
+  // option or input will ever match the string "null".
+  if (typeof value === 'string' && value.trim().toLowerCase() === 'null') {
+    console.log(`ℹ️ Skipping string "null" sentinel for ${pathStr} — treating as empty`);
     return;
   }
 
@@ -419,7 +429,7 @@ function populateSingleField(pathStr, value) {
   }
   
   // Try boolean checkbox
-  input = document.querySelector(`input[type="checkbox"][data-path="${pathStr}"]:not(.multi-select-checkbox):not(.na-checkbox):not(.checkbox-input):not(.na-checkbox-input)`);
+  input = document.querySelector(`input[type="checkbox"][data-path="${pathStr}"]:not(.multi-select-checkbox):not(.checkbox-input)`);
   if (input) {
     input.checked = value === true;
     input.classList.remove('invalid-data');
@@ -465,16 +475,13 @@ function populateArrayField(pathStr, values) {
   
   if (container) {
     const allCheckboxes = document.querySelectorAll(`[data-path="${pathStr}"].multi-select-checkbox`);
-    const naCheckbox = document.getElementById(pathStr + '_na');
-    
-    if (allCheckboxes.length === 0 && !naCheckbox) {
+    if (allCheckboxes.length === 0) {
       console.warn(`No checkboxes found for ${pathStr}`);
       return;
     }
     
     // Uncheck all first
     allCheckboxes.forEach(cb => cb.checked = false);
-    if (naCheckbox) naCheckbox.checked = false;
     
     // Handle different value types
     const valuesToCheck = Array.isArray(values) ? values : [values];
@@ -485,19 +492,17 @@ function populateArrayField(pathStr, values) {
     const invalidValues = [];
     
     valuesToCheck.forEach(val => {
-      const stringValue = String(val);
-      
-      // Check if it's the N/A checkbox
-      if (naCheckbox && naCheckbox.value === stringValue) {
-        naCheckbox.checked = true;
-        
-        // UPDATED: Enhanced logging with label
-        const naLabel = naCheckbox.dataset.label || naCheckbox.value;
-        console.log(`✓ Checked NA for ${pathStr}: value="${stringValue}", label="${naLabel}"`);
+      // Null / undefined items in the source data array are not real selections.
+      // String(null) === "null" would never match an option and would trigger a
+      // false invalid-data warning, so skip them silently here at the root.
+      if (val === null || val === undefined) {
+        console.log(`ℹ️ Skipping null item in array for ${pathStr}`);
         return;
       }
+
+      const stringValue = String(val);
       
-      // UPDATED: Find and check the matching checkbox by VALUE (not label)
+      // Find and check the matching checkbox by VALUE (not label)
       const matchingCheckbox = Array.from(allCheckboxes).find(cb => String(cb.value) === stringValue);
       if (matchingCheckbox) {
         matchingCheckbox.checked = true;
@@ -690,11 +695,59 @@ function populateArrayOfObjectsDelayed(pathStr, items, container) {
       // Find the item container
       const itemContainer = container.querySelectorAll('.array-item')[index];
       if (itemContainer) {
-        const typeSelector = itemContainer.querySelector('.array-item-type-selector');
+        // 🔧 BUG FIX 1: Query BOTH selector classes.
+        //    form-renderer.js renders recursive $ref:"#" array items using class
+        //    'nested-polymorphic-selector', NOT 'array-item-type-selector'.
+        //    The original query was always returning null, causing the type to
+        //    never be set and fields to never be populated.
+        const typeSelector = itemContainer.querySelector(
+          '.array-item-type-selector, .nested-polymorphic-selector'
+        );
         
         if (typeSelector) {
           console.log(`    🔍 Polymorphic array item detected at index ${index}`);
-          // ... polymorphic handling code ...
+          
+          // 🔧 BUG FIX 2: Implement the missing polymorphic handling.
+          //    Previously this block only had a placeholder comment with no code.
+          //    We now detect which oneOf option the item data matches, set the
+          //    selector, wait for the fields to render, then populate them.
+          const schema = state.currentSchema;
+          const polymorphicOptions = schema.oneOf || schema.anyOf || [];
+          
+          let matchingTypeIndex = -1;
+          for (let optIdx = 0; optIdx < polymorphicOptions.length; optIdx++) {
+            let option = polymorphicOptions[optIdx];
+            if (option.$ref) {
+              option = resolveRef(option.$ref, schema);
+            }
+            if (option && isDataMatchingSchema(itemData, option)) {
+              matchingTypeIndex = optIdx;
+              break;
+            }
+          }
+          
+          if (matchingTypeIndex !== -1) {
+            console.log(`    ✅ Matched schema type index ${matchingTypeIndex} for array item ${index}`);
+            typeSelector.value = matchingTypeIndex;
+            typeSelector.dispatchEvent(new Event('change', { bubbles: true }));
+            
+            // Wait for the selected type's fields to render, then populate values
+            setTimeout(() => {
+              console.log(`    📝 Populating fields for array item ${index} after type selection...`);
+              for (const [subKey, subValue] of Object.entries(itemData)) {
+                const itemPath = `${pathStr}.${index}.${subKey}`;
+                if (Array.isArray(subValue) && subValue.length > 0 &&
+                    typeof subValue[0] === 'object' && subValue[0] !== null) {
+                  populateArrayOfObjects(itemPath, subValue);
+                } else {
+                  populateSingleField(itemPath, subValue);
+                }
+              }
+            }, 300);
+          } else {
+            console.error(`    ❌ No matching schema type found for array item ${index}:`, itemData);
+          }
+
         } else {
           // Non-polymorphic array item - populate directly
           console.log(`    📝 Non-polymorphic item, populating fields...`);
@@ -836,9 +889,8 @@ function enforceValidMultiSelection(container, fieldPath) {
   const validator = (e) => {
     const allCheckboxes = container.querySelectorAll('.multi-select-checkbox');
     const checkedCheckboxes = container.querySelectorAll('.multi-select-checkbox:checked');
-    const naCheckbox = container.querySelector('.na-checkbox');
     
-    const hasValidSelection = checkedCheckboxes.length > 0 || (naCheckbox && naCheckbox.checked);
+    const hasValidSelection = checkedCheckboxes.length > 0;
     
     if (!hasValidSelection) {
       e.preventDefault();
@@ -870,10 +922,10 @@ function enforceValidMultiSelection(container, fieldPath) {
   container.dataset.validationListener = 'true';
   
   // Also validate on checkbox change
-  const checkboxes = container.querySelectorAll('.multi-select-checkbox, .na-checkbox');
+  const checkboxes = container.querySelectorAll('.multi-select-checkbox');
   checkboxes.forEach(cb => {
     cb.addEventListener('change', () => {
-      const checkedBoxes = container.querySelectorAll('.multi-select-checkbox:checked, .na-checkbox:checked');
+      const checkedBoxes = container.querySelectorAll('.multi-select-checkbox:checked');
       if (checkedBoxes.length > 0) {
         container.classList.remove('invalid-data');
         delete container.dataset.invalidValues;

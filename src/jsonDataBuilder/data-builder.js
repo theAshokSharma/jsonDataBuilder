@@ -3,6 +3,7 @@
 
 import { state, updateState } from './state.js';
 import { showConfigModal, loadDataFromFile, resolveReferences } from './file-operations.js';
+import { initSchemaPickerBanner } from './showConfigModal-enhanced.js';
 import { saveJsonWithDialog, exportJsonToClipboard, addTooltip, ashAlert, ashConfirm, escapeHtml } from './utils.js';
 import { renderForm, renderAllTabs, updateFileStatusDisplay } from './form-renderer.js';
 import { updateMultiSelectDisplay} from './input-control.js'
@@ -10,7 +11,7 @@ import { validateAndShowSummary, clearAllValidationErrors } from './input-valida
 import { getLastSchemaFile, getLastOptionsFile, createFileFromData } from './storage-manager.js';
 
 // Initialize on page load
-console.log('JSON Data Builder Loaded - Version 3.9`');
+console.log('JSON Data Builder Loaded - Version 3.10`');
 
 
 // Button event listeners
@@ -737,76 +738,19 @@ function collectDynamicContent(contentElement, itemIndex) {
 }
 
 
-// NEW: Auto-load last used files on startup
 window.addEventListener('DOMContentLoaded', async () => {
-  console.log('🚀 Checking for last used files...');
-  
-  const lastSchema = getLastSchemaFile();
-  const lastOptions = getLastOptionsFile();
-  
-  if (lastSchema) {
-    console.log('📂 Auto-loading last schema:', lastSchema.filename);
-    
-    try {
-      // Create virtual file objects
-      const schemaFile = createFileFromData(lastSchema.filename, lastSchema.data);
-      updateState({ 
-        selectedSchemaFile: schemaFile,
-        currentSchema: lastSchema.data,
-        definitions: lastSchema.data.definitions || lastSchema.data.$defs || {}
-      });
-      
-      // Load options if available
-      if (lastOptions) {
-        console.log('📂 Auto-loading last options:', lastOptions.filename);
-        const optionsFile = createFileFromData(lastOptions.filename, lastOptions.data);
-        updateState({ selectedOptionsFile: optionsFile });
-        
-        const resolvedOptions = resolveReferences(lastOptions.data, lastOptions.data);
-        updateState({
-          customOptions: resolvedOptions,
-          conditionalRules: resolvedOptions.conditional_rules || {},
-          triggersToAffected: {}
-        });
-        
-        // Build triggers map
-        Object.entries(state.customOptions).forEach(([field, config]) => {
-          if (config.dependent_values) {
-            const depField = Object.keys(config.dependent_values)[0];
-            if (depField) {
-              state.triggersToAffected[depField] = state.triggersToAffected[depField] || [];
-              state.triggersToAffected[depField].push({
-                affected: field,
-                optionsMap: config.dependent_values[depField],
-                defaultValues: config.values || [],
-                responseType: config.response_type,
-                na: config.na
-              });
-            }
-          }
-        });
-      }
-      
-      // CRITICAL: Update file status display BEFORE rendering form
-      updateFileStatusDisplay();
-      
-      // Render the form
-      renderForm(state.currentSchema);
-      
-      console.log('✅ Auto-loaded last used files successfully');
-      
-      // Update UI indicators
-      document.getElementById('configBtn').textContent = '⚙️ Config (files loaded)';
-      document.getElementById('configBtn').style.backgroundColor = '#e8f5e9';
-      
-    } catch (error) {
-      console.error('❌ Error auto-loading files:', error);
-      console.log('ℹ️ User will need to manually select files');
-    }
-  } else {
-    console.log('ℹ️ No last used files found - showing config on first use');
-    // ADDED: Show file status even when empty
-    updateFileStatusDisplay();
+  console.log('🚀 JSON Data Builder starting…');
+ 
+  // Always show the file-status bar in its initial (empty) state.
+  updateFileStatusDisplay();
+ 
+  // Show the schema picker banner if the library has any entries.
+  // This is non-blocking — the rest of the app is fully usable without it.
+  try {
+    await initSchemaPickerBanner();
+  } catch (err) {
+    // Never let the banner crash the app.
+    console.warn('Schema picker banner could not be initialised:', err);
   }
 });
 
@@ -815,7 +759,6 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 /**
  * ✅ MAIN FUNCTION: Gets schema for any field path
- * Replace getFieldSchemaForPath in data-builder.js with this
  */
 function getFieldSchemaForPath(fieldPath) {
   if (!state.currentSchema) {
@@ -1145,7 +1088,7 @@ function getSelectedArrayItemOption(arrayFieldKey, index) {
  */
 function convertToSchemaType(fieldPath, value, isArray) {
   // Handle empty/null
-  if (value === null || value === undefined || value === '') {
+  if (value === null || value === undefined || value === '' || value === 'null') {
     return null;
   }
   

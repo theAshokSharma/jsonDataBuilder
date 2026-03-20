@@ -409,16 +409,27 @@ select:focus,
   cursor: pointer;
 }
 
-/* N/A Option */
-.na-option {
+/* Disabled Options (disable_values schema key)
+   Always visible in the option list but not user-selectable.
+   Visually distinct: separator line, italic text, muted colour, no-cursor. */
+.disable-option {
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid #ddd;
+  opacity: 0.65;
+  cursor: not-allowed;
 }
 
-.na-option label {
+.disable-option label,
+label.disable-option {
   font-style: italic;
-  color: #666;
+  color: #888;
+  cursor: not-allowed;
+}
+
+option.disable-option {
+  color: #999;
+  font-style: italic;
 }
 
 /* Disabled States */
@@ -1093,10 +1104,16 @@ select:focus,
   background: #f0f0f0;
 }
 
-.checkbox-option.na-option {
+.checkbox-option.disable-option {
   border-top: 1px solid #ddd;
   margin-top: 8px;
   padding-top: 14px;
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.checkbox-option.disable-option input[type="checkbox"] {
+  cursor: not-allowed;
 }
 
 .checkbox-option input[type="checkbox"] {
@@ -1152,10 +1169,16 @@ select:focus,
   background: #f0f0f0;
 }
 
-.radio-option.na-option {
+.radio-option.disable-option {
   border-top: 1px solid #ddd;
   margin-top: 8px;
   padding-top: 14px;
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.radio-option.disable-option input[type="radio"] {
+  cursor: not-allowed;
 }
 
 .radio-option input[type="radio"] {
@@ -1717,5 +1740,20 @@ textarea.validation-success {
 .array-item .array-item {
   margin-left: 20px;
   border-left: 3px solid var(--secondary-color);
+}
+
+/* disable_values: temporarily-enabled state (loaded from stored data)
+   When enableDisabledOptionForUncheck runs, the label gets a hover cue
+   so the user knows they can uncheck it once but not re-check it. */
+label.disable-option:has(input:not([disabled])) {
+  opacity: 0.85;
+  cursor: pointer;
+}
+
+label.disable-option:has(input:not([disabled]))::after {
+  content: " (cannot re-select)";
+  font-size: 0.75em;
+  color: #a00;
+  font-style: italic;
 }
 /* ==== END OF FILE ==== */

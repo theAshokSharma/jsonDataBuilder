@@ -19,6 +19,13 @@ export function validateFieldValue(value, schema, fieldPath) {
   const errors = [];
   
   console.log(`🔎 Validating field: ${fieldPath}`, { value, schemaType: schema.type });
+
+  // Null / undefined values carry no type information — skip all checks.
+  // The caller (validateFormData) decides separately whether a null value on a
+  // required field should be flagged; validateFieldValue should never do so.
+  if (value === null || value === undefined) {
+    return { isValid: true, errors: [] };
+  }
   
   // Resolve $ref if present
   if (schema.$ref) {
@@ -352,7 +359,7 @@ function areItemsUnique(arr) {
  * }
  * ```
  */
-export function validateFormData(data, schema) {
+export function validateFormData(data, schema, { ignoreNull = false } = {}) {
   const errors = {};
   const warnings = {};
   let isValid = true;
@@ -374,10 +381,14 @@ export function validateFormData(data, schema) {
         const fieldPath = path ? `${path}.${requiredField}` : requiredField;
         const value = obj[requiredField];
         
-        // Check if field is missing, null, undefined, or empty string
+        // When ignoreNull is true (e.g. data loaded from file), null / undefined /
+        // empty values on required fields are intentionally skipped — the field may
+        // simply not have been filled in yet and should not block loading.
         if (value === null || value === undefined || value === '') {
-          errors[fieldPath] = ['This field is required'];
-          isValid = false;
+          if (!ignoreNull) {
+            errors[fieldPath] = ['This field is required'];
+            isValid = false;
+          }
         }
       });
     }
@@ -390,6 +401,13 @@ export function validateFormData(data, schema) {
       // Skip validation if value doesn't exist and field is not required
       if ((value === null || value === undefined || value === '') && 
           (!schemaObj.required || !schemaObj.required.includes(key))) {
+        return;
+      }
+
+      // When ignoreNull is active, also skip type/constraint validation for null
+      // values on required fields — we only want to surface content errors, not
+      // "missing value" errors that are expected in partially-populated loaded data.
+      if (ignoreNull && (value === null || value === undefined || value === '')) {
         return;
       }
 
@@ -990,10 +1008,10 @@ function clearFieldError(input, fieldPath) {
  * @param {Object} schema - JSON schema
  * @returns {boolean} - True if valid
  */
-export async function validateAndShowSummary(data, schema) {
+export async function validateAndShowSummary(data, schema, { ignoreNull = false } = {}) {
   console.log('🔍 Validating form data...');
   
-  const validation = validateFormData(data, schema);
+  const validation = validateFormData(data, schema, { ignoreNull });
   
   if (!validation.isValid) {
     displayValidationErrors(validation.errors);
