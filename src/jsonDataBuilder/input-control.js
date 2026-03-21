@@ -533,7 +533,6 @@ window.handleRadioChange = function(event, path) {
   }
 };
 
-
 /**
  * Update slider value display
  */
