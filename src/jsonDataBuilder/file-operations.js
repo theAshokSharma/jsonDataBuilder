@@ -119,7 +119,8 @@ function loadOptionsFromFile() {
               defaultValues: config.values || [],
               responseType: config.response_type,
               inputControl: config.input_control || 'drop-down',
-              disable_values: config.disable_values || []
+              disable_values: config.disable_values || [],
+              exclusive_values: config.exclusive_values || []              
             });
           }
         }
@@ -371,7 +372,8 @@ async function processOptionsFile(schema) {
             defaultValues: config.values || [],
             responseType: config.response_type,
             inputControl: config.input_control || 'drop-down',
-            disable_values: config.disable_values || []
+            disable_values: config.disable_values || [],
+            exclusive_values: config.exclusive_values || []
           });
         }
       }
