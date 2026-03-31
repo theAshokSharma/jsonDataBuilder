@@ -150,7 +150,7 @@ const ckscoreSchema = {
           ],
           "title": "Occupation"
         },
-        "mbr_expose_env": {
+        "mbr_expose_to_UV": {
           "anyOf": [
             { "type": "string" },
             { "items": { "type": "string" }, "type": "array" }

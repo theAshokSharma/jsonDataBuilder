@@ -533,30 +533,6 @@ window.handleRadioChange = function(event, path) {
   }
 };
 
-
-/**
- * Update slider value display (FIXED: Added proper function declaration)
- */
-function updateSliderValue(path, sliderId) {
-  const slider = document.getElementById(path);
-  const valueDisplay = document.getElementById(sliderId + '_value');
-  if (slider && valueDisplay) {
-    valueDisplay.textContent = slider.value;
-  }
-}
-
-
-/**
- * Update slider value display (FIXED: Added proper function declaration)
- */
-function updateSliderValue(path, sliderId) {
-  const slider = document.getElementById(path);
-  const valueDisplay = document.getElementById(sliderId + '_value');
-  if (slider && valueDisplay) {
-    valueDisplay.textContent = slider.value;
-  }
-}
-
 /**
  * Update slider value display
  */
@@ -919,7 +895,7 @@ function expandRangeValues(rawValues) {
 /**
  * Update options for single-select dropdown
  */
-function updateSelectOptions(selectElement, enumValues, pathStr, disableValues) {
+function updateSelectOptions(selectElement, enumValues, pathStr, disableValues, exclusiveValues = []) {
   selectElement.innerHTML = '<option value="">-- Select --</option>';
   
   enumValues.forEach(item => {
@@ -946,12 +922,20 @@ function updateSelectOptions(selectElement, enumValues, pathStr, disableValues) 
 /**
  * Update options for multi-select dropdown
  */
-function updateMultiSelectOptions(container, enumValues, pathStr, disableValues) {
+function updateMultiSelectOptions(container, enumValues, pathStr, disableValues, exclusiveValues = []) {
   const dropdown = container.querySelector('.multi-select-dropdown');
   if (!dropdown) return;
   
   dropdown.innerHTML = '';
   
+  const resolvedExclusive = resolveExclusiveValues(exclusiveValues, enumValues);
+  updateState({
+    exclusiveOptionsMap: {
+      ...state.exclusiveOptionsMap,
+      [pathStr]: resolvedExclusive
+    }
+  });
+
   const disabledValuesSet = new Set(
     (disableValues || []).map(e => normalizeDisabledOption(e).value)
   );
@@ -1019,10 +1003,18 @@ function updateMultiSelectOptions(container, enumValues, pathStr, disableValues)
 /**
  * FIXED: Update options for checkbox list
  */
-function updateCheckboxOptions(container, enumValues, pathStr, disableValues) {
+function updateCheckboxOptions(container, enumValues, pathStr, disableValues, exclusiveValues = []) {
   container.innerHTML = '';
   const containerId = container.id;
   
+  const resolvedExclusive = resolveExclusiveValues(exclusiveValues, enumValues);
+  updateState({
+    exclusiveOptionsMap: {
+      ...state.exclusiveOptionsMap,
+      [pathStr]: resolvedExclusive
+    }
+  });  
+
   enumValues.forEach((item, idx) => {
     const label = document.createElement('label');
     label.className = 'checkbox-option';
@@ -1068,7 +1060,7 @@ function updateCheckboxOptions(container, enumValues, pathStr, disableValues) {
 /**
  * FIXED: Update options for radio button list
  */
-function updateRadioOptions(container, enumValues, pathStr, disableValues) {
+function updateRadioOptions(container, enumValues, pathStr, disableValues, exclusiveValues = []) {
   container.innerHTML = '';
   
   const disabledValuesSet = new Set(
@@ -1200,7 +1192,7 @@ function detectCurrentControlType(element) {
  * @param {Array} disableValues - Values that are always present but not selectable by user
  * @returns {HTMLElement|null} New element or null if failed
  */
-function rebuildControlWithType(pathStr, oldElement, inputControl, responseType, enumValues, disableValues) {
+function rebuildControlWithType(pathStr, oldElement, inputControl, responseType, enumValues, disableValues, exclusiveValues = []) {
   console.log(`  🔨 Rebuilding control for ${pathStr}:`, {
     oldType: detectCurrentControlType(oldElement),
     newType: inputControl,
@@ -1219,7 +1211,7 @@ function rebuildControlWithType(pathStr, oldElement, inputControl, responseType,
   console.log(`  💾 Stored current value:`, currentValue);
   
   // Create new control HTML — disableValues comes from the function parameter.
-  const newControlHTML = createControlHTML(pathStr, inputControl, responseType, enumValues, disableValues);
+  const newControlHTML = createControlHTML(pathStr, inputControl, responseType, enumValues, disableValues, exclusiveValues = []);
   
   // Replace old element
   const tempDiv = document.createElement('div');
@@ -1265,19 +1257,19 @@ function rebuildControlWithType(pathStr, oldElement, inputControl, responseType,
  * @param {Array} disableValues - Values always in DOM but not selectable
  * @returns {string} HTML string
  */
-function createControlHTML(pathStr, inputControl, responseType, enumValues, disableValues) {
+function createControlHTML(pathStr, inputControl, responseType, enumValues, disableValues, exclusiveValues = []) {
   const escapedPath = pathStr.replace(/\./g, '_');
   
   switch (inputControl) {
     case 'drop-down':
       if (responseType === 'multi-select') {
-        return createMultiSelectHTML(pathStr, escapedPath, enumValues, disableValues);
+        return createMultiSelectHTML(pathStr, escapedPath, enumValues, disableValues, exclusiveValues);
       } else {
         return createSingleSelectHTML(pathStr, enumValues, disableValues);
       }
     
     case 'check-box':
-      return createCheckboxHTML(pathStr, escapedPath, enumValues, disableValues);
+      return createCheckboxHTML(pathStr, escapedPath, enumValues, disableValues, exclusiveValues);
     
     case 'radio-button':
       return createRadioHTML(pathStr, escapedPath, enumValues, disableValues);
@@ -1365,9 +1357,14 @@ function restoreControlValue(element, pathStr, value, inputControl) {
 /**
  * ✅ NEW: Helper functions to create HTML for each control type
  */
-function createMultiSelectHTML(pathStr, escapedPath, enumValues, disableValues) {
+function createMultiSelectHTML(pathStr, escapedPath, enumValues, disableValues, exclusiveValues = []) {
   const dropdownId = `multiselect_${escapedPath}`;
   
+  const resolvedExclusive = resolveExclusiveValues(exclusiveValues, enumValues);
+  updateState({
+    exclusiveOptionsMap: { ...state.exclusiveOptionsMap, [pathStr]: resolvedExclusive }
+  });
+
   let html = `
     <div class="multi-select-container" id="${dropdownId}" data-dependent="true">
       <div class="multi-select-trigger" onclick="toggleMultiSelectDropdown('${dropdownId}')" tabindex="0">
@@ -1429,10 +1426,15 @@ function createSingleSelectHTML(pathStr, enumValues, disableValues) {
   return html;
 }
 
-function createCheckboxHTML(pathStr, escapedPath, enumValues, disableValues) {
+function createCheckboxHTML(pathStr, escapedPath, enumValues, disableValues, exclusiveValues = []) {
   const containerId = `checkbox_${escapedPath}`;
   
   let html = `<div class="checkbox-container" id="${containerId}" data-path="${pathStr}" data-dependent="true">`;
+  
+  const resolvedExclusive = resolveExclusiveValues(exclusiveValues, enumValues);
+  updateState({
+    exclusiveOptionsMap: { ...state.exclusiveOptionsMap, [pathStr]: resolvedExclusive }
+  });
   
   enumValues.forEach((item, idx) => {
     html += `

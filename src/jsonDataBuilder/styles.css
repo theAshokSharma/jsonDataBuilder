@@ -1,5 +1,5 @@
 /* styles.css - Optimized and Organized */
-
+ 
 /* ============================================
    1. ROOT VARIABLES & RESET
    ============================================ */
@@ -31,7 +31,7 @@
   margin: 0;
   padding: 0;
 }
-
+ 
 /* ============================================
    2. BASE ELEMENTS
    ============================================ */
@@ -42,7 +42,7 @@ body {
   padding: 20px;
   line-height: 1.6;
 }
-
+ 
 /* ============================================
    3. LAYOUT CONTAINERS
    ============================================ */
@@ -54,7 +54,7 @@ body {
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
-
+ 
 /* ============================================
    4. HEADER & NAVIGATION
    ============================================ */
@@ -72,45 +72,45 @@ body {
   z-index: 1000;
   transition: all 0.3s ease;
 }
-
+ 
 .header.scrolled {
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
-
+ 
 .header-brand {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-
+ 
 .icon-container {
   position: relative;
   display: inline-block;
 }
-
+ 
 .app-icon {
   width: 48px;
   height: 48px;
   cursor: pointer;
 }
-
+ 
 .app-icon:hover {
   content: url("media/jsondatabuilder-w.svg");
 }
-
+ 
 .app-title {
   margin: 0;
   font-size: 24px;
   color: var(--secondary-color);
   font-weight: 600;
 }
-
+ 
 .header-nav {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-
+ 
 .hamburger {
   display: none;
   background: none;
@@ -120,11 +120,11 @@ body {
   color: var(--secondary-color);
   transition: transform 0.3s ease;
 }
-
+ 
 .hamburger.active {
   transform: rotate(90deg);
 }
-
+ 
 /* ============================================
    5. BUTTONS
    ============================================ */
@@ -138,11 +138,11 @@ button {
   cursor: pointer;
   transition: background-color 0.2s;
 }
-
+ 
 button:hover {
   background-color: #0160c0;
 }
-
+ 
 .header-button {
   padding: 8px 16px;
   background: transparent;
@@ -154,7 +154,7 @@ button:hover {
   min-width: 120px;
   text-align: center;
 }
-
+ 
 .config-btn {
   background: transparent;
   color: var(--secondary-color);
@@ -169,12 +169,12 @@ button:hover {
   gap: 8px;
   transition: all 0.3s ease;
 }
-
+ 
 .config-btn:hover {
   background: var(--secondary-color);
   color: white;
 }
-
+ 
 .about-btn,
 .loaddata-btn,
 .savefile-btn,
@@ -184,7 +184,7 @@ button:hover {
   color: var(--secondary-color);
   border: 1px solid var(--secondary-color);
 }
-
+ 
 .about-btn:hover,
 .loaddata-btn:hover,
 .savefile-btn:hover,
@@ -193,7 +193,7 @@ button:hover {
   background: var(--secondary-color);
   color: white;
 }
-
+ 
 .remove-item-btn {
   background-color: #d32f2f;
   padding: 4px 8px;
@@ -206,11 +206,11 @@ button:hover {
   font-size: 12px;
   transition: background 0.2s;
 }
-
+ 
 .remove-item-btn:hover {
   background-color: #b71c1c;
 }
-
+ 
 .add-array-item-btn {
   background: var(--button-background-color);
   color: var(--button-color);
@@ -221,11 +221,11 @@ button:hover {
   font-size: 13px;
   transition: background 0.2s;
 }
-
+ 
 .add-array-item-btn:hover {
   background: var(--button-hoverBackground);
 }
-
+ 
 .btn-primary,
 .btn-secondary {
   padding: 12px 28px;
@@ -238,36 +238,36 @@ button:hover {
   align-items: center;
   gap: 8px;
 }
-
+ 
 .btn-primary {
   background: var(--secondary-color);
   color: white;
 }
-
+ 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
 }
-
+ 
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
 }
-
+ 
 .btn-secondary {
   background: #6c757d;
   color: white;
 }
-
+ 
 .btn-secondary:hover {
   background: #5a6268;
   transform: translateY(-2px);
 }
-
+ 
 .btn-icon {
   font-size: 18px;
 }
-
+ 
 /* ============================================
    6. TABS
    ============================================ */
@@ -275,14 +275,14 @@ button:hover {
   border-bottom: 1px solid #ddd;
   margin-bottom: 20px;
 }
-
+ 
 .tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
   margin-bottom: -1px;
 }
-
+ 
 .tab {
   background-color: #f5f5f5;
   border: 1px solid #ddd;
@@ -294,35 +294,35 @@ button:hover {
   color: #666;
   transition: all 0.2s;
 }
-
+ 
 .tab:hover {
   background-color: #e9e9e9;
   color: #333;
 }
-
+ 
 .tab.active {
   background-color: white;
   border-bottom: 1px solid white;
   color: #0066cc;
   font-weight: 600;
 }
-
+ 
 .tab-content {
   display: none;
   padding: 20px 0;
 }
-
+ 
 .tab-content.active {
   display: block;
 }
-
+ 
 .tab-content h2 {
   margin-bottom: 20px;
   color: #333;
   border-bottom: 2px solid #0066cc;
   padding-bottom: 10px;
 }
-
+ 
 /* ============================================
    7. FORM ELEMENTS
    ============================================ */
@@ -333,7 +333,7 @@ button:hover {
   border: 1px solid #ddd;
   border-radius: 4px;
 }
-
+ 
 .form-group label {
   display: block;
   margin-bottom: 5px;
@@ -341,18 +341,18 @@ button:hover {
   font-size: 14px;
   color: #333;
 }
-
+ 
 .form-group .description {
   font-size: 12px;
   color: #666;
   margin-bottom: 8px;
 }
-
+ 
 .required::after {
   content: " *";
   color: #d32f2f;
 }
-
+ 
 /* Form Controls */
 input[type="text"],
 input[type="number"],
@@ -370,16 +370,16 @@ select,
   font-family: inherit;
   font-size: 14px;
 }
-
+ 
 textarea {
   min-height: 80px;
   resize: vertical;
 }
-
+ 
 input[type="date"] {
   cursor: pointer;
 }
-
+ 
 /* Focus States */
 input:focus,
 textarea:focus,
@@ -389,26 +389,26 @@ select:focus,
   border-color: #0066cc;
   box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
 }
-
+ 
 /* Checkbox & Radio */
 .checkbox-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
-
+ 
 .checkbox-item {
   display: flex;
   align-items: center;
   gap: 8px;
 }
-
+ 
 .checkbox-item input[type="checkbox"],
 .checkbox-item input[type="radio"] {
   width: auto;
   cursor: pointer;
 }
-
+ 
 /* Disabled Options (disable_values schema key)
    Always visible in the option list but not user-selectable.
    Visually distinct: separator line, italic text, muted colour, no-cursor. */
@@ -419,25 +419,25 @@ select:focus,
   opacity: 0.65;
   cursor: not-allowed;
 }
-
+ 
 .disable-option label,
 label.disable-option {
   font-style: italic;
   color: #888;
   cursor: not-allowed;
 }
-
+ 
 option.disable-option {
   color: #999;
   font-style: italic;
 }
-
+ 
 /* Disabled States */
 .form-group.disabled {
   opacity: 0.5;
   pointer-events: none;
 }
-
+ 
 .form-group.disabled input,
 .form-group.disabled select,
 .form-group.disabled textarea,
@@ -445,14 +445,14 @@ option.disable-option {
   background-color: #f5f5f5;
   cursor: not-allowed;
 }
-
+ 
 .disabled-indicator {
   font-size: 11px;
   color: #999;
   font-style: italic;
   margin-top: 4px;
 }
-
+ 
 /* ============================================
    8. MULTI-SELECT
    ============================================ */
@@ -460,7 +460,7 @@ option.disable-option {
   position: relative;
   width: 100%;
 }
-
+ 
 .multi-select-trigger {
   display: flex;
   justify-content: space-between;
@@ -468,18 +468,18 @@ option.disable-option {
   min-height: 38px;
   cursor: pointer;
 }
-
+ 
 .multi-select-trigger:hover {
   border-color: #999;
 }
-
+ 
 .multi-select-trigger::after {
   content: '▼';
   font-size: 10px;
   margin-left: 8px;
   color: #666;
 }
-
+ 
 .multi-select-dropdown {
   position: absolute;
   inset: 100% 0 auto 0;
@@ -492,11 +492,11 @@ option.disable-option {
   display: none;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
-
+ 
 .multi-select-dropdown.open {
   display: block;
 }
-
+ 
 .multi-select-option {
   padding: 8px 12px;
   cursor: pointer;
@@ -504,18 +504,18 @@ option.disable-option {
   align-items: center;
   gap: 8px;
 }
-
+ 
 .multi-select-option:hover {
   background-color: #f0f0f0;
 }
-
+ 
 .multi-select-selected {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
   min-height: 20px;
 }
-
+ 
 .multi-select-tag {
   background-color: #0066cc;
   color: white;
@@ -526,11 +526,11 @@ option.disable-option {
   align-items: center;
   gap: 4px;
 }
-
+ 
 .multi-select-placeholder {
   color: #999;
 }
-
+ 
 /* ============================================
    9. NESTED & ARRAY STRUCTURES
    ============================================ */
@@ -540,7 +540,7 @@ option.disable-option {
   border-left: 3px solid #0066cc;
   background-color: #f9f9f9;
 }
-
+ 
 .nested-object-header {
   font-weight: 600;
   font-size: 15px;
@@ -552,21 +552,21 @@ option.disable-option {
   cursor: pointer;
   user-select: none;
 }
-
+ 
 .nested-object-header::before {
   content: '▼';
   font-size: 10px;
   transition: transform 0.2s;
 }
-
+ 
 .nested-object-header.collapsed::before {
   transform: rotate(-90deg);
 }
-
+ 
 .nested-object-content.collapsed {
   display: none;
 }
-
+ 
 /* Array Container */
 .array-container {
   border: 1px solid #ddd;
@@ -575,16 +575,16 @@ option.disable-option {
   margin-top: 8px;
   background-color: #fafafa;
 }
-
+ 
 .array-controls {
   margin-top: 10px;
 }
-
+ 
 .recursive-array {
   border-left: 3px solid var(--button-background-color);
   padding-left: 15px;
 }
-
+ 
 /* Array Items */
 .array-item {
   background: white;
@@ -595,7 +595,7 @@ option.disable-option {
   position: relative;
   animation: slideIn 0.3s ease-out;
 }
-
+ 
 .array-item-header {
   display: flex;
   justify-content: space-between;
@@ -604,21 +604,21 @@ option.disable-option {
   padding-bottom: 10px;
   border-bottom: 1px solid #ddd;
 }
-
+ 
 .array-item-title {
   font-weight: 600;
   font-size: 14px;
   color: #0066cc;
 }
-
+ 
 .array-item-content {
   margin-top: 10px;
 }
-
+ 
 .array-item-dynamic-content {
   margin-top: 15px;
 }
-
+ 
 .array-item-type-selector {
   width: 100%;
   padding: 8px;
@@ -627,20 +627,20 @@ option.disable-option {
   color: #333;
   border-radius: 4px;
 }
-
+ 
 /* Simple Array Items */
 .array-item-simple {
   padding: 8px;
   background: transparent;
   border: none;
 }
-
+ 
 .array-item-simple-content {
   display: flex;
   gap: 10px;
   align-items: center;
 }
-
+ 
 .array-item-input {
   flex: 1;
   padding: 8px;
@@ -649,7 +649,7 @@ option.disable-option {
   color: #333;
   border-radius: 4px;
 }
-
+ 
 .array-item-simple .remove-item-btn {
   width: 30px;
   height: 30px;
@@ -658,7 +658,7 @@ option.disable-option {
   line-height: 1;
   border-radius: 50%;
 }
-
+ 
 /* ============================================
    10. VALIDATION & ERROR STATES
    ============================================ */
@@ -666,7 +666,7 @@ option.disable-option {
   border-color: #dc3545 !important;
   background-color: #fff5f5 !important;
 }
-
+ 
 .invalid-data-warning {
   background-color: #fff3cd;
   border: 1px solid #ffc107;
@@ -679,19 +679,19 @@ option.disable-option {
   gap: 12px;
   animation: slideIn 0.3s ease-out;
 }
-
+ 
 .warning-icon {
   font-size: 20px;
   color: #856404;
   flex-shrink: 0;
 }
-
+ 
 .warning-text {
   color: #856404;
   font-size: 13px;
   line-height: 1.5;
 }
-
+ 
 .invalid-fields-summary {
   background-color: #f8d7da;
   border: 1px solid #f5c6cb;
@@ -701,7 +701,7 @@ option.disable-option {
   border-radius: 4px;
   position: relative;
 }
-
+ 
 .invalid-fields-summary strong {
   display: block;
   margin-bottom: 12px;
@@ -711,18 +711,18 @@ option.disable-option {
   align-items: center;
   gap: 8px;
 }
-
+ 
 .invalid-fields-summary ul {
   margin: 0;
   padding-left: 20px;
   color: #721c24;
 }
-
+ 
 .invalid-fields-summary li {
   margin-bottom: 6px;
   font-size: 14px;
 }
-
+ 
 .invalid-fields-summary .close-summary {
   float: right;
   background: none;
@@ -734,11 +734,11 @@ option.disable-option {
   height: 24px;
   line-height: 1;
 }
-
+ 
 .invalid-fields-summary .close-summary:hover {
   color: #dc3545;
 }
-
+ 
 .selection-required-message {
   position: fixed;
   top: 20px;
@@ -753,7 +753,7 @@ option.disable-option {
   z-index: 10000;
   animation: slideInRight 0.3s ease-out, fadeOut 0.3s ease-out 2.7s forwards;
 }
-
+ 
 /* ============================================
    11. CONFIG MODAL
    ============================================ */
@@ -771,7 +771,7 @@ option.disable-option {
   z-index: 10000;
   animation: fadeIn 0.3s ease;
 }
-
+ 
 .config-modal-content {
   background: white;
   border-radius: 16px;
@@ -782,7 +782,7 @@ option.disable-option {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   animation: slideUp 0.4s ease;
 }
-
+ 
 .config-modal-header {
   padding: 16px 16px 8px;
   border-bottom: 1px solid #eaeaea;
@@ -790,24 +790,24 @@ option.disable-option {
   border-radius: 8px 8px 0 0;
   color: white;
 }
-
+ 
 .config-modal-header h2 {
   margin: 0 0 8px 0;
   font-size: 28px;
   font-weight: 700;
 }
-
+ 
 .config-subtitle {
   margin: 0;
   opacity: 0.9;
   font-size: 16px;
   font-weight: 400;
 }
-
+ 
 .config-section {
   padding: 8px;
 }
-
+ 
 .config-step {
   display: flex;
   gap: 20px;
@@ -816,13 +816,13 @@ option.disable-option {
   border-bottom: 2px dashed #eaeaea;
   position: relative;
 }
-
+ 
 .config-step:last-child {
   border-bottom: none;
   margin-bottom: 0;
   padding-bottom: 0;
 }
-
+ 
 .step-number {
   width: 40px;
   height: 40px;
@@ -838,31 +838,31 @@ option.disable-option {
   flex-shrink: 0;
   margin-top: 4px;
 }
-
+ 
 .step-content {
   flex: 1;
 }
-
+ 
 .step-content h3 {
   margin: 0 0 8px 0;
   color: #333;
   font-size: 18px;
   font-weight: 600;
 }
-
+ 
 .step-description {
   margin: 0 0 16px 0;
   color: #666;
   font-size: 14px;
   line-height: 1.5;
 }
-
+ 
 /* File Input Styling */
 .file-input-group {
   position: relative;
   margin-top: 8px;
 }
-
+ 
 .file-input {
   position: absolute;
   width: 0.1px;
@@ -871,7 +871,7 @@ option.disable-option {
   overflow: hidden;
   z-index: -1;
 }
-
+ 
 .file-input-label {
   display: inline-flex;
   align-items: center;
@@ -884,26 +884,26 @@ option.disable-option {
   cursor: pointer;
   transition: all 0.3s ease;
 }
-
+ 
 .file-input-label:hover {
   background: var(--secondary-color);
   border-color: var(--secondary-color);
   transform: translateY(-2px);
 }
-
+ 
 .file-icon {
   font-size: 24px;
 }
-
+ 
 .file-text {
   font-weight: 600;
   color: #0b0b0b;
 }
-
+ 
 .file-input-label:hover .file-text {
   color: white;
 }
-
+ 
 .file-name {
   margin-top: 8px;
   padding: 12px 12px;
@@ -913,7 +913,7 @@ option.disable-option {
   color: #495057;
   border-left: 4px solid var(--secondary-color);
 }
-
+ 
 .optional-tag {
   display: inline-block;
   margin-top: 12px;
@@ -924,7 +924,7 @@ option.disable-option {
   font-size: 12px;
   font-weight: 600;
 }
-
+ 
 /* =============
   view Modal
   =============== */
@@ -940,7 +940,7 @@ option.disable-option {
   justify-content: center;
   align-items: center;
 }
-
+ 
 #closeViewBtn {
   background-color: #f44336;  /* Red background */
   color: white;               /* White text */
@@ -954,7 +954,7 @@ option.disable-option {
   border-radius: 4px;
   line-height: 1;
 }
-
+ 
 #closeViewBtn:hover {
   background-color: #d32f2f;  /* Darker red on hover */
 }
@@ -968,28 +968,28 @@ option.disable-option {
   border-radius: 12px;
   margin-top: 8px;
 }
-
+ 
 .status-icon {
   font-size: 24px;
 }
-
+ 
 .status-text {
   font-weight: 500;
   color: #495057;
 }
-
+ 
 .validation-success .status-icon {
   color: #28a745;
 }
-
+ 
 .validation-warning .status-icon {
   color: #ffc107;
 }
-
+ 
 .validation-error .status-icon {
   color: #dc3545;
 }
-
+ 
 /* Modal Footer */
 .config-modal-footer {
   padding: 24px 32px;
@@ -999,7 +999,7 @@ option.disable-option {
   justify-content: flex-end;
   gap: 16px;
 }
-
+ 
 /* ============================================
    12. ANIMATIONS
    ============================================ */
@@ -1007,7 +1007,7 @@ option.disable-option {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
+ 
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -1018,7 +1018,7 @@ option.disable-option {
     transform: translateY(0);
   }
 }
-
+ 
 @keyframes slideIn {
   from {
     opacity: 0;
@@ -1029,16 +1029,16 @@ option.disable-option {
     transform: translateX(0);
   }
 }
-
+ 
 @keyframes slideInRight {
   from { opacity: 0; transform: translateX(100%); }
   to   { opacity: 1; transform: translateX(0); }
 }
-
+ 
 @keyframes fadeOut {
   to { opacity: 0; }
 }
-
+ 
 /* ============================================
    13. RESPONSIVE DESIGN
    ============================================ */
@@ -1048,11 +1048,11 @@ option.disable-option {
     flex-wrap: wrap;
     height: auto;
   }
-
+ 
   .app-title {
     font-size: 20px;
   }
-
+ 
   .header-nav {
     display: none;
     flex-direction: column;
@@ -1061,21 +1061,21 @@ option.disable-option {
     padding: 15px 0;
     border-top: 1px solid #ddd;
   }
-
+ 
   .header-nav.active {
     display: flex;
   }
-
+ 
   .header-nav button {
     width: 100%;
     justify-content: flex-start;
   }
-
+ 
   .hamburger {
     display: block;
   }
 }
-
+ 
 /* ==================== CHECKBOX LIST STYLES ==================== */
 .checkbox-container {
   display: flex;
@@ -1088,7 +1088,7 @@ option.disable-option {
   max-height: 300px;
   overflow-y: auto;
 }
-
+ 
 .checkbox-option {
   display: inline-flex;
   flex-direction: row;
@@ -1099,11 +1099,11 @@ option.disable-option {
   transition: background-color 0.2s;
   width: 100%;
 }
-
+ 
 .checkbox-option:hover {
   background: #f0f0f0;
 }
-
+ 
 .checkbox-option.disable-option {
   border-top: 1px solid #ddd;
   margin-top: 8px;
@@ -1111,11 +1111,11 @@ option.disable-option {
   opacity: 0.65;
   cursor: not-allowed;
 }
-
+ 
 .checkbox-option.disable-option input[type="checkbox"] {
   cursor: not-allowed;
 }
-
+ 
 .checkbox-option input[type="checkbox"] {
   cursor: pointer;
   width: 16px;
@@ -1126,7 +1126,7 @@ option.disable-option {
   flex: 0 0 16px;
   vertical-align: middle;
 }
-
+ 
 .checkbox-option label {
   cursor: pointer;
   margin: 0;
@@ -1136,14 +1136,14 @@ option.disable-option {
   display: inline;
   vertical-align: middle;
 }
-
+ 
 .checkbox-container.invalid-data {
   border-color: #dc3545;
   background: rgba(255, 0, 0, 0.05);
 }
-
+ 
 /* ==================== RADIO BUTTON STYLES ==================== */
-
+ 
 .radio-container {
   display: flex;
   flex-direction: column;
@@ -1153,7 +1153,7 @@ option.disable-option {
   border-radius: 4px;
   background: white;
 }
-
+ 
 .radio-option {
   display: inline-flex;
   flex-direction: row;
@@ -1164,11 +1164,11 @@ option.disable-option {
   transition: background-color 0.2s;
   width: 100%;
 }
-
+ 
 .radio-option:hover {
   background: #f0f0f0;
 }
-
+ 
 .radio-option.disable-option {
   border-top: 1px solid #ddd;
   margin-top: 8px;
@@ -1176,11 +1176,11 @@ option.disable-option {
   opacity: 0.65;
   cursor: not-allowed;
 }
-
+ 
 .radio-option.disable-option input[type="radio"] {
   cursor: not-allowed;
 }
-
+ 
 .radio-option input[type="radio"] {
   cursor: pointer;
   width: 16px;
@@ -1191,7 +1191,7 @@ option.disable-option {
   flex: 0 0 16px;
   vertical-align: middle;
 }
-
+ 
 .radio-option label {
   cursor: pointer;
   margin: 0;
@@ -1201,7 +1201,7 @@ option.disable-option {
   display: inline;
   vertical-align: middle;
 }
-
+ 
 /* ==================== SLIDER STYLES ==================== */
 .slider-container {
   display: flex;
@@ -1212,7 +1212,7 @@ option.disable-option {
   border-radius: 4px;
   background: white;  /* ✅ Changed from var(--vscode-input-background) */
 }
-
+ 
 .slider-input {
   width: 100%;
   height: 6px;
@@ -1223,7 +1223,7 @@ option.disable-option {
   background: #e0e0e0;  /* ✅ Changed from var(--vscode-input-border) */
   cursor: pointer;
 }
-
+ 
 .slider-input::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
@@ -1235,12 +1235,12 @@ option.disable-option {
   border: 2px solid white;  /* ✅ Changed from var(--vscode-button-foreground) */
   transition: all 0.2s;
 }
-
+ 
 .slider-input::-webkit-slider-thumb:hover {
   background: var(--primary-color);  /* ✅ Changed from var(--vscode-button-hoverBackground) */
   transform: scale(1.1);
 }
-
+ 
 .slider-input::-moz-range-thumb {
   width: 18px;
   height: 18px;
@@ -1250,12 +1250,12 @@ option.disable-option {
   border: 2px solid white;
   transition: all 0.2s;
 }
-
+ 
 .slider-input::-moz-range-thumb:hover {
   background: var(--primary-color);
   transform: scale(1.1);
 }
-
+ 
 .slider-value-display {
   display: flex;
   justify-content: center;
@@ -1268,7 +1268,7 @@ option.disable-option {
   color: #333;  /* ✅ Changed from var(--vscode-foreground) */
   min-width: 60px;
 }
-
+ 
 /* ==================== DATE-TIME PICKER STYLES ==================== */
 .datetime-input {
   width: 100%;
@@ -1281,48 +1281,48 @@ option.disable-option {
   font-family: inherit;  /* ✅ Changed from var(--vscode-font-family) */
   cursor: pointer;
 }
-
+ 
 .datetime-input:focus {
   outline: none;
   border-color: #0066cc;  /* ✅ Changed from var(--vscode-focusBorder) */
   box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
 }
-
+ 
 .datetime-input:hover {
   border-color: #0066cc;  /* ✅ Changed from var(--vscode-inputOption-activeBorder) */
 }
-
-
+ 
+ 
 /* Calendar icon styling for date inputs */
 .datetime-input::-webkit-calendar-picker-indicator {
   cursor: pointer;
   filter: invert(0.5);
 }
-
+ 
 .datetime-input::-webkit-calendar-picker-indicator:hover {
   filter: invert(0.8);
 }
-
+ 
 /* ==================== SCROLLBAR STYLING FOR CONTAINERS ==================== */
 .checkbox-container::-webkit-scrollbar {
   width: 8px;
 }
-
+ 
 .checkbox-container::-webkit-scrollbar-track {
   background: #f5f5f5;  /* ✅ Changed from var(--vscode-editor-background) */
   border-radius: 4px;
 }
-
+ 
 .checkbox-container::-webkit-scrollbar-thumb {
   background: #ccc;  /* ✅ Changed from var(--vscode-scrollbarSlider-background) */
   border-radius: 4px;
 }
-
+ 
 .checkbox-container::-webkit-scrollbar-thumb:hover {
   background: #999;  /* ✅ Changed from var(--vscode-scrollbarSlider-hoverBackground) */
 }
-
-
+ 
+ 
 /* ==================== INVALID STATE STYLING ==================== */
 .radio-container.invalid-data,
 .slider-container.invalid-data,
@@ -1330,7 +1330,7 @@ option.disable-option {
   border-color: #d32f2f;
   background: rgba(255, 0, 0, 0.05);
 }
-
+ 
 /* ==================== RESPONSIVE DESIGN ==================== */
 @media (max-width: 768px) {
   .checkbox-container,
@@ -1343,7 +1343,7 @@ option.disable-option {
     padding: 6px;
   }
 }
-
+ 
 /* ==================== DISABLED STATE ==================== */
 .checkbox-container.disabled,
 .radio-container.disabled,
@@ -1352,18 +1352,18 @@ option.disable-option {
   pointer-events: none;
   background: #f5f5f5;
 }
-
+ 
 .checkbox-container.disabled .checkbox-option,
 .radio-container.disabled .radio-option {
   cursor: not-allowed;
 }
-
+ 
 .checkbox-container.disabled input,
 .radio-container.disabled input,
 .slider-container.disabled input {
   cursor: not-allowed;
 }
-
+ 
 /* ==================== FOCUS STATES ==================== */
 .checkbox-option:has(input:focus),
 .radio-option:has(input:focus) {
@@ -1371,12 +1371,12 @@ option.disable-option {
   outline-offset: 2px;
   border-radius: 3px;
 }
-
+ 
 .slider-input:focus {
   outline: 2px solid #0066cc; 
   outline-offset: 4px;
 }
-
+ 
 /* ==================== ANIMATION ==================== */
 @keyframes slideIn {
   from {
@@ -1388,17 +1388,17 @@ option.disable-option {
     transform: translateY(0);
   }
 }
-
+ 
 .checkbox-container,
 .radio-container,
 .slider-container {
   animation: slideIn 0.2s ease-out;
 }
-
+ 
 /* ============================================
    VALIDATION STYLES - Add to end of styles.css
    ============================================ */
-
+ 
 /* Validation error state for inputs */
 input.validation-error,
 select.validation-error,
@@ -1407,7 +1407,7 @@ textarea.validation-error {
   background-color: rgba(255, 68, 68, 0.05);
   animation: shake 0.3s ease-in-out;
 }
-
+ 
 input.validation-error:focus,
 select.validation-error:focus,
 textarea.validation-error:focus {
@@ -1415,7 +1415,7 @@ textarea.validation-error:focus {
   border-color: #ff4444 !important;
   box-shadow: 0 0 0 3px rgba(255, 68, 68, 0.2);
 }
-
+ 
 /* Validation error message */
 .validation-error-message {
   display: flex;
@@ -1430,25 +1430,25 @@ textarea.validation-error:focus {
   color: #d32f2f;
   animation: slideDownValidation 0.2s ease-out;
 }
-
+ 
 .validation-error-message .error-icon {
   font-size: 14px;
   flex-shrink: 0;
   margin-top: 1px;
 }
-
+ 
 .validation-error-message .error-text {
   line-height: 1.4;
   flex: 1;
 }
-
+ 
 /* Shake animation for validation errors */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
   20%, 40%, 60%, 80% { transform: translateX(5px); }
 }
-
+ 
 /* Slide down animation for validation messages */
 @keyframes slideDownValidation {
   from {
@@ -1460,7 +1460,7 @@ textarea.validation-error:focus {
     transform: translateY(0);
   }
 }
-
+ 
 /* Multi-select, checkbox, radio validation error */
 .multi-select-container.validation-error,
 .checkbox-container.validation-error,
@@ -1470,18 +1470,18 @@ textarea.validation-error:focus {
   border-radius: 6px;
   background-color: rgba(255, 68, 68, 0.05);
 }
-
+ 
 .multi-select-container.validation-error .multi-select-trigger {
   border-color: transparent;
 }
-
+ 
 /* Validation success state (optional) */
 input.validation-success,
 select.validation-success,
 textarea.validation-success {
   border-color: #4caf50;
 }
-
+ 
 /* Field character counter with validation */
 .field-character-count {
   font-size: 12px;
@@ -1489,12 +1489,12 @@ textarea.validation-success {
   text-align: right;
   margin-top: 4px;
 }
-
+ 
 .field-character-count.over-limit {
   color: #ff4444;
   font-weight: bold;
 }
-
+ 
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .validation-error-message {
@@ -1502,93 +1502,92 @@ textarea.validation-success {
     padding: 6px 10px;
   }
 }
-
+ 
 /* ============================================
-   FILE STATUS DISPLAY
+   FILE STATUS DISPLAY  (Option A — pill strip)
    ============================================ */
 .file-status {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 20px;
-  padding: 10px 10px;
-  background: linear-gradient(135deg, #f8f9fa 0%, #d7e4f2 100%);
+  gap: 10px;
+  padding: 5px 12px;
+  background: #f8f9fa;
   border: 1px solid #dee2e6;
   border-radius: 8px;
   margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
-
+ 
 .file-status-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background: white;
-  border-radius: 6px;
-  border-left: 4px solid var(--secondary-color);
+  gap: 5px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
   flex: 1;
-  min-width: 200px;
+  min-width: 0;
 }
-
+ 
+/* Vertical divider between items */
+.file-status-item + .file-status-item {
+  padding-left: 10px;
+  border-left: 1px solid #dee2e6;
+}
+ 
 .file-status-label {
   font-weight: 600;
-  color: #495057;
+  color: #6c757d;
   font-size: 13px;
-  /* text-transform: uppercase; */
-  letter-spacing: 0.5px;
-  min-width: 60px;
+  letter-spacing: 0.4px;
+  min-width: unset;
+  white-space: nowrap;
 }
-
+ 
 .file-status-value {
-  padding: 8px 12px;
-  /*border-left: 4px solid #ccc;*/ /* Default gray */
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  font-size: 14px;
-  margin-bottom: 8px;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 0;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-color: #e9ecef;
+  color: #495057;
+  text-align: left;
 }
-
+ 
 .file-status-value.loaded {
-  /*border-left-color: #4caf50;*/ /* Green - successfully loaded */
   background-color: #e8f5e9;
   color: #2e7d32;
+  font-weight: 600;
 }
-
+ 
 .file-status-value.loaded-warning {
-  /*border-left-color: #f44336; *//* Red - loaded with warnings */
   background-color: #ffebee;
   color: #c62828;
+  font-weight: 600;
 }
-
+ 
 .file-status-value.not-loaded {
-  /*border-left-color: #9e9e9e;*/ /* Gray - not loaded */
-  background-color: #f5f5f5;
-  color: #757575;
+  background-color: #f0f0f0;
+  color: #9e9e9e;
   font-style: italic;
+  font-weight: 400;
 }
-
-.file-status-value.loaded {
-  color: #000000;
-  font-weight: 650;
-}
-
-.file-status-value.not-loaded {
-  color: #212121;
-  font-style: italic;
-}
-
+ 
 /* Responsive design for file status */
 @media (max-width: 768px) {
   .file-status {
-    flex-direction: column;
-    gap: 12px;
-  }
-  
-  .file-status-item {
-    min-width: unset;
+    gap: 6px;
+    padding: 5px 10px;
   }
 }
-
+ 
 /* === JSON View container  */
 .json-container {
     background-color: #2d2d2d;
@@ -1614,7 +1613,7 @@ textarea.validation-success {
 .json-comma {
     color: #f8f8f2;
 }
-
+ 
 .tab-navigation {
   display: flex;
   justify-content: space-between;
@@ -1625,7 +1624,7 @@ textarea.validation-success {
   margin-top: 10px;
   border-radius: 0 0 8px 8px;
 }
-
+ 
 .tab-nav-btn {
   display: flex;
   align-items: center;
@@ -1641,9 +1640,9 @@ textarea.validation-success {
   transition: all 0.3s ease;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
-
+ 
 /* Add to the end of your styles.css file */
-
+ 
 /* Collapsible array item styles */
 .array-item {
   position: relative;
@@ -1653,12 +1652,12 @@ textarea.validation-success {
   margin-bottom: 15px;
   background: white;
 }
-
+ 
 .array-item.collapsed .array-item-content,
 .array-item.collapsed .array-item-simple-content {
   display: none !important;
 }
-
+ 
 .array-item-header {
   display: flex;
   justify-content: space-between;
@@ -1670,11 +1669,11 @@ textarea.validation-success {
   user-select: none;
   border-bottom: 1px solid #dee2e6;
 }
-
+ 
 .array-item-header:hover {
   background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
 }
-
+ 
 .array-item-header .array-item-title {
   display: flex;
   align-items: center;
@@ -1682,18 +1681,18 @@ textarea.validation-success {
   font-weight: 600;
   color: var(--secondary-color);
 }
-
+ 
 .array-item-header .collapse-icon {
   display: inline-block;
   transition: transform 0.2s ease;
   font-size: 12px;
   color: var(--secondary-color);
 }
-
+ 
 .array-item.collapsed .collapse-icon {
   transform: rotate(-90deg);
 }
-
+ 
 .array-item-header .remove-item-btn {
   margin-left: auto;
   background: transparent;
@@ -1706,21 +1705,21 @@ textarea.validation-success {
   transition: all 0.2s;
   z-index: 10;
 }
-
+ 
 .array-item-header .remove-item-btn:hover {
   background: #d32f2f;
   color: white;
 }
-
+ 
 /* Simple array items styling */
 .array-item.array-item-simple {
   padding: 0;
 }
-
+ 
 .array-item-simple .array-item-content {
   padding: 15px;
 }
-
+ 
 .array-item-simple-content {
   display: flex;
   gap: 10px;
@@ -1728,20 +1727,20 @@ textarea.validation-success {
   padding: 15px;
   background: white;
 }
-
+ 
 /* Array item content area */
 .array-item-content {
   padding: 15px;
   background: white;
   border-radius: 0 0 6px 6px;
 }
-
+ 
 /* Ensure nested items also work */
 .array-item .array-item {
   margin-left: 20px;
   border-left: 3px solid var(--secondary-color);
 }
-
+ 
 /* disable_values: temporarily-enabled state (loaded from stored data)
    When enableDisabledOptionForUncheck runs, the label gets a hover cue
    so the user knows they can uncheck it once but not re-check it. */
@@ -1749,7 +1748,7 @@ label.disable-option:has(input:not([disabled])) {
   opacity: 0.85;
   cursor: pointer;
 }
-
+ 
 label.disable-option:has(input:not([disabled]))::after {
   content: " (cannot re-select)";
   font-size: 0.75em;

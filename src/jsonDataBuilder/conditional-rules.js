@@ -489,7 +489,7 @@ function updateFieldOptions(pathStr, depValue, element, rule, explicitValues = n
   
   if (needsRebuild) {
     console.log(`  🔨 Control type change detected: ${currentControlType} → ${inputControl}`);
-    element = rebuildControlWithType(pathStr, element, inputControl, responseType, enumValues, disableValues);
+    element = rebuildControlWithType(pathStr, element, inputControl, responseType, enumValues, disableValues, rule.exclusive_values || []);
     
     if (!element) {
       console.error(`  ❌ Failed to rebuild control for ${pathStr}`);
@@ -503,9 +503,9 @@ function updateFieldOptions(pathStr, depValue, element, rule, explicitValues = n
     if (element.tagName === 'SELECT') {
       updateSelectOptions(element, enumValues, pathStr, disableValues);
     } else if (element.classList.contains('multi-select-container')) {
-      updateMultiSelectOptions(element, enumValues, pathStr, disableValues);
+      updateMultiSelectOptions(element, enumValues, pathStr, disableValues, rule.exclusive_values || []);
     } else if (element.classList.contains('checkbox-container')) {
-      updateCheckboxOptions(element, enumValues, pathStr, disableValues);
+      updateCheckboxOptions(element, enumValues, pathStr, disableValues, rule.exclusive_values || []);
     } else if (element.classList.contains('radio-container')) {
       updateRadioOptions(element, enumValues, pathStr, disableValues);
     } else {
@@ -708,7 +708,8 @@ function initializeSingleDependentField(fieldPath, depField, depFieldValue, conf
     defaultValues: config.values || [],
     responseType: config.response_type || 'single-select',
     inputControl: config.input_control || 'drop-down', // ✅ ADD THIS LINE
-    disable_values: config.disable_values || []
+    disable_values: config.disable_values || [],
+    exclusive_values: config.exclusive_values || []
   };
   
   // Update field options (will handle overrides automatically)
