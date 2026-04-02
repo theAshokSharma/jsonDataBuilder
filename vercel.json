@@ -1,5 +1,4 @@
 {
-  "root": "src/jsonDataBuilder",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
