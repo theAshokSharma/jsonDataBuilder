@@ -6,7 +6,7 @@ import { resolveRef } from './file-validation.js';
 import { getFieldSchemaForPath, resolveRefInCollect } from './data-builder.js';
 import { ashAlert, ashAlertScrollable, ashConfirm, escapeHtml } from './utils.js';
 
-console.log('📋 Input Validation Module Loaded - Version 3.10 (TAB-AWARE FIXED)');
+console.log('📋 Input Validation Module Loaded - Version 3.11 (TAB-AWARE FIXED)');
 
 /**
  * Validates a single field value against its schema definition
