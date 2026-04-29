@@ -1,56 +1,80 @@
-// schema-registry.js (Vercel/browser-compatible version)
+// schema-registry.js (Vercel + GitHub backed)
 
-const REGISTRY_KEY = 'jb_schema_registry';
+const API = '/api/schemas';
 
-// ── Kept for backward compatibility with any imports ──────────────────────────
+function username() {
+  return localStorage.getItem('jb-username') || '';
+}
+
+export function getCurrentUser() {
+  return localStorage.getItem('jb-username') || null;
+}
+
+export function setCurrentUser(name) {
+  localStorage.setItem('jb-username', name.trim().toLowerCase());
+}
+
+export function clearCurrentUser() {
+  localStorage.removeItem('jb-username');
+}
+
+function headers(extra = {}) {
+  return { 'x-username': username(), 'Content-Type': 'application/json', ...extra };
+}
+
+// ── Kept for backward compatibility ──────────────────────────────────────────
 export async function getDirectoryName() {
   return 'schemas';
 }
 
 export async function getAllSchemas() {
-  const raw = localStorage.getItem(REGISTRY_KEY);
-  return raw ? JSON.parse(raw) : { entries: [] };
+  const res = await fetch(API, { headers: headers() });
+  if (!res.ok) throw new Error('Failed to fetch schemas');
+  return await res.json();
 }
 
 export async function saveToRegistry(schemaFile, optionsFile, description) {
-  const registry = await getAllSchemas();
-  
-  const schemaText = await schemaFile.text();
-  const entry = {
-    schema: schemaFile.name,
-    options: optionsFile ? optionsFile.name : null,
-    description: description || schemaFile.name,
-    schemaContent: schemaText,
-    optionsContent: optionsFile ? await optionsFile.text() : null,
-    savedAt: new Date().toISOString()
-  };
+  const schemaContent  = await schemaFile.text();
+  const optionsContent = optionsFile ? await optionsFile.text() : null;
 
-  const idx = registry.entries.findIndex(e => e.schema === entry.schema);
-  if (idx >= 0) registry.entries[idx] = entry;
-  else registry.entries.push(entry);
-
-  localStorage.setItem(REGISTRY_KEY, JSON.stringify(registry));
-  return entry;
+  const res = await fetch(API, {
+    method:  'POST',
+    headers: headers(),
+    body: JSON.stringify({
+      schemaName:     schemaFile.name,
+      schemaContent,
+      optionsName:    optionsFile?.name || null,
+      optionsContent,
+      description:    description || schemaFile.name
+    })
+  });
+  if (!res.ok) throw new Error('Failed to save schema');
+  return await res.json();
 }
 
 export async function loadSchemaEntry(entry) {
-  const schemaData = JSON.parse(entry.schemaContent);
-  const optionsData = entry.optionsContent ? JSON.parse(entry.optionsContent) : null;
+  const schemaData = await fetch(
+    `${API}?file=${entry.schema}`, { headers: headers() }
+  ).then(r => r.json());
 
-  const schemaBlob = new Blob([entry.schemaContent], { type: 'application/json' });
-  const schemaFile = new File([schemaBlob], entry.schema, { type: 'application/json' });
+  const optionsData = entry.options
+    ? await fetch(`${API}?file=${entry.options}`, { headers: headers() }).then(r => r.json())
+    : null;
 
-  let optionsFile = null;
-  if (entry.optionsContent) {
-    const optBlob = new Blob([entry.optionsContent], { type: 'application/json' });
-    optionsFile = new File([optBlob], entry.options, { type: 'application/json' });
-  }
+  const schemaFile = new File(
+    [JSON.stringify(schemaData)], entry.schema, { type: 'application/json' }
+  );
+  const optionsFile = optionsData
+    ? new File([JSON.stringify(optionsData)], entry.options, { type: 'application/json' })
+    : null;
 
   return { schemaData, optionsData, schemaFile, optionsFile };
 }
 
 export async function removeFromRegistry(schemaName) {
-  const registry = await getAllSchemas();
-  registry.entries = registry.entries.filter(e => e.schema !== schemaName);
-  localStorage.setItem(REGISTRY_KEY, JSON.stringify(registry));
+  const res = await fetch(`${API}?file=${schemaName}`, {
+    method:  'DELETE',
+    headers: headers()
+  });
+  if (!res.ok) throw new Error('Failed to remove schema');
 }
