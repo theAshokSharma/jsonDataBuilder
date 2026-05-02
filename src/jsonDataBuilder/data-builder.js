@@ -9,6 +9,7 @@ import { renderForm, renderAllTabs, updateFileStatusDisplay } from './form-rende
 import { updateMultiSelectDisplay} from './input-control.js'
 import { validateAndShowSummary, clearAllValidationErrors } from './input-validation.js';
 import { getLastSchemaFile, getLastOptionsFile, createFileFromData } from './storage-manager.js';
+import { getCurrentUser, setCurrentUser } from './schema-registry.js';
 
 // Initialize on page load
 console.log('JSON Data Builder Loaded - Version 3.11`');
@@ -740,10 +741,16 @@ function collectDynamicContent(contentElement, itemIndex) {
 
 window.addEventListener('DOMContentLoaded', async () => {
   console.log('🚀 JSON Data Builder starting…');
- 
+
+  // ── Ensure a username is set before accessing the registry ──────────────
+  if (!getCurrentUser()) {
+    const name = prompt('Enter your username to continue:');
+    if (name?.trim()) setCurrentUser(name);
+  }
+
   // Always show the file-status bar in its initial (empty) state.
   updateFileStatusDisplay();
- 
+
   // Show the schema picker banner if the library has any entries.
   // This is non-blocking — the rest of the app is fully usable without it.
   try {

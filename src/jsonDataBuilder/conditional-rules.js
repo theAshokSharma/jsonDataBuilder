@@ -22,64 +22,91 @@ function applyConditionalRules() {
 
   console.log('Applying conditional rules...');
 
+  // ── PASS 1: Collect every field that ANY matching condition wants disabled ──
+  // Using a Set prevents a field from being re-enabled by a second, non-matching
+  // condition for the same trigger — which was the root cause of the bug where
+  // mbr_cig_end_year (listed in both CK9902 and CK9901 conditions) was
+  // immediately re-enabled when CK9902 was selected, because the CK9901
+  // condition was evaluated afterward with conditionMet=false.
+  const fieldsToDisable = new Set();
+
+  // Also track which trigger field is responsible (for the indicator label).
+  const disableReasons = {};  // fieldKey → triggerField
+
   for (const [triggerField, conditions] of Object.entries(state.conditionalRules)) {
+    const currentValue = getFieldValue(triggerField);
+
     conditions.forEach(condition => {
-      const triggerValue = condition.value;
-      const affectedFields = condition.disable_fields || [];
-      
-      const currentValue = getFieldValue(triggerField);
-      const conditionMet = String(currentValue).trim() === String(triggerValue).trim();
-      
+      const conditionMet = String(currentValue ?? '').trim() === String(condition.value).trim();
+
       console.log('Rule:', {
         triggerField,
         currentValue,
-        triggerValue,
+        triggerValue: condition.value,
         conditionMet,
-        affectedFields
+        affectedFields: condition.disable_fields || []
       });
 
-      affectedFields.forEach(fieldKey => {
-        const fieldGroup = document.querySelector(`[data-field-path="${fieldKey}"]`);
-        if (!fieldGroup) {
-          console.log('Field group not found:', fieldKey);            
-          return;
-        }
-        
-        if (conditionMet) {
-          console.log('Disabling field:', fieldKey);            
-          fieldGroup.classList.add('disabled');
-          
-          if (!fieldGroup.querySelector('.disabled-indicator')) {
-            const indicator = document.createElement('div');
-            indicator.className = 'disabled-indicator';
-            indicator.textContent = `Auto-disabled (based on ${triggerField})`;
-            fieldGroup.appendChild(indicator);
-          }
-          
-          setDisabledFieldValue(fieldKey, fieldGroup);
-        } else {
-          // Capture whether the field was disabled BEFORE we remove the class.
-          // enableFieldValue must only fire on the disabled→enabled transition —
-          // NOT on every rule evaluation, otherwise it wipes the user's selection
-          // each time any field on the form changes.
-          const wasDisabled = fieldGroup.classList.contains('disabled');
-
-          console.log('Enabling field:', fieldKey);
-          fieldGroup.classList.remove('disabled');
-          
-          const indicator = fieldGroup.querySelector('.disabled-indicator');
-          if (indicator) {
-            indicator.remove();
-          }
-          
-          // Only reset + re-lock disable_values when genuinely transitioning disabled → enabled.
-          if (wasDisabled) {
-            enableFieldValue(fieldKey, fieldGroup);
-          }
-        }
-      });
+      if (conditionMet) {
+        (condition.disable_fields || []).forEach(fieldKey => {
+          fieldsToDisable.add(fieldKey);
+          disableReasons[fieldKey] = triggerField;  // Last writer wins for label, fine in practice.
+        });
+      }
     });
   }
+
+  // ── PASS 2: Collect every field mentioned in any condition (the full candidate set) ──
+  const allAffectedFields = new Set();
+  for (const conditions of Object.values(state.conditionalRules)) {
+    conditions.forEach(condition => {
+      (condition.disable_fields || []).forEach(f => allAffectedFields.add(f));
+    });
+  }
+
+  // ── PASS 3: Apply disable / enable atomically based on the complete picture ──
+  allAffectedFields.forEach(fieldKey => {
+    const fieldGroup = document.querySelector(`[data-field-path="${fieldKey}"]`);
+    if (!fieldGroup) {
+      console.log('Field group not found:', fieldKey);
+      return;
+    }
+
+    if (fieldsToDisable.has(fieldKey)) {
+      // At least one condition wants this field disabled.
+      console.log('Disabling field:', fieldKey);
+      fieldGroup.classList.add('disabled');
+
+      if (!fieldGroup.querySelector('.disabled-indicator')) {
+        const indicator = document.createElement('div');
+        indicator.className = 'disabled-indicator';
+        indicator.textContent = `Auto-disabled (based on ${disableReasons[fieldKey] || 'conditional rule'})`;
+        fieldGroup.appendChild(indicator);
+      }
+
+      setDisabledFieldValue(fieldKey, fieldGroup);
+    } else {
+      // No condition wants this field disabled — enable it.
+      // Capture whether the field was disabled BEFORE we remove the class.
+      // enableFieldValue must only fire on the disabled→enabled transition —
+      // NOT on every rule evaluation, otherwise it wipes the user's selection
+      // each time any field on the form changes.
+      const wasDisabled = fieldGroup.classList.contains('disabled');
+
+      console.log('Enabling field:', fieldKey);
+      fieldGroup.classList.remove('disabled');
+
+      const indicator = fieldGroup.querySelector('.disabled-indicator');
+      if (indicator) {
+        indicator.remove();
+      }
+
+      // Only reset + re-lock disable_values when genuinely transitioning disabled → enabled.
+      if (wasDisabled) {
+        enableFieldValue(fieldKey, fieldGroup);
+      }
+    }
+  });
 }
 
 /**
