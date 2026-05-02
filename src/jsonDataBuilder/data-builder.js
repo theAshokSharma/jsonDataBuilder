@@ -12,7 +12,7 @@ import { getLastSchemaFile, getLastOptionsFile, createFileFromData } from './sto
 import { getCurrentUser, setCurrentUser } from './schema-registry.js';
 
 // Initialize on page load
-console.log('JSON Data Builder Loaded - Version 3.11`');
+console.log('JSON Data Builder Loaded - Version 3.12`');
 
 
 // Button event listeners
