@@ -1,10 +1,9 @@
-// schema-registry.js (Vercel + GitHub backed)
+// schema-registry.js (Vercel + GitHub backed, per-user isolation)
+// Drop-in replacement — all function signatures unchanged.
 
 const API = '/api/schemas';
 
-function username() {
-  return localStorage.getItem('jb-username') || '';
-}
+// ── User helpers (used by data-builder.js) ────────────────────────────────────
 
 export function getCurrentUser() {
   return localStorage.getItem('jb-username') || null;
@@ -18,17 +17,23 @@ export function clearCurrentUser() {
   localStorage.removeItem('jb-username');
 }
 
-function headers(extra = {}) {
-  return { 'x-username': username(), 'Content-Type': 'application/json', ...extra };
+function userHeaders(extra = {}) {
+  return {
+    'x-username':   getCurrentUser() || '',
+    'Content-Type': 'application/json',
+    ...extra
+  };
 }
 
-// ── Kept for backward compatibility ──────────────────────────────────────────
+// ── Kept for backward compatibility with any imports ──────────────────────────
 export async function getDirectoryName() {
   return 'schemas';
 }
 
+// ── Registry CRUD ─────────────────────────────────────────────────────────────
+
 export async function getAllSchemas() {
-  const res = await fetch(API, { headers: headers() });
+  const res = await fetch(API, { headers: userHeaders() });
   if (!res.ok) throw new Error('Failed to fetch schemas');
   return await res.json();
 }
@@ -39,13 +44,13 @@ export async function saveToRegistry(schemaFile, optionsFile, description) {
 
   const res = await fetch(API, {
     method:  'POST',
-    headers: headers(),
+    headers: userHeaders(),
     body: JSON.stringify({
       schemaName:     schemaFile.name,
       schemaContent,
-      optionsName:    optionsFile?.name || null,
-      optionsContent,
-      description:    description || schemaFile.name
+      optionsName:    optionsFile?.name  || null,
+      optionsContent: optionsContent     || null,
+      description:    description        || schemaFile.name
     })
   });
   if (!res.ok) throw new Error('Failed to save schema');
@@ -54,18 +59,26 @@ export async function saveToRegistry(schemaFile, optionsFile, description) {
 
 export async function loadSchemaEntry(entry) {
   const schemaData = await fetch(
-    `${API}?file=${entry.schema}`, { headers: headers() }
+    `${API}?file=${entry.schema}`,
+    { headers: userHeaders() }
   ).then(r => r.json());
 
   const optionsData = entry.options
-    ? await fetch(`${API}?file=${entry.options}`, { headers: headers() }).then(r => r.json())
+    ? await fetch(`${API}?file=${entry.options}`, { headers: userHeaders() }).then(r => r.json())
     : null;
 
+  // Wrap in File objects to match what the rest of the app expects
   const schemaFile = new File(
-    [JSON.stringify(schemaData)], entry.schema, { type: 'application/json' }
+    [JSON.stringify(schemaData)],
+    entry.schema,
+    { type: 'application/json' }
   );
   const optionsFile = optionsData
-    ? new File([JSON.stringify(optionsData)], entry.options, { type: 'application/json' })
+    ? new File(
+        [JSON.stringify(optionsData)],
+        entry.options,
+        { type: 'application/json' }
+      )
     : null;
 
   return { schemaData, optionsData, schemaFile, optionsFile };
@@ -74,7 +87,7 @@ export async function loadSchemaEntry(entry) {
 export async function removeFromRegistry(schemaName) {
   const res = await fetch(`${API}?file=${schemaName}`, {
     method:  'DELETE',
-    headers: headers()
+    headers: userHeaders()
   });
   if (!res.ok) throw new Error('Failed to remove schema');
 }
