@@ -1,75 +1,47 @@
 // api/schemas.js — Vercel serverless function
-// Handles all schema CRUD operations via GitHub API
-// Schemas are stored per-user at: /schemas/{username}/
+// Handles all schema CRUD operations via Supabase (Postgres)
+// Schemas are stored per-user in the 'schemas' table
 
-const GITHUB_API = 'https://api.github.com';
-const REPO       = process.env.GITHUB_REPO;    // e.g. "your-username/your-repo"
-const TOKEN      = process.env.GITHUB_TOKEN;   // GitHub personal access token
-const BRANCH     = process.env.GITHUB_BRANCH || 'main';
+import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
-// ── GitHub API helpers ────────────────────────────────────────────────────────
+// ── Load .env.local for local dev (no-op in production) ───────────────────────
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: resolve(__dirname, '../.env.local') });
 
-function ghHeaders() {
-  return {
-    'Authorization':        `Bearer ${TOKEN}`,
-    'Accept':               'application/vnd.github+json',
-    'X-GitHub-Api-Version': '2022-11-28',
-    'Content-Type':         'application/json'
-  };
-}
+// ── Supabase client ───────────────────────────────────────────────────────────
+const SUPABASE_URL = process.env.SUPABASE_URL;
+const SUPABASE_KEY = process.env.SUPABASE_KEY;
 
-async function getFile(path) {
-  const res = await fetch(
-    `${GITHUB_API}/repos/${REPO}/contents/${path}?ref=${BRANCH}`,
-    { headers: ghHeaders() }
-  );
-  if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`GitHub GET failed: ${res.status} for ${path}`);
-  const data = await res.json();
-  return {
-    content: Buffer.from(data.content, 'base64').toString('utf8'),
-    sha:     data.sha
-  };
-}
-
-async function putFile(path, content, sha = null) {
-  const body = {
-    message: `chore: update ${path}`,
-    content: Buffer.from(content).toString('base64'),
-    branch:  BRANCH
-  };
-  if (sha) body.sha = sha;  // required for updates, omit for new files
-
-  const res = await fetch(
-    `${GITHUB_API}/repos/${REPO}/contents/${path}`,
-    { method: 'PUT', headers: ghHeaders(), body: JSON.stringify(body) }
-  );
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(`GitHub PUT failed: ${err.message}`);
+// ── Vercel config — enable body parsing for JSON payloads ─────────────────────
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb'
+    }
   }
-}
-
-async function getRegistry(username) {
-  const path = `schemas/${username}/jsonbuilder.config`;
-  const file = await getFile(path);
-  return file
-    ? { data: JSON.parse(file.content), sha: file.sha }
-    : { data: { entries: [] }, sha: null };
-}
+};
 
 // ── Request router ────────────────────────────────────────────────────────────
 
 export default async function handler(req, res) {
 
-  // ── CORS headers ────────────────────────────────────────────────────────────
+  // ── CORS headers ──────────────────────────────────────────────────────────── 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, x-username');
 
-  // Handle preflight request (browser sends OPTIONS before POST/DELETE)
+  // Handle preflight request
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  // Validate env vars
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    console.error('❌ SUPABASE_URL or SUPABASE_KEY missing');
+    return res.status(500).json({ error: 'Server misconfigured: Supabase credentials missing' });
   }
 
   // Every request must identify the user
@@ -78,29 +50,59 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'x-username header is required' });
   }
 
-  // Validate environment variables are set
-  if (!REPO || !TOKEN) {
-    return res.status(500).json({ error: 'Server misconfigured: GITHUB_REPO or GITHUB_TOKEN missing' });
-  }
+  console.log(`🔑 Request — user: "${username}", method: ${req.method}`);
+
+  // Create Supabase client per request
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
   const { method } = req;
-  const filename   = req.query.file || null;  // e.g. ?file=member-schema.json
+  const filename   = req.query.file || null;
 
   try {
 
     // ── GET /api/schemas ──────────────────────────────────────────────────────
     // Returns the user's registry entries list
     if (method === 'GET' && !filename) {
-      const { data } = await getRegistry(username);
-      return res.status(200).json(data);
+      const { data, error } = await supabase
+        .from('schemas')
+        .select('schema_name, options_name, description, saved_at')
+        .eq('username', username)
+        .order('saved_at', { ascending: false });
+
+      if (error) throw new Error(error.message);
+
+      // Map to expected format
+      const entries = (data || []).map(row => ({
+        schema:      row.schema_name,
+        options:     row.options_name,
+        description: row.description,
+        savedAt:     row.saved_at
+      }));
+
+      return res.status(200).json({ entries });
     }
 
     // ── GET /api/schemas?file=name.json ───────────────────────────────────────
-    // Returns the content of a single schema or options file
+    // Returns content of a single schema or options file
     if (method === 'GET' && filename) {
-      const file = await getFile(`schemas/${username}/${filename}`);
-      if (!file) return res.status(404).json({ error: `File not found: ${filename}` });
-      return res.status(200).json(JSON.parse(file.content));
+      // Check schema_content first
+      const { data: schemaRow } = await supabase
+        .from('schemas')
+        .select('schema_name, schema_content, options_name, options_content')
+        .eq('username', username)
+        .or(`schema_name.eq.${filename},options_name.eq.${filename}`)
+        .single();
+
+      if (!schemaRow) {
+        return res.status(404).json({ error: `File not found: ${filename}` });
+      }
+
+      // Return the correct content based on which file was requested
+      const content = schemaRow.schema_name === filename
+        ? schemaRow.schema_content
+        : schemaRow.options_content;
+
+      return res.status(200).json(JSON.parse(content));
     }
 
     // ── POST /api/schemas ─────────────────────────────────────────────────────
@@ -108,59 +110,46 @@ export default async function handler(req, res) {
     if (method === 'POST') {
       const { schemaName, schemaContent,
               optionsName, optionsContent,
-              description } = req.body;
+              description } = req.body || {};
 
       if (!schemaName || !schemaContent) {
-        return res.status(400).json({ error: 'schemaName and schemaContent are required' });
+        return res.status(400).json({
+          error: 'schemaName and schemaContent are required',
+          receivedKeys: Object.keys(req.body || {})
+        });
       }
 
-      // Save schema file (update if exists)
-      const existingSchema = await getFile(`schemas/${username}/${schemaName}`);
-      await putFile(
-        `schemas/${username}/${schemaName}`,
-        schemaContent,
-        existingSchema?.sha || null
-      );
+      // Upsert — insert or update if same username + schema_name
+      const { error } = await supabase
+        .from('schemas')
+        .upsert({
+          username:        username,
+          schema_name:     schemaName,
+          options_name:    optionsName    || null,
+          description:     description   || schemaName,
+          schema_content:  schemaContent,
+          options_content: optionsContent || null,
+          saved_at:        new Date().toISOString()
+        }, {
+          onConflict: 'username, schema_name'
+        });
 
-      // Save options file if provided
-      if (optionsName && optionsContent) {
-        const existingOptions = await getFile(`schemas/${username}/${optionsName}`);
-        await putFile(
-          `schemas/${username}/${optionsName}`,
-          optionsContent,
-          existingOptions?.sha || null
-        );
-      }
-
-      // Update registry — replace existing entry if same schema name
-      const { data: registry, sha: regSha } = await getRegistry(username);
-      registry.entries = registry.entries.filter(e => e.schema !== schemaName);
-      registry.entries.push({
-        schema:      schemaName,
-        options:     optionsName || null,
-        description: description || schemaName,
-        savedAt:     new Date().toISOString()
-      });
-
-      await putFile(
-        `schemas/${username}/jsonbuilder.config`,
-        JSON.stringify(registry, null, 2),
-        regSha
-      );
+      if (error) throw new Error(error.message);
 
       return res.status(200).json({ status: 'saved' });
     }
 
     // ── DELETE /api/schemas?file=name.json ────────────────────────────────────
-    // Removes entry from registry (does not delete the file from repo)
+    // Removes entry from registry
     if (method === 'DELETE' && filename) {
-      const { data: registry, sha: regSha } = await getRegistry(username);
-      registry.entries = registry.entries.filter(e => e.schema !== filename);
-      await putFile(
-        `schemas/${username}/jsonbuilder.config`,
-        JSON.stringify(registry, null, 2),
-        regSha
-      );
+      const { error } = await supabase
+        .from('schemas')
+        .delete()
+        .eq('username', username)
+        .eq('schema_name', filename);
+
+      if (error) throw new Error(error.message);
+
       return res.status(200).json({ status: 'deleted' });
     }
 
