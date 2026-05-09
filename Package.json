@@ -1,7 +1,7 @@
 {
   "name": "json-data-builder",
   "version": "3.12.0",
-  "description": "JSON Data Builder – schema-driven form tool",
+  "description": "JSON Data Builder - schema-driven form tool",
   "type": "module",
   "main": "server.js",
   "scripts": {

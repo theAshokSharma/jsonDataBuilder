@@ -3,13 +3,14 @@
 // Schemas are stored per-user in the 'schemas' table
 
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
 
-// ── Load .env.local for local dev (no-op in production) ───────────────────────
-const __dirname = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: resolve(__dirname, '../.env.local') });
+// ── Load .env.local for local dev ─────────────────────────────────────────────
+// In production Vercel injects env vars automatically.
+// For local dev, `vercel dev` loads .env.local automatically too —
+// so dotenv is not needed here at all.
+// If you run the file directly with `node api/schemas.js`, add a
+// .env file at project root and uncomment the line below:
+// import 'dotenv/config';
 
 // ── Supabase client ───────────────────────────────────────────────────────────
 const SUPABASE_URL = process.env.SUPABASE_URL;
