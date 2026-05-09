@@ -2,14 +2,14 @@
   "functions": {
     "api/**/*.js": {
       "runtime": "nodejs18.x"
-    },
+    }
+  },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)",     "destination": "/index.html" }
+    { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
     {
-      "source": "/(.*)\\.js",
+      "source": "/src/(.*)\\.js",
       "headers": [
         { "key": "Content-Type", "value": "application/javascript" }
       ]
