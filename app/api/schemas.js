@@ -4,12 +4,12 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-
-import dotenv from 'dotenv';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
-const __dirname = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: resolve(__dirname, '../.env.local') });
+// uncomment the following lines to load environment variables from .env.local when running locally
+// import dotenv from 'dotenv';
+// import { resolve, dirname } from 'path';
+// import { fileURLToPath } from 'url';
+// const __dirname = dirname(fileURLToPath(import.meta.url));
+// dotenv.config({ path: resolve(__dirname, '../.env.local') });
 
 // ── Supabase client ───────────────────────────────────────────────────────────
 // Trim both values so stray whitespace / newlines in .env.local never
