@@ -27,6 +27,11 @@
         <button id="saveBtn"     class="header-button savefile-btn"   style="display:none;">💿 Save</button>
         <button id="exportBtn"   class="header-button savetoclip-btn" style="display:none;">📋 Clipboard</button>
         <button id="aboutBtn"    class="header-button about-btn">About</button>
+        <button id="profileBtn" class="header-button profile-btn" title="Profile">
+          <span class="profile-avatar">?</span>
+          <span class="profile-btn-name">Profile</span>
+          <span class="profile-chevron">▾</span>
+        </button>        
       </nav>
       <button id="hamburgerBtn" class="hamburger" aria-label="Toggle menu">☰</button>
     </header>
@@ -66,7 +71,7 @@
           <div class="config-step">
             <div class="step-content">
               <h3>Version &amp; Tech Stack</h3>
-              <p class="step-description">Version: 3.12<br>
+              <p class="step-description">Version: 3.15<br>
               Built with: HTML5, CSS3, Vanilla JavaScript (ES Modules)</p>
             </div>
           </div>
@@ -152,6 +157,7 @@
   <script type="module" src="file-operations.js"></script>
   <script type="module" src="storage-manager.js"></script>
   <script type="module" src="input-validation.js"></script>
+  <script type="module" src="profile-manager.js"></script> 
 </body>
 </html>
 <!-- END OF FILE -->
