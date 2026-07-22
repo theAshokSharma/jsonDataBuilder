@@ -167,35 +167,38 @@ function getFieldValue(fieldPath) {
  * @returns {{ value: string|null, label: string|null }}
  */
 function getDisabledDefault(fieldPath) {
-  const fieldType = getFieldTypeFromSchema(fieldPath);
+  // Explicit default_value takes priority — this is completely independent of
+  // disable_values (which only controls which options render as non-selectable
+  // in a dropdown/checkbox/radio list). default_value is the value STORED in
+  // the field itself once it is auto-disabled by a conditional rule.
+  const config = state.customOptions?.[fieldPath];
+  if (config && config.default_value !== undefined && config.default_value !== null) {
+    const defaultVal = config.default_value;
 
-  // NEW: A schema-defined "default" takes priority over all other fallbacks.
-  const schemaProp = getFieldSchemaProperty(fieldPath);
-  if (schemaProp && schemaProp.default !== undefined && schemaProp.default !== null) {
-    const defaultVal = schemaProp.default;
-
-    // Prefer a friendly label from the field's options list, if one matches.
-    const config = state.customOptions?.[fieldPath];
-    const optionsList = config?.values || [];
+    // Search the field's options list for a matching {value, label} pair,
+    // so dropdown/checkbox/radio fields display a friendly label.
+    const optionsList = config.values || [];
     const matchingOpt = optionsList.find(opt =>
       typeof opt === 'object' ? String(opt.value) === String(defaultVal) : String(opt) === String(defaultVal)
     );
 
     if (matchingOpt && typeof matchingOpt === 'object') {
-      return { value: matchingOpt.value, label: matchingOpt.label ?? matchingOpt.value };
+      return {
+        value: matchingOpt.value,
+        label: matchingOpt.label ?? matchingOpt.value
+      };
     }
+
+    // Plain value with no separate label (e.g. numeric fields like mbr_cig_a_day).
     return { value: defaultVal, label: String(defaultVal) };
   }
 
-  // ── existing logic below, unchanged ──
-  if (fieldType === 'integer' || fieldType === 'number' || fieldType === 'boolean') {
-    return { value: null, label: null };
-  }
+  // No default_value configured — fall back to type-based defaults.
+  const fieldType = getFieldTypeFromSchema(fieldPath);
 
   // Numeric / boolean / null sentinel — no label needed.
   if (fieldType === 'integer' || fieldType === 'number' || fieldType === 'boolean') {
     return { value: null, label: null };
-
   }
 
   // Date sentinel — value and label are the same ISO string.
@@ -203,30 +206,7 @@ function getDisabledDefault(fieldPath) {
     return { value: '1900-01-01', label: '1900-01-01' };
   }
 
-  // String / enum field — try to resolve from options config.
-  const config = state.customOptions?.[fieldPath];
-  if (config?.disable_values?.length > 0) {
-    const disableVal = config.disable_values[0]; // Use the first disable_values entry.
-
-    // Search the field's options list for a matching {value, label} pair.
-    const optionsList = config.values || [];
-    const matchingOpt = optionsList.find(opt =>
-      typeof opt === 'object' ? opt.value === disableVal : opt === disableVal
-    );
-
-    if (matchingOpt && typeof matchingOpt === 'object') {
-      // Found a value/label pair — return both.
-      return {
-        value: matchingOpt.value,
-        label: matchingOpt.label ?? matchingOpt.value
-      };
-    }
-
-    // disable_values entry is a plain string (no separate label).
-    return { value: disableVal, label: disableVal };
-  }
-
-  // Last resort: field has no options config at all.
+  // Last resort: field has no options config and no schema-inferable default.
   return { value: 'N/A', label: 'N/A' };
 }
 
@@ -823,33 +803,6 @@ function findDependentFieldElement(fieldPath) {
   return null;
 }
 
-
-/**
- * NEW: Returns the resolved schema property object for a field path
- * (handles $ref resolution), so callers can inspect keywords like "default".
- */
-function getFieldSchemaProperty(fieldPath) {
-  const keys = fieldPath.split('.');
-  let current = state.currentSchema.properties;
-
-  for (let i = 0; i < keys.length; i++) {
-    if (!current || !current[keys[i]]) return null;
-
-    let prop = current[keys[i]];
-
-    if (prop.$ref) {
-      prop = resolveRef(prop.$ref, state.currentSchema);
-      if (!prop) return null;
-    }
-
-    if (i === keys.length - 1) {
-      return prop;
-    }
-    current = prop.properties;
-  }
-
-  return null;
-}
 
 function getFieldTypeFromSchema(fieldPath) {
   const keys = fieldPath.split('.');
