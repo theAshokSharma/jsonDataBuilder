@@ -196,6 +196,29 @@ function getDisabledDefault(fieldPath) {
   // No default_value configured — fall back to type-based defaults.
   const fieldType = getFieldTypeFromSchema(fieldPath);
 
+  // NEW: A schema-defined "default" takes priority over all other fallbacks.
+  const schemaProp = getFieldSchemaProperty(fieldPath);
+  if (schemaProp && schemaProp.default !== undefined && schemaProp.default !== null) {
+    const defaultVal = schemaProp.default;
+
+    // Prefer a friendly label from the field's options list, if one matches.
+    const config = state.customOptions?.[fieldPath];
+    const optionsList = config?.values || [];
+    const matchingOpt = optionsList.find(opt =>
+      typeof opt === 'object' ? String(opt.value) === String(defaultVal) : String(opt) === String(defaultVal)
+    );
+
+    if (matchingOpt && typeof matchingOpt === 'object') {
+      return { value: matchingOpt.value, label: matchingOpt.label ?? matchingOpt.value };
+    }
+    return { value: defaultVal, label: String(defaultVal) };
+  }
+
+  // ── existing logic below, unchanged ──
+  if (fieldType === 'integer' || fieldType === 'number' || fieldType === 'boolean') {
+    return { value: null, label: null };
+  }
+
   // Numeric / boolean / null sentinel — no label needed.
   if (fieldType === 'integer' || fieldType === 'number' || fieldType === 'boolean') {
     return { value: null, label: null };
@@ -803,6 +826,33 @@ function findDependentFieldElement(fieldPath) {
   return null;
 }
 
+
+/**
+ * NEW: Returns the resolved schema property object for a field path
+ * (handles $ref resolution), so callers can inspect keywords like "default".
+ */
+function getFieldSchemaProperty(fieldPath) {
+  const keys = fieldPath.split('.');
+  let current = state.currentSchema.properties;
+
+  for (let i = 0; i < keys.length; i++) {
+    if (!current || !current[keys[i]]) return null;
+
+    let prop = current[keys[i]];
+
+    if (prop.$ref) {
+      prop = resolveRef(prop.$ref, state.currentSchema);
+      if (!prop) return null;
+    }
+
+    if (i === keys.length - 1) {
+      return prop;
+    }
+    current = prop.properties;
+  }
+
+  return null;
+}
 
 function getFieldTypeFromSchema(fieldPath) {
   const keys = fieldPath.split('.');
