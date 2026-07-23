@@ -1,1404 +1,574 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Options File Documentation - JSON Data Builder</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JSON Data Builder — Options File Reference</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+/* body: matches styles.css body — system UI stack, 14px/1.6, #333, #f5f5f5 */
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;font-size:14px;line-height:1.6;color:#333;background:#f5f5f5;display:flex;min-height:100vh}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
-            padding: 20px;
-        }
+/* ── Sidebar ── */
+#sidebar{width:190px;min-width:190px;background:#0033ff;position:fixed;top:0;left:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;z-index:100}
+#sidebar .brand{padding:18px 14px 14px;border-bottom:1px solid rgba(255,255,255,.2)}
+/* brand: mirrors .app-title — 24px / weight 600, scaled to 16px for sidebar width */
+#sidebar .brand .app{font-size:16px;font-weight:600;line-height:1.2;color:#fff;letter-spacing:.2px}
+/* tagline: mirrors .config-subtitle — 16px/weight 400, scaled to 11px */
+#sidebar .brand .tagline{font-size:11px;font-weight:400;color:#aad4ff;margin-top:3px}
+#sidebar nav{padding:10px 0 20px;flex:1}
+/* links: mirrors .profile-list-name — 13px / weight 500 */
+#sidebar nav a{display:block;padding:6px 14px;color:#aad4ff;font-size:13px;font-weight:500;text-decoration:none;border-left:3px solid transparent;transition:background .15s,color .15s,border-color .15s;line-height:1.6}
+#sidebar nav a:hover,#sidebar nav a.active{background:rgba(255,255,255,.12);color:#fff;border-left-color:#fff}
+/* group labels: mirrors .profile-section-label — 11px / weight 700 / 0.6px tracking / uppercase */
+#sidebar nav .grp{padding:10px 14px 4px;font-size:11px;font-weight:700;color:rgba(255,255,255,.45);letter-spacing:.6px;text-transform:uppercase}
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            overflow: hidden;
-        }
+/* ── Main ── */
+#main{margin-left:190px;flex:1;min-width:0}
+.hdr{text-align:center;padding:28px 32px 20px;background:#fff;border-bottom:1px solid #ddd}
+/* page title: mirrors .app-title — 24px / weight 600 */
+.hdr h1{font-size:24px;font-weight:600;line-height:1.2;color:#0033ff;margin:0 0 4px;border:none}
+/* subtitle: mirrors .config-subtitle — 16px / weight 400 */
+.hdr .sub{font-size:16px;font-weight:400;color:#666;margin:2px 0}
+/* version: mirrors .step-description — 14px / color #666 */
+.hdr .ver{font-size:14px;color:#666;margin-top:6px}
+.wrap{max-width:820px;padding:28px 32px 70px}
 
-        header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 40px;
-            text-align: center;
-        }
+/* ── Content typography ── */
+/* section h1: mirrors .step-content h3 — 18px / weight 600 / color #0033ff */
+h1{font-size:18px;font-weight:600;line-height:1.3;color:#0033ff;border-bottom:2px solid #0033ff;padding-bottom:5px;margin:32px 0 12px;scroll-margin-top:20px}
+h1:first-of-type{margin-top:0}
+/* sub h2: mirrors .nested-object-header — 15px / weight 600 / color #333 */
+h2{font-size:15px;font-weight:600;line-height:1.3;color:#333;margin:18px 0 7px}
+/* paragraphs: base 14px from body, matching form-group label size */
+p{margin:7px 0;font-size:14px}
+/* code blocks: mirrors .json-container — 'Courier New', monospace */
+pre{background:#1a1a1a;color:#d4d4d4;padding:12px 14px;border-radius:4px;overflow-x:auto;font-family:'Courier New',monospace;font-size:14px;line-height:1.6;margin:8px 0;tab-size:2}
+/* notes/warnings: mirrors .step-description — 14px / color #666, error uses --error-color #d32f2f */
+.note{background:#fff8e1;border-left:4px solid #f5a623;padding:8px 12px;margin:10px 0;font-size:14px;color:#333;border-radius:0 4px 4px 0}
+.warn{background:#fff3f3;border-left:4px solid #d32f2f;padding:8px 12px;margin:10px 0;font-size:14px;color:#333;border-radius:0 4px 4px 0}
+/* tables: 14px matching form-group label; font-weight 600 on th matches label weight */
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+th{background:#e8eeff;color:#0033ff;text-align:left;padding:6px 10px;border:1px solid #b0bfff;font-weight:600}
+td{padding:6px 10px;border:1px solid #ddd;vertical-align:top;color:#333}
+tr:nth-child(even) td{background:#f9f9f9}
+/* inline code: mirrors .form-group .description size (12px → bumped to 13px); bg matches --background-color #f5f5f5; error color #d32f2f */
+code{font-family:'Courier New',monospace;font-size:14px;background:#f5f5f5;padding:1px 5px;border-radius:3px;color:#d32f2f;border:1px solid #e0e0e0}
 
-        header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-
-        header p {
-            font-size: 1.2em;
-            opacity: 0.95;
-            color: white;
-        }
-
-        
-        .content {
-            padding: 40px;
-        }
-
-        nav {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 30px;
-            position: sticky;
-            top: 20px;
-            z-index: 100;
-        }
-
-        nav h3 {
-            margin-bottom: 15px;
-            color: #667eea;
-        }
-
-        .info-box {
-            background: #e3f2fd;
-            border-left: 4px solid #2196f3;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 6px;
-        }
-
-        .info-box strong {
-            color: #1565c0;
-        }
-
-        .info-box li {
-            margin: 5px 0;
-            padding-left: 25px;
-            list-style-position: inside;
-
-        }
-        nav ul {
-            list-style: none;
-        }
-
-        nav ul li {
-            margin: 8px 0;
-        }
-
-        nav ul li a {
-            color: #555;
-            text-decoration: none;
-            padding: 5px 10px;
-            display: block;
-            border-radius: 4px;
-            transition: all 0.3s;
-        }
-
-        nav ul li a:hover {
-            background: #667eea;
-            color: white;
-            padding-left: 20px;
-        }
-
-        section {
-            margin: 40px 0;
-            scroll-margin-top: 100px;
-        }
-
-        h2 {
-            color: #4261e9;
-            margin: 30px 0 20px;
-            padding-bottom: 10px;
-            border-bottom: 3px solid #5570e7;
-            font-size: 2em;
-        }
-
-        h3 {
-            color: #6e3d9e;
-            margin: 25px 0 15px;
-            font-size: 1.5em;
-        }
-
-        h4 {
-            color: #555;
-            margin: 20px 0 10px;
-            font-size: 1.2em;
-        }
-
-        p {
-            margin: 15px 0;
-            color: #555;
-        }
-
-        .code-block {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            padding: 20px;
-            border-radius: 8px;
-            overflow-x: auto;
-            margin: 20px 0;
-            position: relative;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .code-block pre {
-            margin: 0;
-            font-family: 'Courier New', monospace;
-            font-size: 0.95em;
-            line-height: 1.5;
-        }
-
-        .copy-btn {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: #667eea;
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 0.85em;
-            transition: all 0.3s;
-        }
-
-        .copy-btn:hover {
-            background: #5568d3;
-            transform: translateY(-2px);
-        }
-
-        .copy-btn:active {
-            transform: translateY(0);
-        }
-
-        .feature-card {
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            padding: 20px;
-            border-radius: 8px;
-            margin: 20px 0;
-            border-left: 4px solid #667eea;
-        }
-
-        .feature-card h4 {
-            color: #667eea;
-            margin-top: 0;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        table th {
-            background: #667eea;
-            color: white;
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-        }
-
-        table td {
-            padding: 12px;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        table tr:hover {
-            background: #f8f9fa;
-        }
-
-        .note {
-            background: #fff3cd;
-            border-left: 4px solid #ffc107;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-
-        .note strong {
-            color: #856404;
-        }
-
-        .warning {
-            background: #f8d7da;
-            border-left: 4px solid #dc3545;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-
-        .warning strong {
-            color: #721c24;
-        }
-
-        .tip {
-            background: #d1ecf1;
-            border-left: 4px solid #17a2b8;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 4px;
-        }
-
-        .tip strong {
-            color: #0c5460;
-        }
-
-        footer {
-            background: #2c3e50;
-            color: white;
-            text-align: center;
-            padding: 20px;
-            margin-top: 40px;
-        }
-
-        .back-to-top {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            background: #667eea;
-            color: white;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-            transition: all 0.3s;
-            opacity: 0;
-            pointer-events: none;
-        }
-
-        .back-to-top.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-
-        .back-to-top:hover {
-            background: #5568d3;
-            transform: translateY(-5px);
-        }
-
-        @media (max-width: 768px) {
-            .content {
-                padding: 20px;
-            }
-
-            header h1 {
-                font-size: 1.8em;
-            }
-
-            h2 {
-                font-size: 1.5em;
-            }
-        }
-    </style>
+/* ── Responsive collapse ── */
+#tog{display:none;position:fixed;top:10px;left:10px;z-index:200;background:#0033ff;color:#fff;border:none;border-radius:4px;padding:6px 10px;font-size:18px;cursor:pointer;line-height:1}
+@media(max-width:700px){
+  #tog{display:block}
+  #sidebar{transform:translateX(-190px);transition:transform .25s}
+  #sidebar.open{transform:translateX(0)}
+  #main{margin-left:0}
+}
+</style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>📋 Options File Documentation</h1>
-            <p>Complete guide to creating custom options files for JSON Data Builder</p>
-        </header>
 
-        <div class="content">
-            <nav>
-                <h3>📑 Table of Contents</h3>
-                <ul>
-                    <li><a href="#overview">Overview</a></li>
-                    <li><a href="#structure">File Structure</a></li>
-                    <li><a href="#input-controls">Input Controls</a></li>
-                    <li><a href="#dropdown">Drop-down Lists</a></li>
-                    <li><a href="#checkbox">Check Boxes</a></li>
-                    <li><a href="#radio">Radio Buttons</a></li>
-                    <li><a href="#slider">Sliders</a></li>
-                    <li><a href="#datetime">Date-Time Pickers</a></li>
-                    <li><a href="#values">Values Configuration</a></li>
-                    <li><a href="#advanced">Advanced Features</a></li>
-                    <li><a href="#conditional">Conditional Rules</a></li>
-                    <li><a href="#examples">Complete Examples</a></li>
-                </ul>
-            </nav>
+<button id="tog" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
 
-            <section id="overview">
-                <h2>🎯 Overview</h2>
-                <p>
-                    The options file is a JSON configuration file that defines custom input controls, validation rules, 
-                    and behavior for your form fields. It works alongside your JSON schema to provide a rich, interactive 
-                    form-building experience.
-                </p>
-                <div class="tip">
-                    <strong>💡 Tip:</strong> The options file is optional but highly recommended for better user experience 
-                    and data validation.
-                </div>
-                <div class="info-box">
-                    <strong>💡 Key Benefits:</strong>
-                    <ul>
-                        <li>Define custom dropdown options for form fields</li>
-                        <li>Control single vs. multi-select behavior</li>
-                        <li>Define input controls such as sliders, date-time pickers, etc.</li>
-                        <li>Implement dynamic field dependencies</li>
-                        <li>Create conditional enable/disable logic</li>
-                        <li>Add exclusive selection options</li>
-                    </ul>
-                </div>                
-            </section>
+<aside id="sidebar">
+  <div class="brand">
+    <div class="app">JSON Data Builder</div>
+    <div class="tagline">Options File Reference</div>
+  </div>
+  <nav>
+    <div class="grp">Getting Started</div>
+    <a href="#s1">1. Overview</a>
+    <a href="#s2">2. File Structure</a>
+    <a href="#s3">3. Properties</a>
+    <div class="grp">Input Controls</div>
+    <a href="#s4">4. Control Types</a>
+    <a href="#s5">5. Values Format</a>
+    <div class="grp">Features</div>
+    <a href="#s6">6. Special Options</a>
+    <a href="#s7">7. Dependent Values</a>
+    <a href="#s8">8. Conditional Rules</a>
+    <a href="#s9">9. Shared Lists</a>
+    <div class="grp">Reference</div>
+    <a href="#s10">10. Naming</a>
+    <a href="#s11">11. Schema Template</a>
+    <a href="#s12">12. Options Template</a>
+    <a href="#s13">13. Troubleshoot</a>
+    <a href="#s14">14. Quick Ref</a>
+  </nav>
+</aside>
 
-            <section id="structure">
-                <h2>📐 File Structure</h2>
-                <p>An options file consists of field configurations mapped to schema paths:</p>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "field.path.name": {
-    "values": ["default1", "default2"],
-    "input_control": "drop-down",
-    "response_type": "single-select",
-    "dependent_values": {
-      "trigger_field": {
-        "value1": ["opt1", "opt2"],
-        "value2": {                    
-          "values": ["opt3", "opt4"],
-          "input_control": "radio-button",
-          "response_type": "single-select"
-        }
+<div id="main">
+  <div class="hdr">
+    <h1>JSON Data Builder</h1>
+    <div class="sub">Options File Reference Guide</div>
+    <div class="sub">How to create and configure options.json</div>
+    <div class="ver">Version .1</div>
+  </div>
+
+  <div class="wrap">
+
+<h1 id="s1">1. What is the Options File?</h1>
+<p>The <code>options.json</code> file is an optional companion to your schema file. While <code>schema.json</code> defines data structure and field types, the options file controls how fields are <em>presented</em> — what input control to use, what values are available, and how fields interact.</p>
+<p>Without an options file every field renders as a plain text or number input. The options file upgrades these to dropdowns, checkboxes, radio buttons, sliders, and date pickers, and adds dependent dropdowns, conditional field hiding, and shared value lists.</p>
+<table>
+<tr><th>File</th><th>Purpose</th><th>Required?</th></tr>
+<tr><td><code>schema.json</code></td><td>Defines fields, types, validation rules</td><td>Yes</td></tr>
+<tr><td><code>options.json</code></td><td>Controls UI — input types, choices, dependencies</td><td>No (but recommended)</td></tr>
+<tr><td><code>data.json</code></td><td>The actual data being edited or created</td><td>No (new record)</td></tr>
+</table>
+
+<h1 id="s2">2. Top-Level File Structure</h1>
+<p>An <code>options.json</code> is a JSON object. Top-level keys correspond to field paths in your schema, plus two special reserved keys:</p>
+<pre>{
+  "_lists": { ... },            // Optional: shared value lists
+  "conditional_rules": { ... }, // Optional: field-disable logic
+
+  "fieldPath": {                // One entry per field to configure
+    "input_control": "...",
+    "response_type": "...",
+    "values": [ ... ]
+  },
+
+  "section.fieldPath": { ... }  // Nested fields use dot notation
+}</pre>
+<div class="note">&#x2139;&#xFE0F; <strong>Naming:</strong> The key must exactly match the field path in <code>schema.json</code>. For nested fields use dot notation: <code>"demographic.mbr_first_name"</code>. Typos silently ignore the config.</div>
+
+<h1 id="s3">3. Field Configuration Properties</h1>
+<table>
+<tr><th>Property</th><th>Type</th><th>Required</th><th>Description</th></tr>
+<tr><td><code>input_control</code></td><td>string</td><td>Yes</td><td>The UI widget to render</td></tr>
+<tr><td><code>response_type</code></td><td>string</td><td>Dropdowns only</td><td><code>single-select</code> or <code>multi-select</code></td></tr>
+<tr><td><code>values</code></td><td>array</td><td>Usually yes</td><td>The selectable option values</td></tr>
+<tr><td><code>na</code></td><td>string / object</td><td>No</td><td>An explicit "Not Applicable" option</td></tr>
+<tr><td><code>exclusive_values</code></td><td>array</td><td>No</td><td>Values that clear all others when selected</td></tr>
+<tr><td><code>disable_values</code></td><td>array</td><td>No</td><td>Visible but not user-selectable</td></tr>
+<tr><td><code>dependent_values</code></td><td>object</td><td>No</td><td>Options that change based on another field</td></tr>
+</table>
+
+<h1 id="s4">4. Input Control Types</h1>
+
+<h2>4.1 drop-down</h2>
+<p>Renders a dropdown list. Use <code>response_type</code> to choose single or multi-value selection.</p>
+<pre>"marital_status": {
+  "input_control": "drop-down",
+  "response_type": "single-select",
+  "values": [
+    { "value": "S", "label": "Single" },
+    { "value": "M", "label": "Married" },
+    { "value": "D", "label": "Divorced" }
+  ]
+}
+
+"allergies": {
+  "input_control": "drop-down",
+  "response_type": "multi-select",
+  "values": [
+    { "value": "PEANUT", "label": "Peanuts" },
+    { "value": "DAIRY",  "label": "Dairy"   }
+  ]
+}</pre>
+
+<h2>4.2 check-box</h2>
+<p>Scrollable checkbox list. Always stores an array regardless of <code>response_type</code>.</p>
+<pre>"symptoms": {
+  "input_control": "check-box",
+  "values": [
+    { "value": "FEVER", "label": "Fever" },
+    { "value": "COUGH", "label": "Cough" },
+    { "value": "NONE",  "label": "None"  }
+  ],
+  "exclusive_values": ["NONE"]
+}</pre>
+
+<h2>4.3 radio-button</h2>
+<p>List of radio buttons. Always stores a single value.</p>
+<pre>"gender": {
+  "input_control": "radio-button",
+  "values": [
+    { "value": "M", "label": "Male"   },
+    { "value": "F", "label": "Female" },
+    { "value": "O", "label": "Other"  }
+  ]
+}</pre>
+
+<h2>4.4 date-time-picker</h2>
+<p>Native date / datetime-local / time picker. Format is derived from the schema field's <code>format</code> property (<code>date</code>, <code>date-time</code>, or <code>time</code>). No <code>values</code> array needed.</p>
+<pre>"birth_date": { "input_control": "date-time-picker" }
+
+"appt_time": {
+  "input_control": "date-time-picker"
+  // Schema must have "format": "date-time" or "format": "time"
+}</pre>
+
+<h2>4.5 slider</h2>
+<p>Range slider. The <code>values</code> array defines numeric endpoints; min, max, and step are calculated automatically.</p>
+<pre>"pain_scale": {
+  "input_control": "slider",
+  "values": ["0", "10"]    // min=0, max=10, step=1
+}</pre>
+
+<h1 id="s5">5. Values Format</h1>
+<p>The <code>values</code> array supports three formats (mixable):</p>
+
+<h2>5.1 Value / Label Object (recommended)</h2>
+<p>Stores the code; displays the label. The saved data file contains codes, not labels.</p>
+<pre>"values": [
+  { "value": "CK001", "label": "Yes"     },
+  { "value": "CK002", "label": "No"      },
+  { "value": "CK003", "label": "Unknown" }
+]</pre>
+
+<h2>5.2 Plain String</h2>
+<p>Same string used as both stored value and displayed label.</p>
+<pre>"values": ["Active", "Inactive", "Pending"]</pre>
+
+<h2>5.3 Numeric Range Shorthand</h2>
+<p>Expands <code>"start-end"</code> into consecutive integers — useful for age, year, or score fields.</p>
+<pre>"values": ["1900-2024"]   // expands to 1900, 1901, ... 2024
+"values": ["0-100"]       // 101 options</pre>
+<div class="warn">&#x26A0;&#xFE0F; <strong>Consistency:</strong> <code>exclusive_values</code>, <code>disable_values</code>, and <code>dependent_values</code> keys must use the same value codes as <code>values</code> — not the label strings.</div>
+
+<h1 id="s6">6. Special Option Features</h1>
+
+<h2>6.1 exclusive_values</h2>
+<p>Selecting an exclusive value clears all other selections. Typical use: "None of the above", "N/A", "Unknown".</p>
+<pre>"chronic_conditions": {
+  "input_control": "check-box",
+  "values": [
+    { "value": "DIA", "label": "Diabetes"    },
+    { "value": "HTN", "label": "Hypertension"},
+    { "value": "NA",  "label": "None"        },
+    { "value": "UNK", "label": "Unknown"     }
+  ],
+  "exclusive_values": ["NA", "UNK"]
+}</pre>
+
+<h2>6.2 disable_values</h2>
+<p>Always shown at the bottom of the list (with a visual separator) but not user-selectable. Used for legacy or system-set values that may appear in loaded data — once cleared they cannot be re-selected.</p>
+<pre>"tobacco_status": {
+  "input_control": "drop-down",
+  "response_type": "single-select",
+  "values": [
+    { "value": "SMOKER", "label": "Current Smoker" },
+    { "value": "NEVER",  "label": "Never Smoked"   }
+  ],
+  "disable_values": [
+    { "value": "LEGACY", "label": "Legacy Record (not re-selectable)" }
+  ]
+}</pre>
+<div class="note">&#x2139;&#xFE0F; If loaded data contains a <code>disable_values</code> entry the app displays it as selected. Once the user changes the field it cannot be re-selected.</div>
+
+<h2>6.3 na — Explicit Not-Applicable</h2>
+<p>Adds a dedicated N/A option stored separately from normal values. Behaves as exclusive in multi-select.</p>
+<pre>"secondary_diagnosis": {
+  "input_control": "drop-down",
+  "response_type": "multi-select",
+  "values": [ { "value": "D01", "label": "Condition A" } ],
+  "na": { "value": "NA", "label": "Not Applicable" }
+}</pre>
+
+<h1 id="s7">7. Dependent Values</h1>
+<p>A field's options change dynamically based on another field's current value.</p>
+
+<h2>7.1 Basic Dependent Dropdown</h2>
+<pre>"country": {
+  "input_control": "drop-down",
+  "response_type": "single-select",
+  "values": [
+    { "value": "US", "label": "United States" },
+    { "value": "CA", "label": "Canada"        }
+  ]
+},
+"state_province": {
+  "input_control": "drop-down",
+  "response_type": "single-select",
+  "values": [],                    // empty by default; filled by trigger
+  "dependent_values": {
+    "country": {                   // trigger field name
+      "US": [
+        { "value": "CA", "label": "California" },
+        { "value": "TX", "label": "Texas"      },
+        { "value": "NY", "label": "New York"   }
+      ],
+      "CA": [
+        { "value": "ON", "label": "Ontario"          },
+        { "value": "BC", "label": "British Columbia" }
+      ]
+    }
+  }
+}</pre>
+
+<h2>7.2 Dependent Values with Input Control Override</h2>
+<p>Each trigger value can supply its own <code>input_control</code> and <code>response_type</code>, changing the dependent field's widget type.</p>
+<pre>"diagnosis_code": {
+  "input_control": "drop-down",
+  "response_type": "single-select",
+  "values": [],
+  "dependent_values": {
+    "diagnosis_type": {
+      "SINGLE": {
+        "input_control": "radio-button",
+        "values": [ { "value": "D01", "label": "Code A" } ]
+      },
+      "MULTI": {
+        "input_control": "check-box",
+        "values": [
+          { "value": "D01", "label": "Code A" },
+          { "value": "D02", "label": "Code B" }
+        ]
       }
     }
+  }
+}</pre>
+<div class="note">&#x2139;&#xFE0F; When the trigger changes, the dependent field resets and options refresh. When loading data, the app pre-initializes dependent options before populating values.</div>
+
+<h1 id="s8">8. Conditional Rules</h1>
+<p>Automatically disables (greys out) fields when specific conditions are met. Disabled fields are cleared and cannot be interacted with.</p>
+<pre>"conditional_rules": {
+  "triggerField": [
+    {
+      "value": "TRIGGER_VALUE",
+      "disable_fields": ["field_a", "section.field_b"]
+    }
+  ]
+}</pre>
+
+<h2>8.1 Example — Smoking History</h2>
+<pre>"conditional_rules": {
+  "tobacco_status": [
+    {
+      "value": "NEVER",
+      "disable_fields": ["cig_per_day", "smoking_start_year", "pack_years"]
+    }
+  ]
+}</pre>
+
+<h2>8.2 Multiple Conditions on the Same Trigger</h2>
+<pre>"conditional_rules": {
+  "employment_status": [
+    { "value": "RETIRED",    "disable_fields": ["employer_name", "work_hours"] },
+    { "value": "UNEMPLOYED", "disable_fields": ["employer_name", "work_hours", "industry"] }
+  ]
+}</pre>
+<div class="warn">&#x26A0;&#xFE0F; A field is disabled if <em>any</em> matching condition targets it, and re-enabled only if <em>no</em> active condition targets it. Conditions can safely overlap.</div>
+
+<h1 id="s9">9. Shared Value Lists (_lists)</h1>
+<p>Define repeated value sets once and reference them with <code>$ref</code> or the <code>##</code> shorthand.</p>
+<pre>{
+  "_lists": {
+    "yesNoUnknown": [
+      { "value": "Y",   "label": "Yes"     },
+      { "value": "N",   "label": "No"      },
+      { "value": "UNK", "label": "Unknown" }
+    ]
   },
+  "has_diabetes":    { "input_control": "radio-button", "values": { "$ref": "#/_lists/yesNoUnknown" } },
+  "has_hypertension":{ "input_control": "radio-button", "values": { "$ref": "#/_lists/yesNoUnknown" } }
+}
+
+// In dependent_values use the ## shorthand:
+"state": {
+  "dependent_values": {
+    "country": { "US": "##usStates" }
+  }
+}</pre>
+
+<h1 id="s10">10. Naming Convention</h1>
+<p>The app auto-detects the options file by replacing <code>schema</code> with <code>options</code> in the filename (case-insensitive):</p>
+<table>
+<tr><th>Schema Filename</th><th>Expected Options Filename</th></tr>
+<tr><td>patient-schema.json</td><td>patient-options.json</td></tr>
+<tr><td>insurance-schema.json</td><td>insurance-options.json</td></tr>
+<tr><td>claim_schema.json</td><td>claim_options.json</td></tr>
+<tr><td>my-data-schema.json</td><td>my-data-options.json</td></tr>
+</table>
+
+<h1 id="s11">11. Generic Schema Template</h1>
+<p>Copy and modify this as your starting point. It demonstrates every field type the options file can configure.</p>
+<pre>{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Patient Record",
+  "type": "object",
+  "required": ["patient_id", "first_name", "last_name", "dob", "gender"],
+  "properties": {
+    "patient_id":        { "title": "Patient ID",          "type": "string"                          },
+    "first_name":        { "title": "First Name",          "type": "string"                          },
+    "last_name":         { "title": "Last Name",           "type": "string"                          },
+    "dob":               { "title": "Date of Birth",       "type": "string",  "format": "date"       },
+    "age":               { "title": "Age",                 "type": "integer", "minimum": 0, "maximum": 130 },
+    "gender":            { "title": "Gender",              "type": "string"                          },
+    "country":           { "title": "Country",             "type": "string"                          },
+    "state_province":    { "title": "State / Province",    "type": "string"                          },
+    "marital_status":    { "title": "Marital Status",      "type": "string"                          },
+    "tobacco_status":    { "title": "Tobacco Use Status",  "type": "string"                          },
+    "cig_per_day":       { "title": "Cigarettes Per Day",  "type": "integer", "minimum": 0           },
+    "smoking_start_year":{ "title": "Smoking Start Year",  "type": "integer"                         },
+    "chronic_conditions":{ "title": "Chronic Conditions",  "type": "array",   "items": { "type": "string" } },
+    "has_diabetes":      { "title": "Has Diabetes?",       "type": "string"                          },
+    "has_hypertension":  { "title": "Has Hypertension?",   "type": "string"                          },
+    "pain_scale":        { "title": "Current Pain (0-10)", "type": "integer", "minimum": 0, "maximum": 10  }
+  }
+}</pre>
+
+<h1 id="s12">12. Generic Options Template</h1>
+<div class="note">&#x2139;&#xFE0F; Save as <code>generic-options.json</code> (or <code>patient-options.json</code> if your schema is <code>patient-schema.json</code>). Load both through the &#9881;&#65039; Config dialog.</div>
+<pre>{
+  "_lists": {
+    "yesNoUnknown": [
+      { "value": "Y",   "label": "Yes"     },
+      { "value": "N",   "label": "No"      },
+      { "value": "UNK", "label": "Unknown" }
+    ]
+  },
+
   "conditional_rules": {
-      "field.path.name": [
-          {
-              "value": "some value",
-              "disable_fields": [
-                  "field1.path.name",
-                  "field2.path.name",
-                  "field3.path.name"
-              ]
-          },
-          {
-              "value": "some other value",
-              "disable_fields": [
-                  "field5.path.name",
-                  "field6.path.name"
-              ]
-          }
-        ]
-  }
-}</pre>
-                </div>
-
-                <h3>Required Properties</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Property</th>
-                            <th>Type</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>input_control</code></td>
-                            <td>string</td>
-                            <td>Type of input control: "drop-down", "check-box", "radio-button", "slider", "date-time-picker"</td>
-                        </tr>
-                        <tr>
-                            <td><code>values</code></td>
-                            <td>array</td>
-                            <td>List of available options (strings or objects with value/label)</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <h3>Optional Properties</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Property</th>
-                            <th>Type</th>
-                            <th>Applies To</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>response_type</code></td>
-                            <td>string</td>
-                            <td>drop-down only</td>
-                            <td>"single-select" or "multi-select"</td>
-                        </tr>
-                        <tr>
-                            <td><code>na</code></td>
-                            <td>string</td>
-                            <td>all</td>
-                            <td>Value for "Not Applicable" option</td>
-                        </tr>
-                        <tr>
-                            <td><code>exclusive_values</code></td>
-                            <td>array</td>
-                            <td>multi-select</td>
-                            <td>Values that deselect all others when chosen</td>
-                        </tr>
-                        <tr>
-                            <td><code>dependent_values</code></td>
-                            <td>object</td>
-                            <td>all</td>
-                            <td>Dynamic options based on another field</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
-
-            <section id="input-controls">
-                <h2>🎛️ Input Controls</h2>
-                <p>The JSON Data Builder supports five types of input controls, each optimized for different use cases.</p>
-            </section>
-
-            <section id="dropdown">
-                <h2>📋 Drop-down Lists</h2>
-                <p>Drop-down lists are ideal for selecting from a predefined list of options.</p>
-
-                <h3>Single-Select Drop-down</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "demographic.country": {
-    "input_control": "drop-down",
-    "response_type": "single-select",
-    "values": ["USA", "Canada", "Mexico", "UK"],
-    "na": "Prefer not to say"
-  }
-}</pre>
-                </div>
-
-                <h3>Multi-Select Drop-down</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "medical_history.conditions": {
-    "input_control": "drop-down",
-    "response_type": "multi-select",
-    "values": [
-      "Diabetes",
-      "Hypertension",
-      "Heart Disease",
-      "Asthma",
-      "None of the above"
-    ],
-    "exclusive_values": ["None of the above", "N/A"],
-    "na": "N/A"
-  }
-}</pre>
-                </div>
-
-                <div class="note">
-                    <strong>Note:</strong> The <code>response_type</code> property only applies to drop-down controls. 
-                    For other input types, it is ignored.
-                </div>
-            </section>
-
-            <section id="checkbox">
-                <h2>☑️ Check Boxes</h2>
-                <p>Check boxes allow multiple selections and are displayed as a list of checkable items.</p>
-
-                <h3>Basic Check Box</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "preferences.notifications": {
-    "input_control": "check-box",
-    "values": [
-      "Email notifications",
-      "SMS notifications",
-      "Push notifications",
-      "Newsletter"
+    "tobacco_status": [
+      { "value": "NEVER", "disable_fields": ["cig_per_day", "smoking_start_year"] }
     ]
-  }
-}</pre>
-                </div>
+  },
 
-                <h3>Check Box with Labels</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "lifestyle.activities": {
-    "input_control": "check-box",
-    "values": [
-      { "value": "running", "label": "Running/Jogging" },
-      { "value": "swimming", "label": "Swimming" },
-      { "value": "cycling", "label": "Cycling/Biking" },
-      { "value": "gym", "label": "Gym Workouts" },
-      { "value": "yoga", "label": "Yoga/Pilates" }
-    ],
-    "na": "None"
-  }
-}</pre>
-                </div>
+  "dob":        { "input_control": "date-time-picker" },
+  "age":        { "input_control": "slider", "values": ["0", "130"] },
+  "pain_scale": { "input_control": "slider", "values": ["0", "10"]  },
 
-                <h3>Check Box with Exclusive Values</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "medical_history.allergies": {
-    "input_control": "check-box",
-    "values": [
-      "Peanuts",
-      "Shellfish",
-      "Dairy",
-      "Eggs",
-      "Soy",
-      "No known allergies"
-    ],
-    "exclusive_values": ["No known allergies"]
-  }
-}</pre>
-                </div>
-
-                <div class="tip">
-                    <strong>💡 Tip:</strong> Use check boxes when users need to see all options at once and may select multiple items.
-                </div>
-            </section>
-
-            <section id="radio">
-                <h2>🔘 Radio Buttons</h2>
-                <p>Radio buttons allow single selection from a group of mutually exclusive options.</p>
-
-                <h3>Basic Radio Buttons</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "demographic.gender": {
-    "input_control": "radio-button",
-    "values": ["Male", "Female", "Non-binary", "Prefer not to say"]
-  }
-}</pre>
-                </div>
-
-                <h3>Radio Buttons with Value/Label Pairs</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "survey.satisfaction": {
+  "gender": {
     "input_control": "radio-button",
     "values": [
-      { "value": "5", "label": "Very Satisfied ⭐⭐⭐⭐⭐" },
-      { "value": "4", "label": "Satisfied ⭐⭐⭐⭐" },
-      { "value": "3", "label": "Neutral ⭐⭐⭐" },
-      { "value": "2", "label": "Dissatisfied ⭐⭐" },
-      { "value": "1", "label": "Very Dissatisfied ⭐" }
+      { "value": "M", "label": "Male"              },
+      { "value": "F", "label": "Female"            },
+      { "value": "O", "label": "Other"             },
+      { "value": "U", "label": "Prefer not to say" }
     ]
-  }
-}</pre>
-                </div>
+  },
 
-                <div class="note">
-                    <strong>Note:</strong> Radio buttons are best for 2-7 options. For more options, consider using a drop-down instead.
-                </div>
-            </section>
-
-            <section id="slider">
-                <h2>🎚️ Sliders</h2>
-                <p>Sliders provide a visual way to select a value from a continuous or discrete range.</p>
-
-                <h3>Numeric Range Slider</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "lifestyle.exercise_hours": {
-    "input_control": "slider",
-    "values": ["0-20"],
-    "min": 0,
-    "max": 20,
-    "step": 1,
-    "unit": "hours per week"
-  }
-}</pre>
-                </div>
-
-                <h3>Discrete Value Slider</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "assessment.pain_level": {
-    "input_control": "slider",
-    "values": [
-      { "value": "0", "label": "No Pain" },
-      { "value": "2", "label": "Mild" },
-      { "value": "5", "label": "Moderate" },
-      { "value": "8", "label": "Severe" },
-      { "value": "10", "label": "Worst Possible" }
-    ],
-    "min": 0,
-    "max": 10,
-    "step": 1
-  }
-}</pre>
-                </div>
-
-                <h3>Slider Properties</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Property</th>
-                            <th>Type</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>min</code></td>
-                            <td>number</td>
-                            <td>Minimum value (default: 0)</td>
-                        </tr>
-                        <tr>
-                            <td><code>max</code></td>
-                            <td>number</td>
-                            <td>Maximum value (default: 100)</td>
-                        </tr>
-                        <tr>
-                            <td><code>step</code></td>
-                            <td>number</td>
-                            <td>Increment value (default: 1)</td>
-                        </tr>
-                        <tr>
-                            <td><code>unit</code></td>
-                            <td>string</td>
-                            <td>Display unit (e.g., "hours", "kg", "%")</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
-
-            <section id="datetime">
-                <h2>📅 Date-Time Pickers</h2>
-                <p>Date-time pickers provide calendar interfaces for date and time selection.</p>
-
-                <h3>Date Picker</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "personal.date_of_birth": {
-    "input_control": "date-time-picker",
-    "format": "date",
-    "min": "1900-01-01",
-    "max": "2024-12-31"
-  }
-}</pre>
-                </div>
-
-                <h3>Date-Time Picker</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "appointment.scheduled_time": {
-    "input_control": "date-time-picker",
-    "format": "datetime-local",
-    "min": "2024-01-01T08:00",
-    "max": "2024-12-31T18:00"
-  }
-}</pre>
-                </div>
-
-                <h3>Time Picker</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "schedule.preferred_time": {
-    "input_control": "date-time-picker",
-    "format": "time",
-    "min": "08:00",
-    "max": "17:00"
-  }
-}</pre>
-                </div>
-
-                <h3>Date-Time Picker Properties</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Property</th>
-                            <th>Type</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>format</code></td>
-                            <td>string</td>
-                            <td>"date", "time", "datetime-local", "month", "week"</td>
-                        </tr>
-                        <tr>
-                            <td><code>min</code></td>
-                            <td>string</td>
-                            <td>Minimum allowed date/time</td>
-                        </tr>
-                        <tr>
-                            <td><code>max</code></td>
-                            <td>string</td>
-                            <td>Maximum allowed date/time</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </section>
-
-            <section id="values">
-                <h2>🏷️ Values Configuration</h2>
-                <p>The <code>values</code> property supports multiple formats for maximum flexibility.</p>
-
-                <h3>Simple String Values</h3>
-                <p>Use simple strings when the display text and stored value should be the same:</p>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "colors": {
-    "input_control": "check-box",
-    "values": ["Red", "Green", "Blue", "Yellow"]
-  }
-}</pre>
-                </div>
-
-                <h3>Value/Label Object Pairs</h3>
-                <p>Use objects with <code>value</code> and <code>label</code> properties when you need different stored values and display text:</p>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
   "country": {
     "input_control": "drop-down",
     "response_type": "single-select",
     "values": [
-      { "value": "US", "label": "United States 🇺🇸" },
-      { "value": "CA", "label": "Canada 🇨🇦" },
-      { "value": "MX", "label": "Mexico 🇲🇽" },
-      { "value": "UK", "label": "United Kingdom 🇬🇧" }
+      { "value": "US", "label": "United States"  },
+      { "value": "CA", "label": "Canada"         },
+      { "value": "GB", "label": "United Kingdom" }
     ]
-  }
-}</pre>
-                </div>
+  },
 
-                <h3>Range Notation</h3>
-                <p>Use range notation for numeric sequences:</p>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "age": {
+  "state_province": {
     "input_control": "drop-down",
     "response_type": "single-select",
-    "values": ["18-100"]
-  }
-}</pre>
-                </div>
-                <p>This expands to: ["18", "19", "20", ... "99", "100"]</p>
-
-                <h3>Mixed Formats</h3>
-                <p>You can mix different value formats in a single array:</p>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "education": {
-    "input_control": "radio-button",
-    "values": [
-      { "value": "hs", "label": "High School Diploma" },
-      { "value": "associate", "label": "Associate Degree" },
-      { "value": "bachelor", "label": "Bachelor's Degree" },
-      { "value": "master", "label": "Master's Degree" },
-      { "value": "doctorate", "label": "Doctorate/PhD" },
-      "Other"
-    ]
-  }
-}</pre>
-                </div>
-
-                <div class="warning">
-                    <strong>⚠️ Important:</strong> When using value/label objects, the <code>label</code> property must 
-                    immediately follow the <code>value</code> property in the object definition.
-                </div>
-            </section>
-
-            <section id="advanced">
-                <h2>🚀 Advanced Features</h2>
-
-                <h3>Exclusive Values</h3>
-                <p>Exclusive values automatically deselect all other options when selected. Useful for "None" or "N/A" options:</p>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "symptoms": {
-    "input_control": "check-box",
-    "values": [
-      "Fever",
-      "Cough",
-      "Headache",
-      "Fatigue",
-      "None of the above"
-    ],
-    "exclusive_values": ["None of the above"],
-    "na": "Prefer not to say"
-  }
-}</pre>
-                </div>
-
-                <h3>Dependent Values</h3>
-                <p>Dependent values dynamically change options based on another field's value:</p>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "demographic.gender": {
-    "input_control": "radio-button",
-    "values": ["Male", "Female"]
-  },
-  "medical_history.cancer_types": {
-    "input_control": "check-box",
-    "values": [
-      "Breast Cancer",
-      "Prostate Cancer",
-      "Lung Cancer",
-      "Colorectal Cancer"
-    ],
+    "values": [],
     "dependent_values": {
-      "demographic.gender": {
-        "Male": [
-          "Prostate Cancer",
-          "Lung Cancer",
-          "Colorectal Cancer"
+      "country": {
+        "US": [
+          { "value": "CA", "label": "California" },
+          { "value": "TX", "label": "Texas"      },
+          { "value": "NY", "label": "New York"   }
         ],
-        "Female": [
-          "Breast Cancer",
-          "Lung Cancer",
-          "Colorectal Cancer",
-          "Ovarian Cancer"
+        "CA": [
+          { "value": "ON", "label": "Ontario"          },
+          { "value": "BC", "label": "British Columbia" }
+        ],
+        "GB": [
+          { "value": "ENG", "label": "England"  },
+          { "value": "SCO", "label": "Scotland" },
+          { "value": "WAL", "label": "Wales"    }
         ]
       }
     }
-  }
-}</pre>
-                </div>
+  },
 
-                <h3>N/A Option</h3>
-                <p>The <code>na</code> property adds a special "Not Applicable" option:</p>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "employment.industry": {
+  "marital_status": {
     "input_control": "drop-down",
     "response_type": "single-select",
     "values": [
-      "Healthcare",
-      "Technology",
-      "Education",
-      "Finance",
-      "Manufacturing"
-    ],
-    "na": "Unemployed"
-  }
-}</pre>
-                </div>
-            </section>
-
-            <section id="conditional">
-                <h2>🔀 Conditional Rules</h2>
-                <p>Conditional rules enable fields to be automatically disabled based on other field values:</p>
-
-                <h3>Basic Conditional Rule</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "lifestyle.smoke_cigarette": {
-    "input_control": "radio-button",
-    "values": ["Yes", "No", "I Quit"]
-  },
-  "lifestyle.cigarettes_per_day": {
-    "input_control": "slider",
-    "values": ["1-50"],
-    "min": 1,
-    "max": 50,
-    "step": 1
-  },
-  "conditional_rules": {
-    "lifestyle.smoke_cigarette": [
-      {
-        "value": "No",
-        "disable_fields": [
-          "lifestyle.cigarettes_per_day",
-          "lifestyle.years_smoking"
-        ]
-      }
-    ]
-  }
-}</pre>
-                </div>
-
-                <h3>Multiple Conditional Rules</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "demographic.gender": {
-    "input_control": "radio-button",
-    "values": ["Male", "Female"]
-  },
-  "conditional_rules": {
-    "demographic.gender": [
-      {
-        "value": "Male",
-        "disable_fields": [
-          "medical_history.pregnancy_history",
-          "medical_history.menstrual_cycle",
-          "medical_history.menopause_status"
-        ]
-      },
-      {
-        "value": "Female",
-        "disable_fields": [
-          "medical_history.prostate_exam",
-          "medical_history.testicular_exam"
-        ]
-      }
-    ]
-  }
-}</pre>
-                </div>
-
-                <h3>Conditional Rules Structure</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Property</th>
-                            <th>Type</th>
-                            <th>Description</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>value</code></td>
-                            <td>string</td>
-                            <td>The trigger value that activates the rule</td>
-                        </tr>
-                        <tr>
-                            <td><code>disable_fields</code></td>
-                            <td>array</td>
-                            <td>List of field paths to disable when condition is met</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="tip">
-                    <strong>💡 Tip:</strong> Disabled fields are automatically set to default values (N/A, -9999, or 1900-01-01 depending on type).
-                </div>
-            </section>
-
-            <section id="examples">
-                <h2>📝 Complete Examples</h2>
-
-                <h3>Example 1: Health Survey Form</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "demographic.age": {
-    "input_control": "slider",
-    "values": ["18-100"],
-    "min": 18,
-    "max": 100,
-    "step": 1,
-    "unit": "years"
-  },
-  "demographic.gender": {
-    "input_control": "radio-button",
-    "values": [
-      { "value": "M", "label": "Male" },
-      { "value": "F", "label": "Female" },
-      { "value": "NB", "label": "Non-binary" },
-      { "value": "PNS", "label": "Prefer not to say" }
+      { "value": "S", "label": "Single"   },
+      { "value": "M", "label": "Married"  },
+      { "value": "D", "label": "Divorced" },
+      { "value": "W", "label": "Widowed"  }
     ]
   },
-  "lifestyle.smoking_status": {
-    "input_control": "radio-button",
-    "values": ["Never", "Former", "Current"]
-  },
-  "lifestyle.cigarettes_per_day": {
-    "input_control": "slider",
-    "values": ["1-60"],
-    "min": 1,
-    "max": 60,
-    "step": 1,
-    "unit": "cigarettes"
-  },
-  "lifestyle.exercise_frequency": {
+
+  "tobacco_status": {
     "input_control": "drop-down",
     "response_type": "single-select",
     "values": [
-      { "value": "0", "label": "Never" },
-      { "value": "1-2", "label": "1-2 times per week" },
-      { "value": "3-4", "label": "3-4 times per week" },
-      { "value": "5+", "label": "5+ times per week" }
+      { "value": "CURRENT", "label": "Current Smoker" },
+      { "value": "FORMER",  "label": "Former Smoker"  },
+      { "value": "NEVER",   "label": "Never Smoked"   }
     ]
   },
-  "medical_history.conditions": {
-    "input_control": "check-box",
-    "values": [
-      "Diabetes",
-      "Hypertension",
-      "Heart Disease",
-      "Asthma",
-      "Cancer",
-      "None of the above"
-    ],
-    "exclusive_values": ["None of the above"]
-  },
-  "conditional_rules": {
-    "lifestyle.smoking_status": [
-      {
-        "value": "Never",
-        "disable_fields": ["lifestyle.cigarettes_per_day"]
-      },
-      {
-        "value": "Former",
-        "disable_fields": ["lifestyle.cigarettes_per_day"]
-      }
-    ]
-  }
-}</pre>
-                </div>
 
-                <h3>Example 2: Employment Application</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "personal.name": {
-    "input_control": "text"
-  },
-  "personal.email": {
-    "input_control": "email"
-  },
-  "personal.date_of_birth": {
-    "input_control": "date-time-picker",
-    "format": "date",
-    "min": "1940-01-01",
-    "max": "2006-01-01"
-  },
-  "employment.status": {
-    "input_control": "radio-button",
-    "values": ["Employed", "Unemployed", "Student", "Retired"]
-  },
-  "employment.industry": {
+  "cig_per_day": {
     "input_control": "drop-down",
     "response_type": "single-select",
     "values": [
-      "Technology",
-      "Healthcare",
-      "Finance",
-      "Education",
-      "Manufacturing",
-      "Retail",
-      "Other"
+      { "value": "LT10",  "label": "Less than 10" },
+      { "value": "10_20", "label": "10 to 20"     },
+      { "value": "GT20",  "label": "More than 20" }
     ]
   },
-  "employment.years_experience": {
-    "input_control": "slider",
-    "values": ["0-50"],
-    "min": 0,
-    "max": 50,
-    "step": 1,
-    "unit": "years"
+
+  "smoking_start_year": {
+    "input_control": "drop-down",
+    "response_type": "single-select",
+    "values": ["1940-2024"]
   },
-  "skills.programming_languages": {
+
+  "chronic_conditions": {
     "input_control": "check-box",
     "values": [
-      { "value": "python", "label": "Python" },
-      { "value": "javascript", "label": "JavaScript" },
-      { "value": "java", "label": "Java" },
-      { "value": "cpp", "label": "C++" },
-      { "value": "csharp", "label": "C#" },
-      { "value": "go", "label": "Go" },
-      { "value": "rust", "label": "Rust" }
+      { "value": "DIA",  "label": "Diabetes"     },
+      { "value": "HTN",  "label": "Hypertension" },
+      { "value": "ASTH", "label": "Asthma"       },
+      { "value": "NONE", "label": "None"         },
+      { "value": "UNK",  "label": "Unknown"      }
     ],
-    "na": "None"
+    "exclusive_values": ["NONE", "UNK"]
   },
-  "availability.start_date": {
-    "input_control": "date-time-picker",
-    "format": "date",
-    "min": "2024-01-01"
-  },
-  "conditional_rules": {
-    "employment.status": [
-      {
-        "value": "Unemployed",
-        "disable_fields": [
-          "employment.industry",
-          "employment.years_experience"
-        ]
-      },
-      {
-        "value": "Student",
-        "disable_fields": [
-          "employment.industry",
-          "employment.years_experience"
-        ]
-      },
-      {
-        "value": "Retired",
-        "disable_fields": [
-          "employment.industry"
-        ]
-      }
-    ]
-  }
+
+  "has_diabetes":    { "input_control": "radio-button", "values": { "$ref": "#/_lists/yesNoUnknown" } },
+  "has_hypertension":{ "input_control": "radio-button", "values": { "$ref": "#/_lists/yesNoUnknown" } }
 }</pre>
-                </div>
 
-                <h3>Example 3: Medical Assessment with Dependencies</h3>
-                <div class="code-block">
-                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-                    <pre>{
-  "patient.gender_at_birth": {
-    "input_control": "radio-button",
-    "values": ["Male", "Female"]
-  },
-  "patient.age": {
-    "input_control": "slider",
-    "values": ["18-100"],
-    "min": 18,
-    "max": 100,
-    "step": 1,
-    "unit": "years"
-  },
-  "symptoms.pain_level": {
-    "input_control": "slider",
-    "values": [
-      { "value": "0", "label": "No Pain" },
-      { "value": "2", "label": "Mild" },
-      { "value": "5", "label": "Moderate" },
-      { "value": "8", "label": "Severe" },
-      { "value": "10", "label": "Worst" }
-    ],
-    "min": 0,
-    "max": 10,
-    "step": 1
-  },
-  "medical_history.cancer_history": {
-    "input_control": "radio-button",
-    "values": ["Yes", "No"]
-  },
-  "medical_history.cancer_types": {
-    "input_control": "check-box",
-    "values": [
-      "Breast Cancer",
-      "Prostate Cancer",
-      "Lung Cancer",
-      "Colorectal Cancer",
-      "Skin Cancer",
-      "None"
-    ],
-    "dependent_values": {
-      "patient.gender_at_birth": {
-        "Male": [
-          "Prostate Cancer",
-          "Lung Cancer",
-          "Colorectal Cancer",
-          "Skin Cancer",
-          "None"
-        ],
-        "Female": [
-          "Breast Cancer",
-          "Lung Cancer",
-          "Colorectal Cancer",
-          "Skin Cancer",
-          "Ovarian Cancer",
-          "Cervical Cancer",
-          "None"
-        ]
-      }
-    },
-    "exclusive_values": ["None"]
-  },
-  "appointment.preferred_date": {
-    "input_control": "date-time-picker",
-    "format": "datetime-local",
-    "min": "2024-01-10T08:00",
-    "max": "2024-12-31T17:00"
-  },
-  "conditional_rules": {
-    "medical_history.cancer_history": [
-      {
-        "value": "No",
-        "disable_fields": ["medical_history.cancer_types"]
-      }
-    ],
-    "patient.gender_at_birth": [
-      {
-        "value": "Male",
-        "disable_fields": [
-          "medical_history.pregnancy_history",
-          "medical_history.mammogram_date"
-        ]
-      },
-      {
-        "value": "Female",
-        "disable_fields": [
-          "medical_history.prostate_exam_date"
-        ]
-      }
-    ]
-  }
-}</pre>
-                </div>
-            </section>
+<h1 id="s13">13. Validation &amp; Troubleshooting</h1>
+<p>When an options file loads, the app validates all field keys against the schema. Missing keys trigger a scrollable warning dialog.</p>
+<table>
+<tr><th>Symptom</th><th>Likely Cause &amp; Fix</th></tr>
+<tr><td>Field still shows as plain text</td><td>Key mismatch — check exact dot-notation path. Keys are case-sensitive.</td></tr>
+<tr><td>Dependent field does not update</td><td>The trigger key in <code>dependent_values</code> must match the schema field path exactly.</td></tr>
+<tr><td>Value not found when loading data</td><td>Data contains a value not in <code>values[]</code>. Field highlights red. Add it to <code>values[]</code> or <code>disable_values[]</code>.</td></tr>
+<tr><td>exclusive_values not working</td><td>Entries must match value <em>codes</em>, not label strings.</td></tr>
+<tr><td>Validation warning: key not in schema</td><td>Field path does not exist in schema. Check spelling, nesting, and case.</td></tr>
+<tr><td>Conditional rule not disabling field</td><td>The rule's <code>value</code> must match the stored code, not the label.</td></tr>
+</table>
 
-            <section>
-                <h2>✅ Best Practices</h2>
-                
-                <div class="feature-card">
-                    <h4>1. Choose the Right Input Control</h4>
-                    <ul>
-                        <li><strong>Drop-down:</strong> 8+ options, limited space</li>
-                        <li><strong>Radio buttons:</strong> 2-7 options, mutually exclusive</li>
-                        <li><strong>Check boxes:</strong> Multiple selections needed, <10 options</li>
-                        <li><strong>Slider:</strong> Numeric ranges or ordered scales</li>
-                        <li><strong>Date-time picker:</strong> Any date/time input</li>
-                    </ul>
-                </div>
+<h1 id="s14">14. Quick Reference</h1>
+<table>
+<tr><th>input_control</th><th>response_type</th><th>Stores</th><th>Typical Use</th></tr>
+<tr><td><code>drop-down</code></td><td><code>single-select</code></td><td>string</td><td>One choice from a list</td></tr>
+<tr><td><code>drop-down</code></td><td><code>multi-select</code></td><td>array</td><td>Multiple choices</td></tr>
+<tr><td><code>check-box</code></td><td>(ignored)</td><td>array</td><td>Checkbox list, always multi</td></tr>
+<tr><td><code>radio-button</code></td><td>(ignored)</td><td>string</td><td>Exclusive single choice</td></tr>
+<tr><td><code>slider</code></td><td>(ignored)</td><td>number</td><td>Numeric range selection</td></tr>
+<tr><td><code>date-time-picker</code></td><td>(ignored)</td><td>string</td><td>Date, datetime, or time</td></tr>
+</table>
 
-                <div class="feature-card">
-                    <h4>2. Use Value/Label Pairs When Needed</h4>
-                    <p>Use objects with <code>value</code> and <code>label</code> when:</p>
-                    <ul>
-                        <li>Stored value differs from display text (e.g., "US" vs "United States")</li>
-                        <li>Adding icons or emojis to labels</li>
-                        <li>Creating more descriptive display text</li>
-                    </ul>
-                </div>
+  </div><!-- .wrap -->
+</div><!-- #main -->
 
-                <div class="feature-card">
-                    <h4>3. Leverage Conditional Rules</h4>
-                    <p>Use conditional rules to:</p>
-                    <ul>
-                        <li>Simplify complex forms</li>
-                        <li>Prevent invalid data combinations</li>
-                        <li>Improve user experience by hiding irrelevant fields</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <h4>4. Use Dependent Values for Dynamic Forms</h4>
-                    <p>Dependent values are perfect for:</p>
-                    <ul>
-                        <li>Gender-specific medical fields</li>
-                        <li>Country-specific state/province lists</li>
-                        <li>Category-specific subcategories</li>
-                    </ul>
-                </div>
-
-                <div class="feature-card">
-                    <h4>5. Validate Your Options File</h4>
-                    <p>Always validate your options file against your schema:</p>
-                    <ul>
-                        <li>Use the built-in validation when loading files</li>
-                        <li>Ensure all field paths match schema exactly</li>
-                        <li>Test conditional rules thoroughly</li>
-                    </ul>
-                </div>
-            </section>
-
-            <section>
-                <h2>🔍 Troubleshooting</h2>
-
-                <h3>Common Issues</h3>
-
-                <div class="warning">
-                    <strong>Issue:</strong> Field not showing custom options<br>
-                    <strong>Solution:</strong> Verify field path exactly matches schema path (case-sensitive)
-                </div>
-
-                <div class="warning">
-                    <strong>Issue:</strong> Conditional rules not working<br>
-                    <strong>Solution:</strong> Check that trigger field values match exactly (including whitespace)
-                </div>
-
-                <div class="warning">
-                    <strong>Issue:</strong> Dependent values not updating<br>
-                    <strong>Solution:</strong> Ensure dependent field name matches trigger field path exactly
-                </div>
-
-                <div class="warning">
-                    <strong>Issue:</strong> Slider not displaying correctly<br>
-                    <strong>Solution:</strong> Verify min, max, and step values are numeric and logical
-                </div>
-
-                <div class="warning">
-                    <strong>Issue:</strong> Date picker not restricting dates<br>
-                    <strong>Solution:</strong> Check min/max format matches the picker format type
-                </div>
-            </section>
-
-            <section>
-                <h2>📚 Additional Resources</h2>
-                <ul style="line-height: 2;">
-                    <li>JSON Schema Documentation: <a href="https://json-schema.org/" target="_blank">json-schema.org</a></li>
-                    <li>JSON Validator: <a href="https://jsonlint.com/" target="_blank">jsonlint.com</a></li>
-                    <li>MDN Input Types Reference: <a href="https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input" target="_blank">MDN Web Docs</a></li>
-                </ul>
-            </section>
-        </div>
-
-        <footer>
-            <p>&copy; 2024 JSON Data Builder | Documentation v2.5</p>
-        </footer>
-    </div>
-
-    <a href="#" class="back-to-top" id="backToTop">↑</a>
-
-    <script>
-        // Copy code functionality
-        function copyCode(button) {
-            const codeBlock = button.nextElementSibling;
-            const code = codeBlock.textContent;
-            
-            navigator.clipboard.writeText(code).then(() => {
-                const originalText = button.textContent;
-                button.textContent = 'Copied!';
-                button.style.background = '#28a745';
-                
-                setTimeout(() => {
-                    button.textContent = originalText;
-                    button.style.background = '#667eea';
-                }, 2000);
-            });
-        }
-
-        // Back to top button
-        const backToTop = document.getElementById('backToTop');
-        
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 300) {
-                backToTop.classList.add('visible');
-            } else {
-                backToTop.classList.remove('visible');
-            }
-        });
-
-        backToTop.addEventListener('click', (e) => {
-            e.preventDefault();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        });
-
-        // Smooth scroll for navigation links
-        document.querySelectorAll('nav a').forEach(anchor => {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                const target = document.querySelector(this.getAttribute('href'));
-                if (target) {
-                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }
-            });
-        });
-    </script>
+<script>
+// Highlight active sidebar link on scroll
+const heads=document.querySelectorAll('h1[id]');
+const links=document.querySelectorAll('#sidebar nav a');
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){
+      links.forEach(l=>l.classList.remove('active'));
+      const a=document.querySelector('#sidebar nav a[href="#'+e.target.id+'"]');
+      if(a)a.classList.add('active');
+    }
+  });
+},{rootMargin:'-10% 0px -80% 0px'});
+heads.forEach(h=>obs.observe(h));
+// Close sidebar on mobile link click
+links.forEach(l=>l.addEventListener('click',()=>document.getElementById('sidebar').classList.remove('open')));
+</script>
 </body>
 </html>

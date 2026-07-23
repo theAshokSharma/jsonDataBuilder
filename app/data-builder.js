@@ -13,7 +13,7 @@ import { getCurrentUser, setCurrentUser } from './schema-registry.js';
 import { initProfileManager, attachProfileButton } from './profile-manager.js';
 
 // Initialize on page load
-console.log('JSON Data Builder Loaded - Version 3.15`');
+console.log('JSON Data Builder Loaded - Version 3.15.1`');
 
 
 // Button event listeners
